@@ -1,0 +1,5 @@
+# External dependencies for markdown support
+markdown==3.5.1
+
+# No other external dependencies required - uses only Python standard library
+# Python 3.7+ is required for dataclasses and type hints
