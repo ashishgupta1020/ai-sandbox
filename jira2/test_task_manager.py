@@ -3,7 +3,8 @@ import os
 import json
 from io import StringIO
 from contextlib import redirect_stdout
-from jira2.task_manager import ProjectManager, Project, Task
+from jira2.task_manager import ProjectManager, Project
+from jira2.task import Task
 
 class TestTaskManager(unittest.TestCase):
     TEST_PROJECT = "TestProject"
