@@ -15,25 +15,42 @@ This is a simple command-line project and task management tool implemented in Py
   - List all tasks in a project (pretty table view)
   - Edit tasks (summary, assignee, remarks, status, priority)
   - Tasks are stored in `<project_name>_tasks.json`
+  - Export tasks to Markdown (`tasks_export.md`)
 
 - **Interactive CLI**
   - User-friendly menus for project and task operations
   - Input validation and helpful prompts
+  - Interactive selection for status and priority
+
+- **Remarks Field**
+  - Remarks field accepts any text, including markdown syntax, but does not render markdown
+
+- **Status Levels**
+  - Not Started, In Progress, Completed
+
+- **Priority Levels**
+  - Low, Medium, High
+
+- **Data Storage**
+  - All data is stored locally in JSON files per project
+  - Exported Markdown file for tasks
 
 ## How It Works
 
 - When you open or create a project, its name is saved in `projects.json`.
 - Each project has its own task file named `<project_name>_tasks.json`.
-- Tasks have the following fields: summary, assignee, remarks, status (Not Started/In Progress/Completed), and priority (Low/Medium/High).
+- Tasks have the following fields: summary, assignee, remarks (any text), status (Not Started/In Progress/Completed), and priority (Low/Medium/High).
 - All data is stored locally in JSON format for easy access and modification.
+- You can export all tasks to a Markdown file for sharing or documentation.
 
 ## Usage
 
 1. Run the main script:
-   ```bash
-   python jira2/task_manager.py
-   ```
+  ```bash
+  python3 task_manager.py
+  ```
 2. Follow the on-screen prompts to manage projects and tasks.
+3. Use the interactive CLI to add, list, edit, switch, and export tasks.
 
 ## Requirements
 
@@ -50,6 +67,7 @@ pip install prettytable
 - `task_manager.py`: Main CLI and logic for project/task management
 - `projects.json`: List of all project names
 - `<project_name>_tasks.json`: Tasks for each project
+- `tasks_export.md`: Markdown export of all tasks in a project
 
 ## Example
 
@@ -79,7 +97,8 @@ Current Project: DemoProject
 3. Edit a task in the current project
 4. List all projects
 5. Switch project
-6. Exit
+6. Export tasks to Markdown
+7. Exit
 ------------------------------
 Enter your choice: 1
 Adding a new task:
@@ -146,6 +165,12 @@ Select new priority:
 Enter the number corresponding to the new priority (leave blank to keep current):
 
 Task updated successfully.
+```
+
+### Exporting Tasks to Markdown
+```
+Enter your choice: 6
+Tasks exported to Markdown file: 'tasks_export.md'
 ```
 
 ## License
