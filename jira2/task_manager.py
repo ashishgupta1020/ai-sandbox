@@ -151,6 +151,39 @@ class Project:
         self.save_tasks_to_file()
         print("Task updated successfully.")
 
+
+    def export_tasks_to_markdown(self) -> str:
+        """
+        Export all tasks of the project into a Markdown table.
+        Returns the Markdown string.
+        """
+        if not self.tasks:
+            return "No tasks found in this project."
+
+        headers = ["Index", "Summary", "Assignee", "Status", "Priority", "Remarks"]
+        md = "| " + " | ".join(headers) + " |\n"
+        # Proper separator row for Markdown tables
+        md += "| " + " | ".join(["---"] * len(headers)) + " |\n"
+        for idx, task in enumerate(self.tasks, start=1):
+            row = [
+                str(idx),
+                task.summary.replace("|", "\\|"),
+                task.assignee.replace("|", "\\|"),
+                task.status.replace("|", "\\|"),
+                task.priority.replace("|", "\\|"),
+                task.remarks.replace("|", "\\|"),
+            ]
+            md += "| " + " | ".join(row) + " |\n"
+        return md
+
+    def export_tasks_to_markdown_file(self, filename: str = "tasks_export.md") -> None:
+        """
+        Export all tasks to a markdown file.
+        """
+        md_output = self.export_tasks_to_markdown()
+        with open(filename, "w") as md_file:
+            md_file.write(md_output)
+        print(f"\nTasks exported to Markdown file: '{filename}'")
 class Task:
     def __init__(self, summary: str, assignee: str, remarks: str, status: str, priority: str) -> None:
         # Initialize a Task object
@@ -266,7 +299,8 @@ def main_cli() -> None:
         print("3. Edit a task in the current project")
         print("4. List all projects")
         print("5. Switch project")
-        print("6. Exit")
+        print("6. Export tasks to Markdown")
+        print("7. Exit")
         print("-" * 30)
         choice = input("Enter your choice: ")
 
@@ -301,6 +335,8 @@ def main_cli() -> None:
             current_project = Project(project_name)
             print(f"\nSwitched to project: '{current_project.name}'")
         elif choice == "6":
+            current_project.export_tasks_to_markdown_file()
+        elif choice == "7":
             print("\nExiting Task Manager. Goodbye!")
             break
         else:

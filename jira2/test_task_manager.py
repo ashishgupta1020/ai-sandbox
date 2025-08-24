@@ -183,7 +183,7 @@ class TestTaskManager(unittest.TestCase):
     def test_main_cli_open_project_and_exit(self):
         # Simulate opening a project and then exiting from project menu
         import builtins
-        user_inputs = ["2", self.CLI_PROJECT, "6"]  # Open project, then exit
+        user_inputs = ["2", self.CLI_PROJECT, "7"]  # Open project, then exit
         def mock_input(prompt):
             return user_inputs.pop(0)
         original_input = builtins.input
@@ -208,7 +208,7 @@ class TestTaskManager(unittest.TestCase):
             "3", "1", "Task1 edited", "User1 edited", "Remark1 edited", "2", "2",  # Edit task
             "4",  # List all projects
             "5", self.PROJECT_B,  # Switch project
-            "6"   # Exit
+            "7"   # Exit
         ]
         def mock_input(prompt):
             return user_inputs.pop(0)
@@ -236,7 +236,7 @@ class TestTaskManager(unittest.TestCase):
         user_inputs = [
             "2", self.PROJECT_C,  # Open project
             "1", "Task2", "User2", "Remark2", "1", "1",  # Add task
-            "3", "invalid", "6"  # Edit task with invalid index, then exit
+            "3", "invalid", "7"  # Edit task with invalid index, then exit
         ]
         def mock_input(prompt):
             return user_inputs.pop(0)
@@ -251,6 +251,40 @@ class TestTaskManager(unittest.TestCase):
             self.assertIn("Exiting Task Manager. Goodbye!", output)
         finally:
             builtins.input = original_input
+
+    def test_main_cli_export_tasks_to_markdown(self):
+        # Simulate CLI: open project, add task, export to Markdown, exit
+        import builtins
+        user_inputs = [
+            "2", self.CLI_PROJECT,  # Open project
+            "1", "CLI Summary", "CLI Assignee", "CLI Remarks", "2", "2",  # Add task
+            "6",  # Export to Markdown
+            "7"   # Exit
+        ]
+        def mock_input(prompt):
+            return user_inputs.pop(0)
+        original_input = builtins.input
+        builtins.input = mock_input
+        from jira2 import task_manager
+        try:
+            with StringIO() as buf, redirect_stdout(buf):
+                task_manager.main_cli()
+                output = buf.getvalue()
+            self.assertIn("Tasks exported to Markdown file: 'tasks_export.md'", output)
+            # Check that the file was created and contains expected Markdown
+            self.assertTrue(os.path.exists("tasks_export.md"))
+            with open("tasks_export.md", "r") as f:
+                md = f.read()
+            self.assertIn("| Index | Summary | Assignee | Status | Priority | Remarks |", md)
+            self.assertIn("CLI Summary", md)
+            self.assertIn("CLI Assignee", md)
+            self.assertIn("In Progress", md)
+            self.assertIn("Medium", md)
+            self.assertIn("CLI Remarks", md)
+        finally:
+            builtins.input = original_input
+            if os.path.exists("tasks_export.md"):
+                os.remove("tasks_export.md")
 
 if __name__ == "__main__":
     unittest.main()
