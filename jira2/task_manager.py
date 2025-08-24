@@ -7,7 +7,8 @@ class ProjectManager:
     PROJECTS_FILE = "projects.json"
 
     @staticmethod
-    def save_project_name(project_name):
+    def save_project_name(project_name: str) -> None:
+        # Save a new project name to the projects file if not already present
         projects = ProjectManager.load_project_names()
         if project_name not in projects:
             projects.append(project_name)
@@ -15,14 +16,16 @@ class ProjectManager:
                 json.dump(projects, file, indent=4)
 
     @staticmethod
-    def load_project_names():
+    def load_project_names() -> list[str]:
+        # Load all project names from the projects file
         if os.path.exists(ProjectManager.PROJECTS_FILE):
             with open(ProjectManager.PROJECTS_FILE, "r") as file:
                 return json.load(file)
         return []
 
     @staticmethod
-    def list_projects():
+    def list_projects() -> None:
+        # Print all available projects
         projects = ProjectManager.load_project_names()
         if not projects:
             print("No projects found.")
@@ -33,41 +36,47 @@ class ProjectManager:
 
 
 class Project:
-    def __init__(self, name):
+    def __init__(self, name: str) -> None:
         self.name = name
         self.tasks = []
-        self.file = open(f"{self.name}_tasks.json", "a+")  # Open file in append mode
+        # Open the task file for this project in append+read mode
+        self.file = open(f"{self.name}_tasks.json", "a+")
         self.file.seek(0)  # Move to the beginning of the file
         self.load_tasks_from_file()
 
-    def __del__(self):
-        self.file.close()  # Ensure the file is closed when the program ends
+    def __del__(self) -> None:
+        # Ensure the file is closed when the object is deleted
+        self.file.close()
 
-    def save_tasks_to_file(self):
-        self.file.seek(0)  # Move to the beginning of the file
-        self.file.truncate()  # Clear the file content
+    def save_tasks_to_file(self) -> None:
+        # Save all tasks to the project's task file
+        self.file.seek(0)
+        self.file.truncate()
         json.dump([task.to_dict() for task in self.tasks], self.file, indent=4)
-        self.file.flush()  # Ensure data is written to disk
+        self.file.flush()
 
-    def load_tasks_from_file(self):
+    def load_tasks_from_file(self) -> None:
+        # Load all tasks from the project's task file
         try:
-            self.file.seek(0)  # Move to the beginning of the file
+            self.file.seek(0)
             tasks_data = json.load(self.file)
             self.tasks = [Task.from_dict(data) for data in tasks_data]
         except json.JSONDecodeError:
             self.tasks = []  # Handle empty or invalid JSON
 
-    def add_task(self, task):
+    def add_task(self, task: 'Task') -> None:
+        # Add a new task and save to file
         self.tasks.append(task)
         self.save_tasks_to_file()
 
-    def list_tasks(self):
+    def list_tasks(self) -> None:
+        # Print all tasks in a pretty table
         if not self.tasks:
             print("No tasks found in this project.")
         else:
             print(f"Tasks in project '{self.name}':")
             table = PrettyTable(["Index", "Summary", "Assignee", "Status", "Priority", "Remarks"])
-            table.align = "l"  # Set alignment for all columns to left
+            table.align = "l"
 
             for idx, task in enumerate(self.tasks, start=1):
                 wrapped_summary = textwrap.fill(task.summary, width=40)
@@ -84,10 +93,10 @@ class Project:
                     wrapped_priority,
                     wrapped_remarks
                 ])
-            
             print(table)
 
-    def edit_task(self, task_index):
+    def edit_task(self, task_index: int) -> None:
+        # Edit an existing task by index
         if task_index < 1 or task_index > len(self.tasks):
             print("Invalid task index.")
             return
@@ -109,6 +118,7 @@ class Project:
         if new_remarks:
             task.remarks = new_remarks
 
+        # Status selection
         status_options = ["Not Started", "In Progress", "Completed"]
         print(f"Current Status: {task.status}")
         print("Select new status:")
@@ -123,6 +133,7 @@ class Project:
         if new_status:
             task.status = status_options[new_status - 1]
 
+        # Priority selection
         priority_options = ["Low", "Medium", "High"]
         print(f"Current Priority: {task.priority}")
         print("Select new priority:")
@@ -140,28 +151,17 @@ class Project:
         self.save_tasks_to_file()
         print("Task updated successfully.")
 
-    def save_tasks_to_file(self):
-        with open(f"{self.name}_tasks.json", "w") as file:
-            json.dump([task.to_dict() for task in self.tasks], file, indent=4)
-
-    def load_tasks_from_file(self):
-        try:
-            with open(f"{self.name}_tasks.json", "r") as file:
-                tasks_data = json.load(file)
-                self.tasks = [Task.from_dict(data) for data in tasks_data]
-        except FileNotFoundError:
-            self.tasks = []
-
-
 class Task:
-    def __init__(self, summary, assignee, remarks, status, priority):
+    def __init__(self, summary: str, assignee: str, remarks: str, status: str, priority: str) -> None:
+        # Initialize a Task object
         self.summary = summary
         self.assignee = assignee
         self.remarks = remarks
         self.status = status
         self.priority = priority
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
+        # Convert the Task object to a dictionary for JSON serialization
         return {
             "summary": self.summary,
             "assignee": self.assignee,
@@ -171,7 +171,8 @@ class Task:
         }
 
     @classmethod
-    def from_dict(cls, data):
+    def from_dict(cls, data: dict) -> 'Task':
+        # Create a Task object from a dictionary
         return cls(
             summary=data["summary"],
             assignee=data["assignee"],
@@ -183,15 +184,18 @@ class Task:
 
 class Interaction:
     @staticmethod
-    def get_project_name():
+    def get_project_name() -> str:
+        # Prompt user for project name
         return input("Enter the project name: ")
 
     @staticmethod
-    def get_task_details():
+    def get_task_details() -> 'Task':
+        # Prompt user for all task details and return a Task object
         summary = input("Enter the task summary: ")
         assignee = input("Enter the assignee: ")
         remarks = input("Enter remarks: ")
 
+        # Status selection
         status_options = ["Not Started", "In Progress", "Completed"]
         print("Select the status of the task:")
         for idx, option in enumerate(status_options, start=1):
@@ -204,6 +208,7 @@ class Interaction:
                 pass
         status = status_options[status - 1]
 
+        # Priority selection
         priority_options = ["Low", "Medium", "High"]
         print("Select the priority of the task:")
         for idx, option in enumerate(priority_options, start=1):
@@ -219,7 +224,8 @@ class Interaction:
         return Task(summary, assignee, remarks, status, priority)
 
 
-def main():
+def main_cli() -> None:
+    # Main entry point for the CLI application
     interaction = Interaction()
     current_project = None
 
@@ -301,4 +307,4 @@ def main():
             print("\nInvalid choice. Please try again.")
 
 if __name__ == "__main__":
-    main()
+    main_cli()
