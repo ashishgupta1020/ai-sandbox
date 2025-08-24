@@ -1,374 +1,153 @@
-# JIRA-like Task Manager
+# Jira2 Task Manager
 
-A Python command-line application for managing tasks per project, similar to JIRA. Each task includes the following columns:
-- **Summary**: Brief description of the task
-- **Assignee**: Person responsible for the task
-- **Remarks**: Additional notes or comments
-- **Priority**: Task priority level (Low, Medium, High, Critical)
-- **Status**: Task status (To Do, In Progress, Review, Done, Blocked, Cancelled)
-- **Tags**: Categorization labels for the task
+This is a simple command-line project and task management tool implemented in Python. It allows you to manage multiple projects and their associated tasks, with persistent storage using JSON files.
 
 ## Features
 
-- **Project Management**: Create, list, and delete projects
-- **Task Management**: Create, view, update, and delete tasks within projects
-- **Status Management**: Track task status (To Do, In Progress, Review, Done, Blocked, Cancelled)
-- **Filtering**: Filter tasks by assignee, priority, status, and tags
-- **Persistent Storage**: Data is saved to JSON files
-- **Interactive Interface**: User-friendly command-line interface
-- **Task IDs**: Automatic generation of unique task IDs per project
-- **Markdown Support**: Remarks support markdown formatting (bold, italic, code, lists, etc.)
+- **Project Management**
+  - List all projects
+  - Create/open a project
+  - Switch between projects
+  - Projects are stored in `projects.json`
 
-## Requirements
+- **Task Management**
+  - Add tasks to a project
+  - List all tasks in a project (pretty table view)
+  - Edit tasks (summary, assignee, remarks, status, priority)
+  - Tasks are stored in `<project_name>_tasks.json`
 
-- Python 3.7 or higher
-- External dependencies: `markdown` library (install with `pip install markdown`)
+- **Interactive CLI**
+  - User-friendly menus for project and task operations
+  - Input validation and helpful prompts
 
-## Installation
+## How It Works
 
-1. Clone or download the project files
-2. Ensure you have Python 3.7+ installed
-3. Install dependencies: `pip install -r requirements.txt`
+- When you open or create a project, its name is saved in `projects.json`.
+- Each project has its own task file named `<project_name>_tasks.json`.
+- Tasks have the following fields: summary, assignee, remarks, status (Not Started/In Progress/Completed), and priority (Low/Medium/High).
+- All data is stored locally in JSON format for easy access and modification.
 
 ## Usage
 
-### Starting the Application
+1. Run the main script:
+   ```bash
+   python jira2/task_manager.py
+   ```
+2. Follow the on-screen prompts to manage projects and tasks.
 
+## Requirements
+
+- Python 3.9+
+- `prettytable` package
+
+Install dependencies:
 ```bash
-python task_manager.py
-```
-
-### Available Commands
-
-#### Project Management
-
-- `create-project <project_name>` - Create a new project
-- `list-projects` - List all projects with task counts
-- `delete-project <project_name>` - Delete a project and all its tasks
-
-#### Task Management
-
-- `create-task <project_name>` - Create a new task (interactive)
-- `list-tasks <project_name>` - List all tasks in a project
-- `list-tasks <project_name> --assignee <name> --priority <level> --status <status> --tags <tag1,tag2>` - List tasks with filters
-- `view-task <project_name> <task_id>` - View detailed task information
-- `update-task <project_name> <task_id>` - Update a task (interactive)
-- `delete-task <project_name> <task_id>` - Delete a task
-
-#### General
-
-- `help` - Show help information
-- `exit` - Exit the application
-
-### Priority Levels
-
-- **Low** - Low priority tasks
-- **Medium** - Medium priority tasks  
-- **High** - High priority tasks
-- **Critical** - Critical priority tasks
-
-### Status Levels
-
-- **To Do** - Tasks that haven't been started
-- **In Progress** - Tasks currently being worked on
-- **Review** - Tasks ready for review/testing
-- **Done** - Completed tasks
-- **Blocked** - Tasks blocked by dependencies or issues
-- **Cancelled** - Tasks that have been cancelled
-
-## Examples
-
-### Creating a Project
-
-```
-> create-project "Web Application"
-Project 'Web Application' created successfully.
-```
-
-### Creating a Task
-
-```
-> create-task "Web Application"
-
-=== Creating Task in Project: Web Application ===
-Summary: Implement user authentication
-Assignee: John Doe
-Remarks (supports markdown, press Enter twice to finish):
-Examples: **bold**, *italic*, `code`, - lists, > quotes, - [ ] checkboxes
-  # Authentication Implementation
-  
-  ## Overview
-  Use **JWT tokens** for secure authentication with refresh mechanism.
-  
-  ## Tasks
-  - [ ] Add password validation
-  - [x] Set up token storage
-  - [ ] Implement refresh tokens
-  - [ ] Add rate limiting
-  
-  ## Code Example
-  ```javascript
-  const token = jwt.sign(payload, secret, { expiresIn: '1h' });
-  ```
-  
-  ## Notes
-  *Important*: Follow OAuth 2.0 standards
-  > Remember to test thoroughly in staging environment
-  
-Priority levels:
-1. Low
-2. Medium
-3. High
-4. Critical
-Select priority (1-4): 3
-Tags (comma-separated): auth, security, frontend
-Task '1' created successfully in project 'Web Application'.
-```
-
-### Listing Tasks
-
-```
-> list-tasks "Web Application"
-
-=== Tasks in Project: Web Application ===
-ID              Summary                         Assignee        Priority   Status     Tags
-----------------------------------------------------------------------------------------------------
-1               Implement user authentication  John Doe        High       To Do      auth, security, frontend
-2               Design database schema         Jane Smith      Medium      To Do      database, design
-```
-
-### Filtering Tasks
-
-```
-> list-tasks "Web Application" --assignee "John" --priority "High" --status "In Progress"
-
-=== Tasks in Project: Web Application ===
-ID              Summary                         Assignee        Priority   Status     Tags
-----------------------------------------------------------------------------------------------------
-1               Implement user authentication  John Doe        High       In Progress auth, security, frontend
-```
-
-### Viewing Task Details
-
-```
-> view-task "Web Application" "1"
-
-=== Task Details: 1 ===
-Summary: Implement user authentication
-Assignee: John Doe
-Priority: High
-Status: To Do
-Tags: auth, security, frontend
-Remarks:
-  Authentication Implementation
-  
-  Overview
-  
-  Use **JWT tokens** for secure authentication with refresh mechanism.
-  
-  Tasks
-  
-  • Add password validation
-  • Set up token storage
-  • Implement refresh tokens
-  • Add rate limiting
-  
-  Code Example
-  
-  `const token = jwt.sign(payload, secret, { expiresIn: '1h' });`
-  
-  Notes
-  
-  *Important*: Follow OAuth 2.0 standards
-  > Remember to test thoroughly in staging environment
-Created: 2024-01-15T10:30:00.123456
-Updated: 2024-01-15T10:30:00.123456
-```
-
-### Updating a Task
-
-```
-> update-task "Web Application" "1"
-
-=== Updating Task: 1 ===
-Press Enter to keep current value.
-Summary [Implement user authentication]: Implement JWT authentication
-Assignee [John Doe]: 
-Remarks [Use JWT tokens for authentication]: Use JWT tokens with refresh token mechanism
-
-Current priority: High
-Priority levels:
-1. Low
-2. Medium
-3. High
-4. Critical
-Select priority (1-4) or press Enter to keep current: 
-Tags [auth, security, frontend]: auth, security, frontend, jwt
-Status [To Do]: In Progress
-Task '1' updated successfully.
-```
-
-## Data Storage
-
-Tasks are stored in a `tasks.json` file in the same directory as the application. The file structure is:
-
-```json
-{
-  "Project Name": {
-    "1": {
-      "id": "1",
-      "summary": "Task summary",
-      "assignee": "Assignee name",
-      "remarks": "Task remarks",
-      "priority": "High",
-      "tags": ["tag1", "tag2"],
-      "created_at": "2024-01-15T10:30:00.123456",
-      "updated_at": "2024-01-15T10:30:00.123456",
-      "status": "To Do"
-    }
-  }
-}
+pip install prettytable
 ```
 
 ## File Structure
 
+- `task_manager.py`: Main CLI and logic for project/task management
+- `projects.json`: List of all project names
+- `<project_name>_tasks.json`: Tasks for each project
+
+## Example
+
+### Creating and Opening a Project
 ```
-.
-├── task_manager.py        # Main application file
-├── models.py             # Data models and enums
-├── markdown_utils.py     # Markdown rendering utilities
-├── interactive.py        # Interactive user input functions
-├── cli.py               # Command-line interface helpers
-├── test_task_manager.py  # Comprehensive unit tests
-├── run_tests.py         # Test runner script
-├── requirements.txt     # Dependencies
-├── README.md           # This file
-└── tasks.json          # Data file (created automatically)
-```
-
-## Testing
-
-The application includes comprehensive unit tests to ensure reliability and functionality.
-
-### Running Tests
-
-```bash
-# Run all tests
-python3 test_task_manager.py
-
-# Or use the test runner
-python3 run_tests.py
-
-# Run specific test class
-python3 -m unittest test_task_manager.TestTaskManager
-
-# Run specific test method
-python3 -m unittest test_task_manager.TestTaskManager.test_create_project
+Welcome to the Task Manager!
+==============================
+Main Menu:
+------------------------------
+1. List all projects
+2. Open a project
+3. Exit
+------------------------------
+Enter your choice: 2
+Enter the project name: DemoProject
+Opened project: 'DemoProject'
 ```
 
-### Test Coverage
-
-The test suite covers:
-- **Priority Enum**: All priority values and validation
-- **Status Enum**: All status values and validation
-- **Task Dataclass**: Task creation and default values
-- **Markdown Rendering**: All markdown features and edge cases
-- **TaskManager Class**: All CRUD operations
-  - Project management (create, list, delete)
-  - Task management (create, read, update, delete)
-  - Task filtering (by assignee, priority, status, tags)
-  - Data persistence (save/load)
-  - Error handling
-- **Interactive Functions**: User input validation
-- **CLI Functions**: Command parsing and help system
-- **Edge Cases**: Corrupted data, missing files, invalid inputs
-
-### Test Results
-
+### Adding a Task
 ```
-Tests run: 44
-Failures: 0
-Errors: 0
-Success rate: 100.0%
-```
+Project Menu:
+==============================
+Current Project: DemoProject
+------------------------------
+1. Add a task to the current project
+2. List all tasks in the current project
+3. Edit a task in the current project
+4. List all projects
+5. Switch project
+6. Exit
+------------------------------
+Enter your choice: 1
+Adding a new task:
+------------------------------
+Enter the task summary: Implement login
+Enter the assignee: Alice
+Enter remarks: Initial implementation
+Select the status of the task:
+1. Not Started
+2. In Progress
+3. Completed
+Enter the number corresponding to the status: 2
+Select the priority of the task:
+1. Low
+2. Medium
+3. High
+Enter the number corresponding to the priority: 3
 
-## Error Handling
-
-The application includes comprehensive error handling for:
-- Invalid project names
-- Non-existent tasks
-- Invalid priority levels
-- File I/O errors
-- JSON parsing errors
-
-## Markdown Support
-
-The task manager supports comprehensive markdown formatting in remarks:
-
-### Text Formatting
-- **Bold text**: `**text**` or `__text__`
-- *Italic text*: `*text*` or `_text_`
-- ***Bold italic***: `***text***` or `___text___`
-- ~~Strikethrough~~: `~~text~~`
-- `Inline code`: `` `code` ``
-- **Subscript**: `H~2~O` (water)
-- **Superscript**: `2^10^` (1024)
-
-### Headers
-- `# Header 1`
-- `## Header 2`
-- `### Header 3`
-- `#### Header 4`
-
-### Lists
-- **Bullet lists**: `- item` or `* item`
-- **Numbered lists**: `1. item`
-- **Task lists**: `- [ ] unchecked` or `- [x] checked`
-- **Nested lists**: Indent with spaces
-
-### Code Blocks
-- **Fenced code blocks**: 
-  ```
-  ```python
-  def hello():
-      print("Hello, World!")
-  ```
-  ```
-- **Syntax highlighting**: Specify language after opening fence
-
-### Blockquotes
-- `> Single line quote`
-- `> Multi-line quote`
-- `> > Nested quote`
-
-### Links and Images
-- **Links**: `[text](url)`
-- **Images**: `![alt text](image_url)`
-
-### Tables
-```
-| Header 1 | Header 2 | Header 3 |
-|----------|----------|----------|
-| Cell 1   | Cell 2   | Cell 3   |
-| Cell 4   | Cell 5   | Cell 6   |
+Task added successfully to project: 'DemoProject'
 ```
 
-### Horizontal Rules
-- `---` or `***` or `___`
+### Listing Tasks
+```
+Enter your choice: 2
+Listing tasks in project: 'DemoProject'
+------------------------------
++-------+---------------------+----------+-------------+----------+----------------------+
+| Index | Summary             | Assignee | Status      | Priority | Remarks              |
++-------+---------------------+----------+-------------+----------+----------------------+
+| 1     | Implement login     | Alice    | In Progress | High     | Initial implementation|
++-------+---------------------+----------+-------------+----------+----------------------+
+```
 
-### Escaping
-- Use `\` to escape special characters: `\*not italic\*`
+### Editing a Task
+```
+Enter your choice: 3
+Editing tasks in project: 'DemoProject'
+------------------------------
++-------+---------------------+----------+-------------+----------+----------------------+
+| Index | Summary             | Assignee | Status      | Priority | Remarks              |
++-------+---------------------+----------+-------------+----------+----------------------+
+| 1     | Implement login     | Alice    | In Progress | High     | Initial implementation|
++-------+---------------------+----------+-------------+----------+----------------------+
 
-## Contributing
+Enter the index of the task to edit: 1
+Editing Task 1:
+Current Summary: Implement login
+Enter new summary (leave blank to keep current): Implement login and logout
+Current Assignee: Alice
+Enter new assignee (leave blank to keep current): Bob
+Current Remarks: Initial implementation
+Enter new remarks (leave blank to keep current): Add logout functionality
+Current Status: In Progress
+Select new status:
+1. Not Started
+2. In Progress
+3. Completed
+Enter the number corresponding to the new status (leave blank to keep current): 3
+Current Priority: High
+Select new priority:
+1. Low
+2. Medium
+3. High
+Enter the number corresponding to the new priority (leave blank to keep current):
 
-Feel free to extend the application with additional features such as:
-- Due dates for tasks
-- Task dependencies
-- Export functionality (CSV, Excel)
-- Web interface
-- Team collaboration features
-- Time tracking
+Task updated successfully.
+```
 
 ## License
 
-This project is open source and available under the MIT License.
+This project is provided for educational and personal use.
