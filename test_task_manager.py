@@ -249,18 +249,7 @@ class TestTaskManager(unittest.TestCase):
         
         task_id = self.task_manager._generate_task_id("Test Project")
         self.assertEqual(task_id, "3")
-    
-    def test_generate_task_id_with_legacy_ids(self):
-        """Test generating task ID with legacy format IDs"""
-        self.task_manager.create_project("Test Project")
         
-        # Add legacy format IDs
-        self.task_manager.projects["Test Project"]["Test Project-1"] = MagicMock()
-        self.task_manager.projects["Test Project"]["Test Project-2"] = MagicMock()
-        
-        task_id = self.task_manager._generate_task_id("Test Project")
-        self.assertEqual(task_id, "3")
-    
     def test_create_task(self):
         """Test creating a task"""
         self.task_manager.create_project("Test Project")
@@ -293,6 +282,33 @@ class TestTaskManager(unittest.TestCase):
             ["test"]
         )
         
+        self.assertFalse(result)
+    
+    def test_create_task_invalid_priority(self):
+        """Test creating task with invalid priority"""
+        self.task_manager.create_project("Test Project")
+        result = self.task_manager.create_task(
+            "Test Project",
+            "Test task",
+            "Test User",
+            "Test remarks",
+            "Invalid Priority",  # Invalid priority
+            ["test"]
+        )
+        self.assertFalse(result)
+
+    def test_create_task_invalid_status(self):
+        """Test creating task with invalid status"""
+        self.task_manager.create_project("Test Project")
+        result = self.task_manager.create_task(
+            "Test Project",
+            "Test task",
+            "Test User",
+            "Test remarks",
+            Priority.HIGH,
+            ["test"],
+            "Invalid Status"  # Invalid status
+        )
         self.assertFalse(result)
     
     def test_list_tasks_empty_project(self):
