@@ -86,7 +86,8 @@ class Project:
                 wrapped_assignee = textwrap.fill(task.assignee, width=20)
                 wrapped_status = textwrap.fill(task.status, width=15)
                 wrapped_priority = textwrap.fill(task.priority, width=10)
-                wrapped_remarks = textwrap.fill(task.remarks, width=80)
+                # Preserve newlines in remarks by wrapping each line individually
+                wrapped_remarks = '\n'.join(textwrap.fill(line, width=80) for line in task.remarks.splitlines())
                 table.add_row([
                     idx,
                     wrapped_summary,
@@ -97,59 +98,14 @@ class Project:
                 ])
             print(table)
 
-    def edit_task(self, task_index: int) -> None:
+    def edit_task(self, task_index: int, new_task: 'Task') -> None:
         """
-        Edit the details of a task by its index.
-        Prompts user for new values, allows skipping fields.
+        Update the details of a task by its index using a new Task object.
         """
         if task_index < 1 or task_index > len(self.tasks):
             print("Invalid task index.")
             return
-        task = self.tasks[task_index - 1]
-        print(f"Editing Task {task_index}:")
-        # Edit summary
-        print(f"Current Summary: {task.summary}")
-        new_summary = input("Enter new summary (leave blank to keep current): ")
-        if new_summary:
-            task.summary = new_summary
-        # Edit assignee
-        print(f"Current Assignee: {task.assignee}")
-        new_assignee = input("Enter new assignee (leave blank to keep current): ")
-        if new_assignee:
-            task.assignee = new_assignee
-        # Edit remarks
-        print(f"Current Remarks: {task.remarks}")
-        new_remarks = input("Enter new remarks (leave blank to keep current): ")
-        if new_remarks:
-            task.remarks = new_remarks
-        # Edit status
-        status_options = ["Not Started", "In Progress", "Completed"]
-        print(f"Current Status: {task.status}")
-        print("Select new status:")
-        for idx, option in enumerate(status_options, start=1):
-            print(f"{idx}. {option}")
-        new_status = None
-        while new_status not in range(1, len(status_options) + 1):
-            try:
-                new_status = int(input("Enter the number corresponding to the new status (leave blank to keep current): "))
-            except ValueError:
-                break
-        if new_status:
-            task.status = status_options[new_status - 1]
-        # Edit priority
-        priority_options = ["Low", "Medium", "High"]
-        print(f"Current Priority: {task.priority}")
-        print("Select new priority:")
-        for idx, option in enumerate(priority_options, start=1):
-            print(f"{idx}. {option}")
-        new_priority = None
-        while new_priority not in range(1, len(priority_options) + 1):
-            try:
-                new_priority = int(input("Enter the number corresponding to the new priority (leave blank to keep current): "))
-            except ValueError:
-                break
-        if new_priority:
-            task.priority = priority_options[new_priority - 1]
+        self.tasks[task_index - 1] = new_task
         self.save_tasks_to_file()
         print("Task updated successfully.")
 

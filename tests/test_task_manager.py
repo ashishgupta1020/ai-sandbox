@@ -107,17 +107,21 @@ class TestTaskManager(unittest.TestCase):
             "New Summary",      # new summary
             "New Assignee",    # new assignee
             "New Remarks",     # new remarks
+            "",  # End of multi-line remarks
             "3",               # new status (Completed)
             "2"                # new priority (Medium)
         ]
-        def mock_input(prompt):
+        def mock_input(prompt=None):
             return user_inputs.pop(0)
         # Patch input function using builtins module for Python 3 compatibility
         import builtins
         original_input = builtins.input
         builtins.input = mock_input
         try:
-            project.edit_task(1)
+            from taskman.interaction import Interaction
+            old_task = project.tasks[0]
+            new_task = Interaction.edit_task_details(old_task)
+            project.edit_task(1, new_task)
         finally:
             builtins.input = original_input
         # Check that the task was updated as expected
@@ -133,8 +137,9 @@ class TestTaskManager(unittest.TestCase):
         project = Project(self.TEST_PROJECT, open(task_file, "a+"))
         # Add a task so index 2 is invalid
         project.add_task(Task("Summary", "Assignee", "Remarks", "Not Started", "Low"))
+        dummy_task = project.tasks[0]
         with StringIO() as buf, redirect_stdout(buf):
-            project.edit_task(2)
+            project.edit_task(2, dummy_task)
             output = buf.getvalue()
         self.assertIn("Invalid task index.", output)
 
@@ -168,7 +173,7 @@ class TestTaskManager(unittest.TestCase):
         # Simulate user input to exit from main menu
         import builtins
         user_inputs = ["3"]  # Choose 'Exit' immediately
-        def mock_input(prompt):
+        def mock_input(prompt=None):
             return user_inputs.pop(0)
         original_input = builtins.input
         builtins.input = mock_input
@@ -187,7 +192,7 @@ class TestTaskManager(unittest.TestCase):
         # Simulate invalid choice then exit
         import builtins
         user_inputs = ["99", "3"]  # Invalid, then exit
-        def mock_input(prompt):
+        def mock_input(prompt=None):
             return user_inputs.pop(0)
         original_input = builtins.input
         builtins.input = mock_input
@@ -207,7 +212,7 @@ class TestTaskManager(unittest.TestCase):
         # Simulate opening a project and then exiting from project menu
         import builtins
         user_inputs = ["2", self.CLI_PROJECT, "8"]  # Open project, then exit
-        def mock_input(prompt):
+        def mock_input(prompt=None):
             return user_inputs.pop(0)
         original_input = builtins.input
         builtins.input = mock_input
@@ -228,14 +233,15 @@ class TestTaskManager(unittest.TestCase):
         import builtins
         user_inputs = [
             "2", self.PROJECT_A,  # Open project
-            "1", "Task1", "User1", "Remark1", "1", "1",  # Add task
+            "1", "Task1", "User1", "Remark1", "", "1", "1",  # Add task
             "2",  # List tasks
-            "4", "1", "Task1 edited", "User1 edited", "Remark1 edited", "2", "2",  # Edit task
+            "4", "1", "Task1 edited", "User1 edited", "First line of remarks", "Second line with **markdown**", "", "2", "2",  # Edit task
+            "2",  # List tasks after editing
             "5",  # List all projects
             "6", self.PROJECT_B,  # Switch project
             "8"   # Exit
         ]
-        def mock_input(prompt):
+        def mock_input(prompt=None):
             return user_inputs.pop(0)
         original_input = builtins.input
         builtins.input = mock_input
@@ -248,11 +254,13 @@ class TestTaskManager(unittest.TestCase):
                 self.assertIn(f"Opened project: '{self.PROJECT_A}'", output)
                 self.assertIn(f"Task added successfully to project: '{self.PROJECT_A}'", output)
                 self.assertIn(f"Tasks in project '{self.PROJECT_A}':", output)
-                self.assertIn("Editing Task 1:", output)
+                self.assertIn("Editing Task:", output)
                 self.assertIn("Task updated successfully.", output)
                 self.assertIn("Projects:", output)
                 self.assertIn(f"Switched to project: '{self.PROJECT_B}'", output)
                 self.assertIn("Exiting Task Manager. Goodbye!", output)
+                self.assertIn("First line of remarks", output)
+                self.assertIn("Second line with **markdown**", output)
         finally:
             builtins.input = original_input
 
@@ -262,10 +270,10 @@ class TestTaskManager(unittest.TestCase):
         import builtins
         user_inputs = [
             "2", self.PROJECT_C,  # Open project
-            "1", "Task2", "User2", "Remark2", "1", "1",  # Add task
+            "1", "Task2", "User2", "Remark2", "", "1", "1",  # Add task
             "4", "invalid", "8"  # Edit task with invalid index, then exit
         ]
-        def mock_input(prompt):
+        def mock_input(prompt=None):
             return user_inputs.pop(0)
         original_input = builtins.input
         builtins.input = mock_input
@@ -286,11 +294,12 @@ class TestTaskManager(unittest.TestCase):
         import builtins
         user_inputs = [
             "2", self.CLI_PROJECT,  # Open project
-            "1", "CLI Summary", "CLI Assignee", "CLI Remarks", "2", "2",  # Add task
-            "7",  # Export to Markdown
-            "8"   # Exit
+            "1", "CLI Summary", "CLI Assignee", "CLI Remarks", "", "2", "2",    # Add task
+            "7",    # Export to Markdown
+            "8"     # Exit
         ]
-        def mock_input(prompt):
+        expected_md_path = os.path.join(self.BASE_DATA_DIR, f"{self.CLI_PROJECT}_tasks_export.md")
+        def mock_input(prompt=None):
             return user_inputs.pop(0)
         original_input = builtins.input
         builtins.input = mock_input
@@ -300,7 +309,6 @@ class TestTaskManager(unittest.TestCase):
                 with StringIO() as buf, redirect_stdout(buf):
                     task_manager.main_cli()
                     output = buf.getvalue()
-                expected_md_path = os.path.join(self.BASE_DATA_DIR, f"{self.CLI_PROJECT}_tasks_export.md")
                 self.assertIn(f"Tasks exported to Markdown file: '{expected_md_path}'", output)
                 # Check that the file was created and contains expected Markdown
                 self.assertTrue(os.path.exists(expected_md_path))
@@ -323,14 +331,14 @@ class TestTaskManager(unittest.TestCase):
         import builtins
         user_inputs = [
             "2", self.CLI_PROJECT,  # Open project
-            "1", "Summary0", "Assignee0", "Remarks0", "2", "3",  # Add task 0 (In Progress, High)
-            "1", "Summary1", "Assignee1", "Remarks1", "2", "1",  # Add task 1 (In Progress, Low)
-            "1", "Summary2", "Assignee2", "Remarks2", "1", "2",  # Add task 2 (Not Started, Medium)
+            "1", "Summary0", "Assignee0", "Remarks0", "", "2", "3",  # Add task 0 (In Progress, High)
+            "1", "Summary1", "Assignee1", "Remarks1", "", "2", "1",  # Add task 1 (In Progress, Low)
+            "1", "Summary2", "Assignee2", "Remarks2", "", "1", "2",  # Add task 2 (Not Started, Medium)
             "3", "1",  # List tasks with custom sort by Status
             "3", "2",  # List tasks with custom sort by Priority
             "8"   # Exit
         ]
-        def mock_input(prompt):
+        def mock_input(prompt=None):
             return user_inputs.pop(0)
         original_input = builtins.input
         builtins.input = mock_input

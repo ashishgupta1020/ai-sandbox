@@ -92,7 +92,12 @@ def main_cli() -> None:
             current_project.list_tasks()
             try:
                 task_index = int(input("\nEnter the index of the task to edit: "))
-                current_project.edit_task(task_index)
+                if task_index < 1 or task_index > len(current_project.tasks):
+                    print("Invalid task index.")
+                else:
+                    old_task = current_project.tasks[task_index - 1]
+                    new_task = interaction.edit_task_details(old_task)
+                    current_project.edit_task(task_index, new_task)
             except ValueError:
                 print("\nInvalid input. Please enter a valid task index.")
         elif choice == "5":
