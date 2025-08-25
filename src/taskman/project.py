@@ -55,17 +55,32 @@ class Project:
         self.tasks.append(task)
         self.save_tasks_to_file()
 
-    def list_tasks(self) -> None:
+    def list_tasks(self, sort_by: str = None) -> None:
         """
         Print all tasks in the project in a formatted table.
+        Optionally sort by 'status' or 'priority'.
         """
+        from taskman.task import TaskStatus
         if not self.tasks:
             print("No tasks found in this project.")
         else:
             print(f"Tasks in project '{self.name}':")
             table = PrettyTable(["Index", "Summary", "Assignee", "Status", "Priority", "Remarks"])
             table.align = "l"
-            for idx, task in enumerate(self.tasks, start=1):
+            tasks = self.tasks
+            if sort_by == "status":
+                status_order = [s.value.lower() for s in TaskStatus]
+                def status_key(t):
+                    status = getattr(t, 'status', '').strip().lower()
+                    return status_order.index(status) if status in status_order else len(status_order)
+                tasks = sorted(tasks, key=status_key)
+            elif sort_by == "priority":
+                priority_order = ["low", "medium", "high"]
+                def priority_key(t):
+                    priority = getattr(t, 'priority', '').strip().lower()
+                    return priority_order.index(priority) if priority in priority_order else len(priority_order)
+                tasks = sorted(tasks, key=priority_key)
+            for idx, task in enumerate(tasks, start=1):
                 # Wrap text for better display
                 wrapped_summary = textwrap.fill(task.summary, width=40)
                 wrapped_assignee = textwrap.fill(task.assignee, width=20)

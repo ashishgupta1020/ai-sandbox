@@ -206,7 +206,7 @@ class TestTaskManager(unittest.TestCase):
         from unittest.mock import patch
         # Simulate opening a project and then exiting from project menu
         import builtins
-        user_inputs = ["2", self.CLI_PROJECT, "7"]  # Open project, then exit
+        user_inputs = ["2", self.CLI_PROJECT, "8"]  # Open project, then exit
         def mock_input(prompt):
             return user_inputs.pop(0)
         original_input = builtins.input
@@ -230,10 +230,10 @@ class TestTaskManager(unittest.TestCase):
             "2", self.PROJECT_A,  # Open project
             "1", "Task1", "User1", "Remark1", "1", "1",  # Add task
             "2",  # List tasks
-            "3", "1", "Task1 edited", "User1 edited", "Remark1 edited", "2", "2",  # Edit task
-            "4",  # List all projects
-            "5", self.PROJECT_B,  # Switch project
-            "7"   # Exit
+            "4", "1", "Task1 edited", "User1 edited", "Remark1 edited", "2", "2",  # Edit task
+            "5",  # List all projects
+            "6", self.PROJECT_B,  # Switch project
+            "8"   # Exit
         ]
         def mock_input(prompt):
             return user_inputs.pop(0)
@@ -263,7 +263,7 @@ class TestTaskManager(unittest.TestCase):
         user_inputs = [
             "2", self.PROJECT_C,  # Open project
             "1", "Task2", "User2", "Remark2", "1", "1",  # Add task
-            "3", "invalid", "7"  # Edit task with invalid index, then exit
+            "4", "invalid", "8"  # Edit task with invalid index, then exit
         ]
         def mock_input(prompt):
             return user_inputs.pop(0)
@@ -287,8 +287,8 @@ class TestTaskManager(unittest.TestCase):
         user_inputs = [
             "2", self.CLI_PROJECT,  # Open project
             "1", "CLI Summary", "CLI Assignee", "CLI Remarks", "2", "2",  # Add task
-            "6",  # Export to Markdown
-            "7"   # Exit
+            "7",  # Export to Markdown
+            "8"   # Exit
         ]
         def mock_input(prompt):
             return user_inputs.pop(0)
@@ -316,6 +316,50 @@ class TestTaskManager(unittest.TestCase):
             builtins.input = original_input
             if os.path.exists(expected_md_path):
                 os.remove(expected_md_path)
+
+    def test_main_cli_list_tasks_with_custom_sort(self):
+        from unittest.mock import patch
+        # Simulate CLI: open project, add tasks, list with custom sort by status, then by priority, then exit
+        import builtins
+        user_inputs = [
+            "2", self.CLI_PROJECT,  # Open project
+            "1", "Summary0", "Assignee0", "Remarks0", "2", "3",  # Add task 0 (In Progress, High)
+            "1", "Summary1", "Assignee1", "Remarks1", "2", "1",  # Add task 1 (In Progress, Low)
+            "1", "Summary2", "Assignee2", "Remarks2", "1", "2",  # Add task 2 (Not Started, Medium)
+            "3", "1",  # List tasks with custom sort by Status
+            "3", "2",  # List tasks with custom sort by Priority
+            "8"   # Exit
+        ]
+        def mock_input(prompt):
+            return user_inputs.pop(0)
+        original_input = builtins.input
+        builtins.input = mock_input
+        from taskman import task_manager
+        try:
+            with patch("taskman.task_manager.Project", side_effect=lambda name: Project(name, open(os.path.join(self.TEST_DATA_DIR, f"{name}_tasks.json"), "a+"))):
+                with StringIO() as buf, redirect_stdout(buf):
+                    task_manager.main_cli()
+                    output = buf.getvalue()
+                # Check that all tasks are present
+                self.assertIn("Summary0", output)
+                self.assertIn("Summary1", output)
+                self.assertIn("Summary2", output)
+                # Check that sorting by Status puts 'Not Started' before 'In Progress'
+                status_table = output.split("Sort by:")[1].split("Project Menu:")[0]
+                not_started_index = status_table.find("Not Started")
+                in_progress_index = status_table.find("In Progress")
+                self.assertTrue(not_started_index < in_progress_index)
+                # Check that sorting by Priority puts 'Low' before 'Medium' and 'High'
+                priority_table = output.split("Sort by:")[2].split("Project Menu:")[0]
+                low_index = priority_table.find("Low")
+                medium_index = priority_table.find("Medium")
+                high_index = priority_table.find("High")
+                self.assertTrue(low_index < medium_index < high_index)
+                # Ensure that some reordering has occurred (i.e., the first task is not always first)
+                self.assertNotEqual(priority_table.find("Summary0"), 0)
+                self.assertIn("Exiting Task Manager. Goodbye!", output)
+        finally:
+            builtins.input = original_input
 
 if __name__ == "__main__":
     unittest.main()

@@ -49,11 +49,12 @@ def main_cli() -> None:
         print("-" * 30)
         print("1. Add a task to the current project")
         print("2. List all tasks in the current project")
-        print("3. Edit a task in the current project")
-        print("4. List all projects")
-        print("5. Switch project")
-        print("6. Export tasks to Markdown")
-        print("7. Exit")
+        print("3. List tasks with custom sort")
+        print("4. Edit a task in the current project")
+        print("5. List all projects")
+        print("6. Switch project")
+        print("7. Export tasks to Markdown")
+        print("8. Exit")
         print("-" * 30)
         choice = input("Enter your choice: ")
 
@@ -70,6 +71,21 @@ def main_cli() -> None:
             print("-" * 30)
             current_project.list_tasks()
         elif choice == "3":
+            # List tasks with custom sort
+            print(f"\nCustom Sort - List tasks in project: '{current_project.name}'")
+            print("-" * 30)
+            print("Sort by:")
+            print("1. Status")
+            print("2. Priority")
+            sort_choice = input("Enter your choice (1 or 2): ")
+            if sort_choice == "1":
+                current_project.list_tasks(sort_by="status")
+            elif sort_choice == "2":
+                current_project.list_tasks(sort_by="priority")
+            else:
+                print("\nInvalid sort choice. Showing unsorted tasks.")
+                current_project.list_tasks()
+        elif choice == "4":
             # Edit a task in the current project
             print(f"\nEditing tasks in project: '{current_project.name}'")
             print("-" * 30)
@@ -79,12 +95,12 @@ def main_cli() -> None:
                 current_project.edit_task(task_index)
             except ValueError:
                 print("\nInvalid input. Please enter a valid task index.")
-        elif choice == "4":
+        elif choice == "5":
             # List all available projects
             print("\nListing all projects:")
             print("-" * 30)
             ProjectManager.list_projects()
-        elif choice == "5":
+        elif choice == "6":
             # Switch to another project
             print("\nSwitching project:")
             print("-" * 30)
@@ -92,10 +108,10 @@ def main_cli() -> None:
             ProjectManager.save_project_name(project_name)
             current_project = Project(project_name)
             print(f"\nSwitched to project: '{current_project.name}'")
-        elif choice == "6":
+        elif choice == "7":
             # Export tasks to a Markdown file
             current_project.export_tasks_to_markdown_file()
-        elif choice == "7":
+        elif choice == "8":
             # Exit the application
             print("\nExiting Task Manager. Goodbye!")
             break

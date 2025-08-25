@@ -1,4 +1,9 @@
-# Move and refactor task.py to taskman
+from enum import Enum
+
+class TaskStatus(Enum):
+    NOT_STARTED = "Not Started"
+    IN_PROGRESS = "In Progress"
+    COMPLETED = "Completed"
 
 class Task:
     """
@@ -9,6 +14,8 @@ class Task:
         self.summary = summary  # Short description of the task
         self.assignee = assignee  # Person responsible for the task
         self.remarks = remarks  # Additional notes or comments
+        # Store status as string for compatibility, but use enum for sorting
+        # TODO: store as enum too
         self.status = status  # Task status (e.g., Not Started, In Progress, Completed)
         self.priority = priority  # Task priority (Low, Medium, High)
 
