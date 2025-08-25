@@ -1,7 +1,10 @@
+# Move and refactor task.py to taskman
+
 class Task:
     """
     Represents a single task with summary, assignee, remarks, status, and priority.
     """
+
     def __init__(self, summary: str, assignee: str, remarks: str, status: str, priority: str) -> None:
         self.summary = summary  # Short description of the task
         self.assignee = assignee  # Person responsible for the task

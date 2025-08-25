@@ -1,7 +1,7 @@
 import json
 import textwrap
 from prettytable import PrettyTable
-from src.task import Task
+from taskman.task import Task
 
 class Project:
     def __init__(self, name: str, file=None) -> None:

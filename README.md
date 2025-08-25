@@ -54,12 +54,24 @@ This is a simple command-line project and task management tool implemented in Py
 
 ## Requirements
 
-- Python 3.9+
+- Python 3.8+
 - `prettytable` package
+- `pytest` (for running tests)
 
-Install dependencies:
+Install requirements:
 ```bash
-pip install prettytable
+pip install -r requirements.txt
+```
+Or install manually:
+```bash
+pip install prettytable pytest
+```
+
+## Running Tests
+
+To run all tests:
+```bash
+pytest
 ```
 
 ## File Structure

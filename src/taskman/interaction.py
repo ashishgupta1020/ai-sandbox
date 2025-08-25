@@ -1,4 +1,4 @@
-from src.task import Task
+from taskman.task import Task
 
 class Interaction:
     """

@@ -2,9 +2,9 @@ import unittest
 import os
 from io import StringIO
 from contextlib import redirect_stdout
-from src.project_manager import ProjectManager
-from src.project import Project
-from src.task import Task
+from taskman.project_manager import ProjectManager
+from taskman.project import Project
+from taskman.task import Task
 
 class TestTaskManager(unittest.TestCase):
     TEST_PROJECT = "TestProject"
@@ -172,9 +172,9 @@ class TestTaskManager(unittest.TestCase):
             return user_inputs.pop(0)
         original_input = builtins.input
         builtins.input = mock_input
-        from src import task_manager
+        from taskman import task_manager
         try:
-            with patch("src.task_manager.Project", side_effect=lambda name: Project(name, open(os.path.join(self.TEST_DATA_DIR, f"{name}_tasks.json"), "a+"))):
+            with patch("taskman.task_manager.Project", side_effect=lambda name: Project(name, open(os.path.join(self.TEST_DATA_DIR, f"{name}_tasks.json"), "a+"))):
                 with StringIO() as buf, redirect_stdout(buf):
                     task_manager.main_cli()
                     output = buf.getvalue()
@@ -191,9 +191,9 @@ class TestTaskManager(unittest.TestCase):
             return user_inputs.pop(0)
         original_input = builtins.input
         builtins.input = mock_input
-        from src import task_manager
+        from taskman import task_manager
         try:
-            with patch("src.task_manager.Project", side_effect=lambda name: Project(name, open(os.path.join(self.TEST_DATA_DIR, f"{name}_tasks.json"), "a+"))):
+            with patch("taskman.task_manager.Project", side_effect=lambda name: Project(name, open(os.path.join(self.TEST_DATA_DIR, f"{name}_tasks.json"), "a+"))):
                 with StringIO() as buf, redirect_stdout(buf):
                     task_manager.main_cli()
                     output = buf.getvalue()
@@ -211,9 +211,9 @@ class TestTaskManager(unittest.TestCase):
             return user_inputs.pop(0)
         original_input = builtins.input
         builtins.input = mock_input
-        from src import task_manager
+        from taskman import task_manager
         try:
-            with patch("src.task_manager.Project", side_effect=lambda name: Project(name, open(os.path.join(self.TEST_DATA_DIR, f"{name}_tasks.json"), "a+"))):
+            with patch("taskman.task_manager.Project", side_effect=lambda name: Project(name, open(os.path.join(self.TEST_DATA_DIR, f"{name}_tasks.json"), "a+"))):
                 with StringIO() as buf, redirect_stdout(buf):
                     task_manager.main_cli()
                     output = buf.getvalue()
@@ -239,9 +239,9 @@ class TestTaskManager(unittest.TestCase):
             return user_inputs.pop(0)
         original_input = builtins.input
         builtins.input = mock_input
-        from src import task_manager
+        from taskman import task_manager
         try:
-            with patch("src.task_manager.Project", side_effect=lambda name: Project(name, open(os.path.join(self.TEST_DATA_DIR, f"{name}_tasks.json"), "a+"))):
+            with patch("taskman.task_manager.Project", side_effect=lambda name: Project(name, open(os.path.join(self.TEST_DATA_DIR, f"{name}_tasks.json"), "a+"))):
                 with StringIO() as buf, redirect_stdout(buf):
                     task_manager.main_cli()
                     output = buf.getvalue()
@@ -269,9 +269,9 @@ class TestTaskManager(unittest.TestCase):
             return user_inputs.pop(0)
         original_input = builtins.input
         builtins.input = mock_input
-        from src import task_manager
+        from taskman import task_manager
         try:
-            with patch("src.task_manager.Project", side_effect=lambda name: Project(name, open(os.path.join(self.TEST_DATA_DIR, f"{name}_tasks.json"), "a+"))):
+            with patch("taskman.task_manager.Project", side_effect=lambda name: Project(name, open(os.path.join(self.TEST_DATA_DIR, f"{name}_tasks.json"), "a+"))):
                 with StringIO() as buf, redirect_stdout(buf):
                     task_manager.main_cli()
                     output = buf.getvalue()
@@ -294,9 +294,9 @@ class TestTaskManager(unittest.TestCase):
             return user_inputs.pop(0)
         original_input = builtins.input
         builtins.input = mock_input
-        from src import task_manager
+        from taskman import task_manager
         try:
-            with patch("src.task_manager.Project", side_effect=lambda name: Project(name, open(os.path.join(self.TEST_DATA_DIR, f"{name}_tasks.json"), "a+"))):
+            with patch("taskman.task_manager.Project", side_effect=lambda name: Project(name, open(os.path.join(self.TEST_DATA_DIR, f"{name}_tasks.json"), "a+"))):
                 with StringIO() as buf, redirect_stdout(buf):
                     task_manager.main_cli()
                     output = buf.getvalue()

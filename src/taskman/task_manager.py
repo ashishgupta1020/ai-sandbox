@@ -1,6 +1,6 @@
-from src.project_manager import ProjectManager  # Handles project listing and saving
-from src.project import Project  # Represents a project and its tasks
-from src.interaction import Interaction  # Handles user input interactions
+from taskman.project_manager import ProjectManager  # Handles project listing and saving
+from taskman.project import Project  # Represents a project and its tasks
+from taskman.interaction import Interaction  # Handles user input interactions
 
 def main_cli() -> None:
     """
