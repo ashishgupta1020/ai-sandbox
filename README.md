@@ -8,14 +8,14 @@ This is a simple command-line project and task management tool implemented in Py
   - List all projects
   - Create/open a project
   - Switch between projects
-  - Projects are stored in `projects.json`
+  - Projects are stored in `~/sandbox/data/ai-sandbox/projects.json`
 
 - **Task Management**
   - Add tasks to a project
   - List all tasks in a project (pretty table view)
   - Edit tasks (summary, assignee, remarks, status, priority)
-  - Tasks are stored in `<project_name>_tasks.json`
-  - Export tasks to Markdown (`tasks_export.md`)
+  - Tasks are stored in `~/sandbox/data/ai-sandbox/<project_name>_tasks.json`
+  - Export tasks to Markdown (`<project_name>_tasks_export.md` in `~/sandbox/data/ai-sandbox/`)
 
 - **Interactive CLI**
   - User-friendly menus for project and task operations
@@ -37,10 +37,10 @@ This is a simple command-line project and task management tool implemented in Py
 
 ## How It Works
 
-- When you open or create a project, its name is saved in `projects.json`.
-- Each project has its own task file named `<project_name>_tasks.json`.
+- When you open or create a project, its name is saved in `~/sandbox/data/ai-sandbox/projects.json`.
+- Each project has its own task file named `<project_name>_tasks.json` in `~/sandbox/data/ai-sandbox/`.
 - Tasks have the following fields: summary, assignee, remarks (any text), status (Not Started/In Progress/Completed), and priority (Low/Medium/High).
-- All data is stored locally in JSON format for easy access and modification.
+- All data is stored locally in JSON format for easy access and modification, in `~/sandbox/data/ai-sandbox/`.
 - You can export all tasks to a Markdown file for sharing or documentation.
 
 ## Usage
@@ -77,9 +77,9 @@ pytest
 ## File Structure
 
 - `task_manager.py`: Main CLI and logic for project/task management
-- `projects.json`: List of all project names
-- `<project_name>_tasks.json`: Tasks for each project
-- `tasks_export.md`: Markdown export of all tasks in a project
+- `projects.json`: List of all project names (stored in `~/sandbox/data/ai-sandbox/`)
+- `<project_name>_tasks.json`: Tasks for each project (stored in `~/sandbox/data/ai-sandbox/`)
+- `<project_name>_tasks_export.md`: Markdown export of all tasks in a project (stored in `~/sandbox/data/ai-sandbox/`)
 
 ## Example
 
@@ -182,7 +182,7 @@ Task updated successfully.
 ### Exporting Tasks to Markdown
 ```
 Enter your choice: 6
-Tasks exported to Markdown file: 'tasks_export.md'
+Tasks exported to Markdown file: '<project_name>_tasks_export.md'
 ```
 
 ## License

@@ -300,10 +300,11 @@ class TestTaskManager(unittest.TestCase):
                 with StringIO() as buf, redirect_stdout(buf):
                     task_manager.main_cli()
                     output = buf.getvalue()
-                self.assertIn("Tasks exported to Markdown file: 'tasks_export.md'", output)
+                expected_md_path = os.path.join(self.BASE_DATA_DIR, f"{self.CLI_PROJECT}_tasks_export.md")
+                self.assertIn(f"Tasks exported to Markdown file: '{expected_md_path}'", output)
                 # Check that the file was created and contains expected Markdown
-                self.assertTrue(os.path.exists("tasks_export.md"))
-                with open("tasks_export.md", "r") as f:
+                self.assertTrue(os.path.exists(expected_md_path))
+                with open(expected_md_path, "r") as f:
                     md = f.read()
                 self.assertIn("| Index | Summary | Assignee | Status | Priority | Remarks |", md)
                 self.assertIn("CLI Summary", md)
@@ -313,8 +314,8 @@ class TestTaskManager(unittest.TestCase):
                 self.assertIn("CLI Remarks", md)
         finally:
             builtins.input = original_input
-            if os.path.exists("tasks_export.md"):
-                os.remove("tasks_export.md")
+            if os.path.exists(expected_md_path):
+                os.remove(expected_md_path)
 
 if __name__ == "__main__":
     unittest.main()

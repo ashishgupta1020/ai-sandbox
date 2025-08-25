@@ -14,6 +14,7 @@ class Project:
         data_dir = os.path.expanduser("~/sandbox/data/ai-sandbox")
         os.makedirs(data_dir, exist_ok=True)
         self.task_file_path = os.path.join(data_dir, f"{self.name}_tasks.json")
+        self.markdown_file_path = os.path.join(data_dir, f"{self.name}_tasks_export.md")
         if file is not None:
             self.file = file
         else:
@@ -158,11 +159,11 @@ class Project:
             md += "| " + " | ".join(row) + " |\n"
         return md
 
-    def export_tasks_to_markdown_file(self, filename: str = "tasks_export.md") -> None:
+    def export_tasks_to_markdown_file(self) -> None:
         """
-        Write the Markdown table of tasks to a file.
+        Write the Markdown table of tasks to the project's markdown file path.
         """
         md_output = self.export_tasks_to_markdown()
-        with open(filename, "w") as md_file:
+        with open(self.markdown_file_path, "w") as md_file:
             md_file.write(md_output)
-        print(f"\nTasks exported to Markdown file: '{filename}'")
+        print(f"\nTasks exported to Markdown file: '{self.markdown_file_path}'")
