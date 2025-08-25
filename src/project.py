@@ -1,17 +1,23 @@
 import json
 import textwrap
 from prettytable import PrettyTable
-from task import Task
+from src.task import Task
 
 class Project:
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str, file=None) -> None:
         """
         Initialize a Project with a name and load its tasks from file.
         """
+        import os
         self.name = name
         self.tasks = []
-        # Open the tasks file for this project
-        self.file = open(f"{self.name}_tasks.json", "a+")
+        data_dir = os.path.expanduser("~/sandbox/data/ai-sandbox")
+        os.makedirs(data_dir, exist_ok=True)
+        self.task_file_path = os.path.join(data_dir, f"{self.name}_tasks.json")
+        if file is not None:
+            self.file = file
+        else:
+            self.file = open(self.task_file_path, "a+")
         self.file.seek(0)
         self.load_tasks_from_file()
 

@@ -2,7 +2,9 @@ import json
 import os
 
 class ProjectManager:
-    PROJECTS_FILE = "projects.json"  # File to store project names
+    import os
+    PROJECTS_DIR = os.path.expanduser("~/sandbox/data/ai-sandbox")
+    PROJECTS_FILE = os.path.join(PROJECTS_DIR, "projects.json")  # File to store project names
 
     @staticmethod
     def save_project_name(project_name: str) -> None:

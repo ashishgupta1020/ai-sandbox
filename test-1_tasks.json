@@ -1,9 +1,0 @@
-[
-    {
-        "summary": "add markdown support to remarks",
-        "assignee": "ashish",
-        "remarks": "Supporting markdown for remarks field",
-        "status": "Not Started",
-        "priority": "Medium"
-    }
-]
