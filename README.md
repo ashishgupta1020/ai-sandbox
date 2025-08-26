@@ -47,7 +47,7 @@ This is a simple command-line project and task management tool implemented in Py
 
 1. Run the main script:
   ```bash
-  python3 task_manager.py
+  python3 src/taskman/task_manager.py
   ```
 2. Follow the on-screen prompts to manage projects and tasks.
 3. Use the interactive CLI to add, list, edit, switch, and export tasks.
@@ -91,7 +91,8 @@ Main Menu:
 ------------------------------
 1. List all projects
 2. Open a project
-3. Exit
+3. Edit a project name
+4. Exit
 ------------------------------
 Enter your choice: 2
 Enter the project name: DemoProject
@@ -106,11 +107,13 @@ Current Project: DemoProject
 ------------------------------
 1. Add a task to the current project
 2. List all tasks in the current project
-3. Edit a task in the current project
-4. List all projects
-5. Switch project
-6. Export tasks to Markdown
-7. Exit
+3. List tasks with custom sort
+4. Edit a task in the current project
+5. Edit current project name
+6. List all projects
+7. Switch project
+8. Export tasks to Markdown
+9. Exit
 ------------------------------
 Enter your choice: 1
 Adding a new task:
@@ -145,14 +148,14 @@ Listing tasks in project: 'DemoProject'
 ```
 
 ### Editing a Task
-```
-Enter your choice: 3
+```bash
+Enter your choice: 4
 Editing tasks in project: 'DemoProject'
 ------------------------------
 +-------+---------------------+----------+-------------+----------+----------------------+
 | Index | Summary             | Assignee | Status      | Priority | Remarks              |
 +-------+---------------------+----------+-------------+----------+----------------------+
-| 1     | Implement login     | Alice    | In Progress | High     | Initial implementation|
+| 1     | Implement login     | Alice    | In Progress | High     | Initial implementation |
 +-------+---------------------+----------+-------------+----------+----------------------+
 
 Enter the index of the task to edit: 1
@@ -180,8 +183,8 @@ Task updated successfully.
 ```
 
 ### Exporting Tasks to Markdown
-```
-Enter your choice: 6
+```bash
+Enter your choice: 8
 Tasks exported to Markdown file: '<project_name>_tasks_export.md'
 ```
 
