@@ -5,11 +5,11 @@ class Interaction:
     Handles user input for project and task details.
     """
     @staticmethod
-    def get_project_name() -> str:
+    def get_project_name(prompt: str = "Enter the project name: ") -> str:
         """
         Prompt user to enter a project name.
         """
-        return input("Enter the project name: ")
+        return input(prompt)
 
     @staticmethod
     def get_task_details() -> Task:

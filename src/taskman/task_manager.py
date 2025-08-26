@@ -19,7 +19,8 @@ def main_cli() -> None:
         print("-" * 30)
         print("1. List all projects")
         print("2. Open a project")
-        print("3. Exit")
+        print("3. Edit a project name")
+        print("4. Exit")
         print("-" * 30)
         choice = input("Enter your choice: ")
 
@@ -35,6 +36,15 @@ def main_cli() -> None:
             current_project = Project(project_name)
             print(f"\nOpened project: '{current_project.name}'")
         elif choice == "3":
+            # Edit a project name
+            print("\nEditing a project name:")
+            print("-" * 30)
+            projects = ProjectManager.list_projects()
+            if projects:
+                old_name = interaction.get_project_name("Enter the project name to rename: ")
+                new_name = interaction.get_project_name("Enter the new project name: ")
+                ProjectManager.edit_project_name(old_name, new_name)
+        elif choice == "4":
             # Exit the application
             print("\nExiting Task Manager. Goodbye!")
             return
@@ -51,10 +61,11 @@ def main_cli() -> None:
         print("2. List all tasks in the current project")
         print("3. List tasks with custom sort")
         print("4. Edit a task in the current project")
-        print("5. List all projects")
-        print("6. Switch project")
-        print("7. Export tasks to Markdown")
-        print("8. Exit")
+        print("5. Edit current project name")
+        print("6. List all projects")
+        print("7. Switch project")
+        print("8. Export tasks to Markdown")
+        print("9. Exit")
         print("-" * 30)
         choice = input("Enter your choice: ")
 
@@ -101,11 +112,23 @@ def main_cli() -> None:
             except ValueError:
                 print("\nInvalid input. Please enter a valid task index.")
         elif choice == "5":
+            # Edit current project name
+            print("\nEditing current project name:")
+            print("-" * 30)
+            old_name = current_project.name
+            new_name = interaction.get_project_name(f"Enter the new name for project '{old_name}': ")
+            if new_name and new_name != old_name:
+                if ProjectManager.edit_project_name(old_name, new_name):
+                    current_project = Project(new_name)
+                    print(f"Project renamed. Current project is now '{current_project.name}'.")
+            else:
+                print("Rename cancelled or new name is the same as the old name.")
+        elif choice == "6":
             # List all available projects
             print("\nListing all projects:")
             print("-" * 30)
             ProjectManager.list_projects()
-        elif choice == "6":
+        elif choice == "7":
             # Switch to another project
             print("\nSwitching project:")
             print("-" * 30)
@@ -113,10 +136,10 @@ def main_cli() -> None:
             ProjectManager.save_project_name(project_name)
             current_project = Project(project_name)
             print(f"\nSwitched to project: '{current_project.name}'")
-        elif choice == "7":
+        elif choice == "8":
             # Export tasks to a Markdown file
             current_project.export_tasks_to_markdown_file()
-        elif choice == "8":
+        elif choice == "9":
             # Exit the application
             print("\nExiting Task Manager. Goodbye!")
             break

@@ -3,6 +3,7 @@ import os
 import textwrap
 from prettytable import PrettyTable
 from taskman.task import Task, TaskStatus, TaskPriority
+from taskman.project_manager import ProjectManager
 
 class Project:
     def __init__(self, name: str, file=None) -> None:
@@ -11,17 +12,16 @@ class Project:
         """
         self.name = name
         self.tasks = []
-        data_dir = os.path.expanduser("~/sandbox/data/ai-sandbox")
-        os.makedirs(data_dir, exist_ok=True)
-        self.task_file_path = os.path.join(data_dir, f"{self.name}_tasks.json")
-        self.markdown_file_path = os.path.join(data_dir, f"{self.name}_tasks_export.md")
+        os.makedirs(ProjectManager.PROJECTS_DIR, exist_ok=True)
+        self.task_file_path = ProjectManager.get_task_file_path(self.name)
+        self.markdown_file_path = ProjectManager.get_markdown_file_path(self.name)
         if file is not None:
             self.file = file
         else:
             self.file = open(self.task_file_path, "a+")
         self.file.seek(0)
         self.load_tasks_from_file()
-
+    
     def __del__(self) -> None:
         """
         Ensure the file is closed when the Project object is deleted.
@@ -46,6 +46,7 @@ class Project:
             tasks_data = json.load(self.file)
             self.tasks = [Task.from_dict(data) for data in tasks_data]
         except json.JSONDecodeError:
+            # If file is empty/corrupt, start with an empty task list.
             self.tasks = []
 
     def add_task(self, task: 'Task') -> None:
