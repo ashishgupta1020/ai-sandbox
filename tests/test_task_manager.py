@@ -319,9 +319,9 @@ class TestTaskManager(unittest.TestCase):
             "2",  # List tasks
             "4", "1", "Task1 edited", "User1 edited", "First line of remarks", "Second line with **markdown**", "", "2", "2",  # Edit task
             "2",  # List tasks after editing
-            "6",  # List all projects
-            "7", self.PROJECT_B,  # Switch project
-            "9"   # Exit
+            "7",  # List all projects
+            "8", self.PROJECT_B,  # Switch project
+            "9"   # Exit from project menu
         ]
         def mock_input(prompt=None):
             return user_inputs.pop(0)
@@ -375,7 +375,7 @@ class TestTaskManager(unittest.TestCase):
         user_inputs = [
             "2", self.CLI_PROJECT,  # Open project
             "1", "CLI Summary", "CLI Assignee", "CLI Remarks", "", "2", "2",    # Add task
-            "8",    # Export to Markdown
+            "5",    # Export to Markdown
             "9"     # Exit
         ]
         expected_md_path = ProjectManager.get_markdown_file_path(self.CLI_PROJECT)
@@ -490,7 +490,7 @@ class TestTaskManager(unittest.TestCase):
         # Simulate editing current project name from the project menu
         user_inputs = [
             "2", self.PROJECT_A,  # Open project A
-            "5",  # Edit current project name
+            "6",  # Edit current project name
             self.PROJECT_B,  # new name
             "2",  # List tasks in new project
             "9"  # exit

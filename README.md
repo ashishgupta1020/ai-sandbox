@@ -105,14 +105,19 @@ Project Menu:
 ==============================
 Current Project: DemoProject
 ------------------------------
-1. Add a task to the current project
-2. List all tasks in the current project
+-- Task Management --
+1. Add a task
+2. List all tasks
 3. List tasks with custom sort
-4. Edit a task in the current project
-5. Edit current project name
-6. List all projects
-7. Switch project
-8. Export tasks to Markdown
+4. Edit a task
+5. Export tasks to Markdown
+
+-- Project Management --
+6. Edit current project name
+7. List all projects
+8. Switch project
+
+-- Application --
 9. Exit
 ------------------------------
 Enter your choice: 1
@@ -184,7 +189,7 @@ Task updated successfully.
 
 ### Exporting Tasks to Markdown
 ```bash
-Enter your choice: 8
+Enter your choice: 5
 Tasks exported to Markdown file: '<project_name>_tasks_export.md'
 ```
 

@@ -57,14 +57,20 @@ def main_cli() -> None:
         print("=" * 30)
         print(f"Current Project: {current_project.name}")
         print("-" * 30)
-        print("1. Add a task to the current project")
-        print("2. List all tasks in the current project")
+        # Task Management
+        print("-- Task Management --")
+        print("1. Add a task")
+        print("2. List all tasks")
         print("3. List tasks with custom sort")
-        print("4. Edit a task in the current project")
-        print("5. Edit current project name")
-        print("6. List all projects")
-        print("7. Switch project")
-        print("8. Export tasks to Markdown")
+        print("4. Edit a task")
+        print("5. Export tasks to Markdown\n")
+        # Project Management
+        print("-- Project Management --")
+        print("6. Edit current project name")
+        print("7. List all projects")
+        print("8. Switch project\n")
+        # Application
+        print("-- Application --")
         print("9. Exit")
         print("-" * 30)
         choice = input("Enter your choice: ")
@@ -112,6 +118,9 @@ def main_cli() -> None:
             except ValueError:
                 print("\nInvalid input. Please enter a valid task index.")
         elif choice == "5":
+            # Export tasks to a Markdown file
+            current_project.export_tasks_to_markdown_file()
+        elif choice == "6":
             # Edit current project name
             print("\nEditing current project name:")
             print("-" * 30)
@@ -123,12 +132,12 @@ def main_cli() -> None:
                     print(f"Project renamed. Current project is now '{current_project.name}'.")
             else:
                 print("Rename cancelled or new name is the same as the old name.")
-        elif choice == "6":
+        elif choice == "7":
             # List all available projects
             print("\nListing all projects:")
             print("-" * 30)
             ProjectManager.list_projects()
-        elif choice == "7":
+        elif choice == "8":
             # Switch to another project
             print("\nSwitching project:")
             print("-" * 30)
@@ -136,9 +145,6 @@ def main_cli() -> None:
             ProjectManager.save_project_name(project_name)
             current_project = Project(project_name)
             print(f"\nSwitched to project: '{current_project.name}'")
-        elif choice == "8":
-            # Export tasks to a Markdown file
-            current_project.export_tasks_to_markdown_file()
         elif choice == "9":
             # Exit the application
             print("\nExiting Task Manager. Goodbye!")

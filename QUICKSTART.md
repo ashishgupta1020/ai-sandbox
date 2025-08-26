@@ -38,10 +38,10 @@
 | `2. List all tasks` | Display all tasks in a table. |
 | `3. List tasks with custom sort` | Sort the task list by status or priority. |
 | `4. Edit a task` | Interactively edit an existing task's details. |
-| `5. Edit current project name` | Rename the currently open project. |
-| `6. List all projects` | Show all available projects from within the project menu. |
-| `7. Switch project` | Close the current project and open another. |
-| `8. Export tasks to Markdown` | Save the task list to a Markdown file. |
+| `5. Export tasks to Markdown` | Save the task list to a Markdown file. |
+| `6. Edit current project name` | Rename the currently open project. |
+| `7. List all projects` | Show all available projects from within the project menu. |
+| `8. Switch project` | Close the current project and open another. |
 | `9. Exit` | Closes the application. |
 
 ## Priority Levels
