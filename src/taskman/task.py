@@ -5,6 +5,11 @@ class TaskStatus(Enum):
     IN_PROGRESS = "In Progress"
     COMPLETED = "Completed"
 
+class TaskPriority(Enum):
+    LOW = "Low"
+    MEDIUM = "Medium"
+    HIGH = "High"
+
 class Task:
     """
     Represents a single task with summary, assignee, remarks, status, and priority.
@@ -14,10 +19,9 @@ class Task:
         self.summary = summary  # Short description of the task
         self.assignee = assignee  # Person responsible for the task
         self.remarks = remarks  # Additional notes or comments
-        # Store status as string for compatibility, but use enum for sorting
-        # TODO: store as enum too
-        self.status = status  # Task status (e.g., Not Started, In Progress, Completed)
-        self.priority = priority  # Task priority (Low, Medium, High)
+        # Store status and priority as enums for type safety and consistency.
+        self.status: TaskStatus = TaskStatus(status)  # Task status (e.g., Not Started, In Progress, Completed)
+        self.priority: TaskPriority = TaskPriority(priority)  # Task priority (Low, Medium, High)
 
     def to_dict(self) -> dict:
         """
@@ -27,8 +31,8 @@ class Task:
             "summary": self.summary,
             "assignee": self.assignee,
             "remarks": self.remarks,
-            "status": self.status,
-            "priority": self.priority,
+            "status": self.status.value,
+            "priority": self.priority.value,
         }
 
     @classmethod

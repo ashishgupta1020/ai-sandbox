@@ -1,14 +1,14 @@
 import json
+import os
 import textwrap
 from prettytable import PrettyTable
-from taskman.task import Task
+from taskman.task import Task, TaskStatus, TaskPriority
 
 class Project:
     def __init__(self, name: str, file=None) -> None:
         """
         Initialize a Project with a name and load its tasks from file.
         """
-        import os
         self.name = name
         self.tasks = []
         data_dir = os.path.expanduser("~/sandbox/data/ai-sandbox")
@@ -60,7 +60,6 @@ class Project:
         Print all tasks in the project in a formatted table.
         Optionally sort by 'status' or 'priority'.
         """
-        from taskman.task import TaskStatus
         if not self.tasks:
             print("No tasks found in this project.")
         else:
@@ -71,21 +70,21 @@ class Project:
             if sort_by == "status":
                 status_order = [s.value.lower() for s in TaskStatus]
                 def status_key(t):
-                    status = getattr(t, 'status', '').strip().lower()
+                    status = t.status.value.lower()
                     return status_order.index(status) if status in status_order else len(status_order)
                 tasks = sorted(tasks, key=status_key)
             elif sort_by == "priority":
-                priority_order = ["low", "medium", "high"]
+                priority_order = [p.value.lower() for p in TaskPriority]
                 def priority_key(t):
-                    priority = getattr(t, 'priority', '').strip().lower()
+                    priority = t.priority.value.lower()
                     return priority_order.index(priority) if priority in priority_order else len(priority_order)
                 tasks = sorted(tasks, key=priority_key)
             for idx, task in enumerate(tasks, start=1):
                 # Wrap text for better display
                 wrapped_summary = textwrap.fill(task.summary, width=40)
                 wrapped_assignee = textwrap.fill(task.assignee, width=20)
-                wrapped_status = textwrap.fill(task.status, width=15)
-                wrapped_priority = textwrap.fill(task.priority, width=10)
+                wrapped_status = textwrap.fill(task.status.value, width=15)
+                wrapped_priority = textwrap.fill(task.priority.value, width=10)
                 # Preserve newlines in remarks by wrapping each line individually
                 wrapped_remarks = '\n'.join(textwrap.fill(line, width=80) for line in task.remarks.splitlines())
                 table.add_row([
@@ -123,8 +122,8 @@ class Project:
                 str(idx),
                 task.summary.replace("|", "\\|"),
                 task.assignee.replace("|", "\\|"),
-                task.status.replace("|", "\\|"),
-                task.priority.replace("|", "\\|"),
+                task.status.value.replace("|", "\\|"),
+                task.priority.value.replace("|", "\\|"),
                 task.remarks.replace("|", "\\|"),
             ]
             md += "| " + " | ".join(row) + " |\n"

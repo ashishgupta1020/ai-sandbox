@@ -4,7 +4,7 @@ from io import StringIO
 from contextlib import redirect_stdout
 from taskman.project_manager import ProjectManager
 from taskman.project import Project
-from taskman.task import Task
+from taskman.task import Task, TaskStatus, TaskPriority
 
 class TestProjectManager(unittest.TestCase):
     TEST_PROJECT = "TestProject"
@@ -150,8 +150,8 @@ class TestProject(unittest.TestCase):
         self.assertEqual(updated_task.summary, "New Summary")
         self.assertEqual(updated_task.assignee, "New Assignee")
         self.assertEqual(updated_task.remarks, "New Remarks")
-        self.assertEqual(updated_task.status, "Completed")
-        self.assertEqual(updated_task.priority, "Medium")
+        self.assertEqual(updated_task.status, TaskStatus.COMPLETED)
+        self.assertEqual(updated_task.priority, TaskPriority.MEDIUM)
 
     def test_edit_task_invalid_index(self):
         project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))

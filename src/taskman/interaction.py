@@ -89,7 +89,7 @@ class Interaction:
             remarks = task.remarks
         # Edit status
         status_options = ["Not Started", "In Progress", "Completed"]
-        print(f"Current Status: {task.status}")
+        print(f"Current Status: {task.status.value}")
         print("Select new status:")
         for idx, option in enumerate(status_options, start=1):
             print(f"{idx}. {option}")
@@ -99,10 +99,10 @@ class Interaction:
             num = int(status_input)
             if 1 <= num <= len(status_options):
                 new_status = status_options[num - 1]
-        status = new_status if new_status else task.status
+        status = new_status if new_status else task.status.value
         # Edit priority
         priority_options = ["Low", "Medium", "High"]
-        print(f"Current Priority: {task.priority}")
+        print(f"Current Priority: {task.priority.value}")
         print("Select new priority:")
         for idx, option in enumerate(priority_options, start=1):
             print(f"{idx}. {option}")
@@ -112,5 +112,5 @@ class Interaction:
             num = int(priority_input)
             if 1 <= num <= len(priority_options):
                 new_priority = priority_options[num - 1]
-        priority = new_priority if new_priority else task.priority
+        priority = new_priority if new_priority else task.priority.value
         return Task(summary, assignee, remarks, status, priority)
