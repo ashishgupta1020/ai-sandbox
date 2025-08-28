@@ -1,14 +1,24 @@
 """
-Tasker UI server scaffold for the taskman package.
+Tasker UI server for the taskman package.
 
-This module provides a minimal, dependency-free HTTP server as a placeholder
-for a future web UI. Static assets (HTML/CSS/JS) live in `src/taskman/ui/` and
-are served directly by this module. This separation keeps Python code and UI
-assets modular.
+This module provides a lightweight, dependency-free HTTP server and a minimal
+frontend for managing projects. Static assets (HTML/CSS/JS) live in
+`src/taskman/ui/` and are served directly by this module.
+
+Currently supported routes:
+  - GET  /health                         -> basic health check (JSON)
+  - GET  /                               -> UI index (projects list with add + inline rename)
+  - GET  /project.html?name=<name>       -> UI project view (tasks table)
+  - GET  /api/projects                   -> list saved project names + current
+  - GET  /api/state                      -> current project name
+  - GET  /api/projects/<name>/tasks      -> tasks JSON for a project
+  - POST /api/projects/open              -> open/create a project { name }
+  - POST /api/projects/edit-name         -> rename project { old_name, new_name }
+  - POST /api/exit                       -> graceful shutdown
 
 Usage:
-    - Library: call start_ui(host, port)
-    - CLI:     python -m taskman.tasker_ui
+  - Library: start_ui(host, port)
+  - CLI:     python -m taskman.tasker_ui
 """
 
 from __future__ import annotations
@@ -56,7 +66,7 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(b"<h1>404 Not Found</h1><p>File not found.</p>")
             return
 
-        # Guess content type
+        # Guess content type and stream bytes
         content_type, _ = mimetypes.guess_type(str(file_path))
         if content_type is None:
             content_type = "application/octet-stream"
@@ -114,7 +124,7 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
             # ['', 'api', 'projects', '<name>', 'tasks']
             if len(parts) >= 5 and parts[1] == "api" and parts[2] == "projects" and parts[-1] == "tasks":
                 name = unquote(parts[3])
-                # basic validation
+                # Basic validation; prevent traversal or dotfiles
                 if not name or ".." in name or name.startswith("."):
                     return self._json({"error": "Invalid project name"}, 400)
                 task_file = ProjectManager.get_task_file_path(name)

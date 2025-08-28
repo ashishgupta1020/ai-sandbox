@@ -43,7 +43,7 @@ This is a simple command-line project and task management tool implemented in Py
 - All data is stored locally in JSON format for easy access and modification, in `~/sandbox/data/ai-sandbox/`.
 - You can export all tasks to a Markdown file for sharing or documentation.
 
-## Usage
+## Usage (CLI)
 
 1. Run the main script:
   ```bash
@@ -51,6 +51,45 @@ This is a simple command-line project and task management tool implemented in Py
   ```
 2. Follow the on-screen prompts to manage projects and tasks.
 3. Use the interactive CLI to add, list, edit, switch, and export tasks.
+
+## UI Server (Experimental)
+
+A minimal web UI is bundled for basic project navigation:
+
+- Lists all projects with bullets
+- Add a new project via a plus icon next to the "Projects" title
+- Rename a project via an inline pencil icon next to each project (shows on hover/focus)
+- Open a project to view its tasks in a simple HTML table
+- Exit the server via a button on the main page
+
+Start the UI server:
+
+```bash
+python -m taskman.tasker_ui
+# or from Python
+from taskman.tasker_ui import start_ui
+start_ui(host="127.0.0.1", port=8765)
+```
+
+Open http://127.0.0.1:8765 in your browser.
+
+Available endpoints (for reference):
+
+- GET  `/health` — health check (JSON)
+- GET  `/` — projects list UI
+- GET  `/project.html?name=<name>` — project view (tasks table)
+- GET  `/api/projects` — JSON list of projects + current project
+- GET  `/api/state` — JSON current project name
+- GET  `/api/projects/<name>/tasks` — JSON tasks for a project
+- POST `/api/projects/open` — open/create project `{ "name": "..." }`
+- POST `/api/projects/edit-name` — rename project `{ "old_name": "...", "new_name": "..." }`
+- POST `/api/exit` — graceful shutdown
+
+Notes:
+
+- Data paths are the same as the CLI (under `~/sandbox/data/ai-sandbox`).
+- The UI is intentionally minimal and dependency-free.
+- Icons show on hover/focus to keep the UI clean.
 
 ## Requirements
 
