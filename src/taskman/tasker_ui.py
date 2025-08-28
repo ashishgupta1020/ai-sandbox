@@ -146,8 +146,6 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
                         tasks = []
                 return self._json({"project": name, "tasks": tasks})
 
-        # Static file serving
-
         # Default document
         if req_path in ("", "/"):
             target = UI_DIR / "index.html"
