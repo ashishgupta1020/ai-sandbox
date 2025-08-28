@@ -1,0 +1,39 @@
+:root {
+  --muted: #666;
+  --chip-bg: #eef;
+  --chip-border: #ccd;
+}
+
+html, body {
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
+  margin: 2rem;
+}
+
+h1 {
+  margin-bottom: 0.25rem;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+code {
+  background: #f2f2f2;
+  padding: 0.1rem 0.25rem;
+  border-radius: 4px;
+}
+
+.chip {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  background: var(--chip-bg);
+  border: 1px solid var(--chip-border);
+  border-radius: 999px;
+  font-size: 0.85rem;
+}
+
