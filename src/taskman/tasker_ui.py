@@ -15,19 +15,28 @@ from __future__ import annotations
 
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urlparse, unquote
 import mimetypes
 import os
 import json
 import threading
 import time
 from typing import Tuple, Optional
+import logging
 
 from .project_manager import ProjectManager
 from .project import Project
 
 
 UI_DIR = (Path(__file__).parent / "ui").resolve()
+logger = logging.getLogger("taskman.tasker_ui")
+# Configure a simple console handler if none are present so info logs show up
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    handler.setLevel(logging.INFO)
+    handler.setFormatter(logging.Formatter("%(message)s"))
+    logger.addHandler(handler)
+logger.setLevel(logging.INFO)
 
 
 class _UIRequestHandler(BaseHTTPRequestHandler):
@@ -82,24 +91,52 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
             return None
 
     def do_GET(self) -> None:  # noqa: N802 (match http.server signature)
-        if self.path in ("/health", "/_health"):
+        parsed = urlparse(self.path)
+        req_path = parsed.path
+        if req_path in ("/health", "/_health"):
             payload = b"{\n  \"status\": \"ok\"\n}\n"
             self._set_headers(200, "application/json; charset=utf-8")
             self.wfile.write(payload)
             return
 
         # API endpoints (read-only)
-        if self.path == "/api/projects":
+        if req_path == "/api/projects":
             projects = ProjectManager.load_project_names()
             current = getattr(self.server, "current_project_name", None)
             return self._json({"projects": projects, "currentProject": current})
-        if self.path == "/api/state":
+        if req_path == "/api/state":
             current = getattr(self.server, "current_project_name", None)
             return self._json({"currentProject": current})
 
+        # Project tasks for a given project name
+        if req_path.startswith("/api/projects/") and req_path.endswith("/tasks"):
+            parts = req_path.split("/")
+            # ['', 'api', 'projects', '<name>', 'tasks']
+            if len(parts) >= 5 and parts[1] == "api" and parts[2] == "projects" and parts[-1] == "tasks":
+                name = unquote(parts[3])
+                # basic validation
+                if not name or ".." in name or name.startswith("."):
+                    return self._json({"error": "Invalid project name"}, 400)
+                task_file = ProjectManager.get_task_file_path(name)
+                tasks = []
+                if os.path.exists(task_file):
+                    try:
+                        with open(task_file, "r", encoding="utf-8") as f:
+                            tasks = json.load(f)
+                            if not isinstance(tasks, list):
+                                self.log_message(
+                                    "Tasks JSON for project '%s' is not a list: %r", name, type(tasks), level="warning"
+                                )
+                                tasks = []
+                    except Exception as e:
+                        # Use request handler's logger to capture details concisely
+                        self.log_message(
+                            "Failed reading tasks for project '%s' from %s: %r", name, task_file, e, level="exception"
+                        )
+                        tasks = []
+                return self._json({"project": name, "tasks": tasks})
+
         # Static file serving
-        parsed = urlparse(self.path)
-        req_path = parsed.path
 
         # Default document
         if req_path in ("", "/"):
@@ -183,9 +220,25 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
         self._json({"error": "Unknown endpoint"}, 404)
 
     # Suppress default noisy logging to stderr; keep it minimal
-    def log_message(self, format: str, *args) -> None:  # noqa: A003 (shadow builtins)
-        # Print a concise one-liner to stdout
-        print(f"[UI] {self.address_string()} - {self.requestline}")
+    def log_message(self, format: str, *args, level: str = "info") -> None:  # noqa: A003 (shadow builtins)
+        # Consistent one-liner format via logger; keeps signature compatible with BaseHTTPRequestHandler
+        try:
+            message = (format % args) if args else str(format)
+        except Exception:
+            message = str(format)
+        suffix = f" - {message}" if message else ""
+        line = f"[UI] {self.address_string()} - {self.requestline}{suffix}"
+        lvl = (level or "info").lower()
+        if lvl == "warning" or lvl == "warn":
+            logger.warning(line)
+        elif lvl == "error":
+            logger.error(line)
+        elif lvl == "exception":
+            logger.exception(line)
+        elif lvl == "debug":
+            logger.debug(line)
+        else:
+            logger.info(line)
 
 
 def start_ui(host: str = "127.0.0.1", port: int = 8765) -> None:

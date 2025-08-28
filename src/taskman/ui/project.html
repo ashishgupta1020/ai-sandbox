@@ -10,7 +10,11 @@
     <a href="/">← Back to projects</a>
     <h1 id="title">Project</h1>
     <p id="status" class="muted">Loading…</p>
-    <p>Placeholder for this project's tasks.</p>
+
+    <section>
+      <h2>Tasks</h2>
+      <div id="tasks" class="muted">Loading tasks…</div>
+    </section>
 
     <script>
       function getParam(name) {
@@ -26,6 +30,46 @@
         });
         const text = await res.text();
         try { return JSON.parse(text); } catch (_) { return {}; }
+      }
+
+      async function loadTasks(name) {
+        const res = await fetch(`/api/projects/${encodeURIComponent(name)}/tasks`);
+        const data = await res.json();
+        const box = document.getElementById('tasks');
+        const tasks = data.tasks || [];
+        if (!tasks.length) {
+          box.textContent = 'No tasks found.';
+          return;
+        }
+        const table = document.createElement('table');
+        const thead = document.createElement('thead');
+        const trh = document.createElement('tr');
+        const headers = ['Index', 'Summary', 'Assignee', 'Status', 'Priority', 'Remarks'];
+        for (const h of headers) {
+          const th = document.createElement('th'); th.textContent = h; trh.appendChild(th);
+        }
+        thead.appendChild(trh);
+        const tbody = document.createElement('tbody');
+        tasks.forEach((t, i) => {
+          const tr = document.createElement('tr');
+          const cells = [
+            String(i+1),
+            t.summary || '',
+            t.assignee || '',
+            t.status || '',
+            t.priority || '',
+            t.remarks || ''
+          ];
+          for (const c of cells) {
+            const td = document.createElement('td');
+            td.textContent = c;
+            tr.appendChild(td);
+          }
+          tbody.appendChild(tr);
+        });
+        table.appendChild(thead);
+        table.appendChild(tbody);
+        box.replaceChildren(table);
       }
 
       (async function init() {
@@ -48,8 +92,8 @@
         } catch (e) {
           status.textContent = `Error: ${e.message}`;
         }
+        await loadTasks(name);
       })();
     </script>
   </body>
   </html>
-
