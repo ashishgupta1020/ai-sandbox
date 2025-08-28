@@ -37,3 +37,19 @@ code {
   font-size: 0.85rem;
 }
 
+.actions { margin-top: 0.75rem; }
+.btn {
+  padding: 0.4rem 0.75rem;
+  border: 1px solid #999;
+  background: #f7f7f7;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-right: 0.5rem;
+}
+.btn:hover { background: #f1f1f1; }
+.btn-danger { border-color: #c66; background: #fee; }
+.btn-danger:hover { background: #fdd; }
+
+.list { padding-left: 1.25rem; }
+.list a { text-decoration: none; }
+.list a:hover { text-decoration: underline; }

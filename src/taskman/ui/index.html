@@ -3,17 +3,89 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Taskman UI (Placeholder)</title>
+    <title>Taskman UI</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <h1>Taskman UI</h1>
-    <p class="muted">Web interface coming soon.</p>
-    <p>
-      This is a minimal built-in HTTP server placeholder. Try the
-      health endpoint: <a href="/health"><code>/health</code></a>.
-    </p>
-    <p class="chip">Status: prototype</p>
+    <p class="muted">Select a project to view tasks.</p>
+    <p class="chip">Prototype</p>
+
+    <section>
+      <h2>Projects</h2>
+      <div id="projects" class="muted" aria-live="polite">Loading…</div>
+      <div class="actions">
+        <button id="btn-edit" type="button" class="btn">Edit project name</button>
+        <button id="btn-exit" type="button" class="btn btn-danger">Exit server</button>
+      </div>
+    </section>
+
+    <script>
+      async function api(path, opts = {}) {
+        const res = await fetch(path, opts);
+        const text = await res.text();
+        let data = {};
+        try { data = text ? JSON.parse(text) : {}; } catch (_) {}
+        if (!res.ok) {
+          const msg = (data && data.error) ? data.error : `Request failed: ${res.status}`;
+          throw new Error(msg);
+        }
+        return data;
+      }
+
+      function el(tag, attrs = {}, ...children) {
+        const n = document.createElement(tag);
+        for (const [k, v] of Object.entries(attrs)) {
+          if (k === 'class') n.className = v; else if (k.startsWith('on') && typeof v === 'function') n.addEventListener(k.slice(2), v); else n.setAttribute(k, v);
+        }
+        for (const c of children) n.append(c);
+        return n;
+      }
+
+      async function refreshProjects() {
+        try {
+          const p = await api('/api/projects');
+          const box = document.getElementById('projects');
+          if (!p.projects || p.projects.length === 0) {
+            box.textContent = 'No projects found.';
+          } else {
+            const ul = el('ul', { class: 'list' });
+            for (const name of p.projects) {
+              const link = el('a', { href: `/project.html?name=${encodeURIComponent(name)}` }, name);
+              ul.appendChild(el('li', {}, link));
+            }
+            box.replaceChildren(ul);
+          }
+        } catch (e) {
+          document.getElementById('projects').textContent = `Error: ${e.message}`;
+        }
+      }
+
+      // Initial load
+      (async function init() {
+        await refreshProjects();
+        // Wire up actions
+        document.getElementById('btn-edit').addEventListener('click', async () => {
+          try {
+            const old_name = prompt('Enter the current project name:');
+            if (!old_name) return;
+            const new_name = prompt('Enter the new project name:');
+            if (!new_name) return;
+            await api('/api/projects/edit-name', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ old_name, new_name }) });
+            await refreshProjects();
+          } catch (e) {
+            alert(e.message);
+          }
+        });
+        document.getElementById('btn-exit').addEventListener('click', async () => {
+          try {
+            await api('/api/exit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+            alert('Server is shutting down. You may need to close this tab.');
+          } catch (e) {
+            alert(e.message);
+          }
+        });
+      })();
+    </script>
   </body>
   </html>
-

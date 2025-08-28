@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Taskman Project</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <a href="/">← Back to projects</a>
+    <h1 id="title">Project</h1>
+    <p id="status" class="muted">Loading…</p>
+    <p>Placeholder for this project's tasks.</p>
+
+    <script>
+      function getParam(name) {
+        const url = new URL(window.location.href);
+        return url.searchParams.get(name);
+      }
+
+      async function openProject(name) {
+        const res = await fetch('/api/projects/open', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name })
+        });
+        const text = await res.text();
+        try { return JSON.parse(text); } catch (_) { return {}; }
+      }
+
+      (async function init() {
+        const name = getParam('name');
+        const title = document.getElementById('title');
+        const status = document.getElementById('status');
+        if (!name) {
+          title.textContent = 'Project (missing name)';
+          status.textContent = 'No project specified.';
+          return;
+        }
+        title.textContent = `Project: ${name}`;
+        try {
+          const result = await openProject(name);
+          if (result && result.ok) {
+            status.textContent = `Opened '${name}'.`;
+          } else {
+            status.textContent = 'Failed to open project.';
+          }
+        } catch (e) {
+          status.textContent = `Error: ${e.message}`;
+        }
+      })();
+    </script>
+  </body>
+  </html>
+
