@@ -151,8 +151,9 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
             target = UI_DIR / "index.html"
             return self._serve_file(target)
 
-        # Prevent directory traversal
+        # Any other page
         clean = req_path.lstrip("/")
+        # Prevent directory traversal
         if ".." in clean or clean.startswith(".") or clean.endswith("/"):
             self._set_headers(400)
             self.wfile.write(b"<h1>400 Bad Request</h1>")
