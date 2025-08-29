@@ -1,15 +1,22 @@
+/* Theme Tokens */
 :root {
   --bg: #f6f8fa;
   --surface: #ffffff;
   --border: #e5e7eb;
+  --border-strong: #cbd5e1; /* slightly darker than --border for buttons */
   --shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06);
   --text: #111827;
   --muted: #6b7280;
   --link: #2563eb;
   --chip-bg: #eef4ff;
   --chip-border: #dbeafe;
+  --code-bg: #f2f2f2;
+  --danger-border: #c66;
+  --danger-bg: #fee;
+  --danger-bg-hover: #fdd;
 }
 
+/* Base Reset */
 html, body {
   padding: 0;
   margin: 0;
@@ -23,6 +30,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Layout */
 .container {
   max-width: 1120px;
   margin: 2rem auto;
@@ -34,16 +42,18 @@ h1 {
   font-size: 1.75rem;
 }
 
+/* Typography */
 .muted {
   color: var(--muted);
 }
 
 code {
-  background: #f2f2f2;
+  background: var(--code-bg);
   padding: 0.1rem 0.25rem;
   border-radius: 4px;
 }
 
+/* Components */
 .chip {
   display: inline-block;
   padding: 0.15rem 0.5rem;
@@ -66,13 +76,17 @@ code {
 .title-row { display: flex; align-items: center; gap: 0.6rem; }
 .btn {
   padding: 0.4rem 0.75rem;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--border-strong);
   background: linear-gradient(#ffffff, #f7f9fb);
   border-radius: 6px;
   cursor: pointer;
   margin-right: 0.5rem;
 }
 .btn:hover { background: #f1f5f9; }
+
+/* Shared icon button behavior */
+.btn-icon, .btn-icon-sm { opacity: 0; pointer-events: none; transition: opacity 0.15s ease-in-out; margin-left: 0.5rem; }
+
 .btn-icon {
   width: 1.6rem;
   height: 1.6rem;
@@ -83,28 +97,24 @@ code {
   border-radius: 999px;
   border: 1px solid var(--border);
   background: var(--surface);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.15s ease-in-out;
-  margin-left: 0.5rem;
 }
 .btn-icon .icon { width: 0.85rem; height: 0.85rem; }
-.btn-icon:hover { background: #f8fafc; border-color: #cbd5e1; }
+.btn-icon:hover { background: #f8fafc; border-color: var(--border-strong); }
 .title-row:hover .btn-icon,
 .btn-icon:focus { opacity: 1; pointer-events: auto; }
-.btn-danger { border-color: #c66; background: #fee; }
-.btn-danger:hover { background: #fdd; }
+.btn-danger { border-color: var(--danger-border); background: var(--danger-bg); }
+.btn-danger:hover { background: var(--danger-bg-hover); }
 
 .list { padding-left: 1.25rem; margin: 0.5rem 0 0 0; }
 .list a { text-decoration: none; color: var(--link); }
 .list a:hover { text-decoration: underline; }
 .project-row { display: flex; align-items: center; gap: 0.6rem; }
-.btn-icon-sm { width: 1.3rem; height: 1.3rem; opacity: 0; pointer-events: none; transition: opacity 0.15s ease-in-out; margin-left: 0.5rem; }
+.btn-icon-sm { width: 1.3rem; height: 1.3rem; }
 .btn-icon-sm .icon { width: 0.75rem; height: 0.75rem; }
 .project-row:hover .btn-icon-sm,
 .btn-icon-sm:focus { opacity: 1; pointer-events: auto; }
 
-/* Normalize Markdown spacing inside rendered cells */
+/* Markdown Reset inside table cells */
 .md { padding: 0; }
 .md > :first-child { margin-top: 0; }
 .md > :last-child { margin-bottom: 0; }
@@ -112,3 +122,41 @@ code {
 .md ul, .md ol { margin-top: 0; margin-bottom: 0; padding-left: 1.2rem; }
 /* Avoid extra top space for common blocks */
 .md p, .md pre, .md blockquote { margin-top: 0; }
+
+/* Grid.js Overrides */
+.gridjs *,.gridjs :after,.gridjs :before { box-sizing: border-box; }
+.gridjs thead .gridjs-th { vertical-align: middle; }
+
+/* Center header text and sort icon vertically in sortable columns */
+.gridjs thead th.gridjs-th .gridjs-th-content { line-height: 24px; }
+.gridjs thead button.gridjs-sort-asc,
+.gridjs thead button.gridjs-sort-desc { background-position-y: center !important; }
+
+/* Prevent header labels from being ellipsized (allow wrapping) */
+.gridjs thead th.gridjs-th { white-space: normal; position: relative; }
+.gridjs thead th.gridjs-th .gridjs-th-content {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  padding-right: 0;
+  display: block;
+  margin-right: 17px; /* reserve space for sort icon */
+}
+/* Place sort icon absolutely to the right, centered vertically */
+.gridjs thead th.gridjs-th button.gridjs-sort {
+  float: none !important;
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* Reduce horizontal padding in Grid.js header/body cells */
+table.gridjs-table th.gridjs-th,
+table.gridjs-table td.gridjs-td { padding: 12px; }
+
+/* Make Grid.js search box a bit shorter */
+.gridjs input.gridjs-input {
+  padding: 6px 10px;
+  line-height: 1.3;
+}
