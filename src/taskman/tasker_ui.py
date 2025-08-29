@@ -174,7 +174,8 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:  # noqa: N802
         # API endpoints (mutations)
         parsed = urlparse(self.path)
-        if parsed.path == "/api/projects/open":
+        path = parsed.path
+        if path == "/api/projects/open":
             body = self._read_json()
             if body is None or "name" not in body or not str(body["name"]).strip():
                 return self._json({"error": "Missing 'name'"}, 400)
@@ -190,7 +191,7 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 return self._json({"error": str(e)}, 500)
 
-        if parsed.path == "/api/projects/edit-name":
+        if path == "/api/projects/edit-name":
             body = self._read_json()
             if body is None:
                 return self._json({"error": "Invalid JSON"}, 400)
@@ -208,7 +209,27 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
                 setattr(self.server, "current_project_name", new)
             return self._json({"ok": True, "currentProject": getattr(self.server, "current_project_name", None)})
 
-        if parsed.path == "/api/exit":
+        # Update a single task in a project: POST /api/projects/<name>/tasks/update
+        if path.startswith("/api/projects/") and path.endswith("/tasks/update"):
+            parts = path.split("/")
+            # ['', 'api', 'projects', '<name>', 'tasks', 'update']
+            if len(parts) >= 6 and parts[1] == "api" and parts[2] == "projects" and parts[-2] == "tasks" and parts[-1] == "update":
+                name = unquote(parts[3])
+                if not name or ".." in name or name.startswith("."):
+                    # Drain any body to keep connection healthy
+                    _ = self._read_json()
+                    return self._json({"error": "Invalid project name"}, 400)
+                body = self._read_json()
+                if body is None:
+                    return self._json({"error": "Invalid JSON"}, 400)
+                if not isinstance(body, dict):
+                    return self._json({"error": "Invalid payload"}, 400)
+                # Delegate validation and update to Project model
+                proj = Project(name)
+                resp, status = proj.update_task_from_payload(body)
+                return self._json(resp, status)
+
+        if path == "/api/exit":
             # Respond then shutdown the server gracefully
             self._json({"ok": True, "message": "Shutting down"})
             try:

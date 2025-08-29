@@ -62,6 +62,15 @@ class TestTasksPageAPI(unittest.TestCase):
             body = resp.read()
             return resp, body
 
+    def _post(self, path: str, payload: dict):
+        data = json.dumps(payload).encode("utf-8")
+        headers = {"Content-Type": "application/json", "Content-Length": str(len(data))}
+        with closing(http.client.HTTPConnection(self.host, self.port, timeout=2)) as conn:
+            conn.request("POST", path, body=data, headers=headers)
+            resp = conn.getresponse()
+            body = resp.read()
+            return resp, body
+
     # ----- Tests for /api/projects/<name>/tasks -----
     def test_tasks_endpoint_empty(self):
         # No task file created yet
@@ -127,3 +136,55 @@ class TestTasksPageAPI(unittest.TestCase):
         data = json.loads(body)
         self.assertEqual(data["project"], name)
 
+    def test_update_task_summary(self):
+        name = "Delta"
+        path = ProjectManager.get_task_file_path(name)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        tasks = [{"summary": "Old", "assignee": "A", "remarks": "R", "status": "Not Started", "priority": "Low"}]
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(tasks, f)
+        resp, body = self._post(f"/api/projects/{name}/tasks/update", {"index": 0, "fields": {"summary": "New"}})
+        self.assertEqual(resp.status, 200)
+        obj = json.loads(body)
+        self.assertTrue(obj.get("ok"))
+        self.assertEqual(obj["task"]["summary"], "New")
+        # Verify persisted
+        resp2, body2 = self._get(f"/api/projects/{name}/tasks")
+        self.assertEqual(resp2.status, 200)
+        data = json.loads(body2)
+        self.assertEqual(data["tasks"][0]["summary"], "New")
+
+    def test_update_task_invalid_index(self):
+        name = "Echo"
+        path = ProjectManager.get_task_file_path(name)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump([], f)
+        resp, body = self._post(f"/api/projects/{name}/tasks/update", {"index": 5, "fields": {"summary": "X"}})
+        self.assertEqual(resp.status, 400)
+
+    def test_update_task_reject_unknown_field(self):
+        name = "Foxtrot"
+        path = ProjectManager.get_task_file_path(name)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump([{"summary":"S","assignee":"A","remarks":"R","status":"Not Started","priority":"Low"}], f)
+        resp, body = self._post(f"/api/projects/{name}/tasks/update", {"index": 0, "fields": {"foo": "bar"}})
+        self.assertEqual(resp.status, 400)
+
+    def test_update_task_validate_enums(self):
+        name = "Golf"
+        path = ProjectManager.get_task_file_path(name)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump([{"summary":"S","assignee":"A","remarks":"R","status":"Not Started","priority":"Low"}], f)
+        # Invalid status
+        resp, _ = self._post(f"/api/projects/{name}/tasks/update", {"index": 0, "fields": {"status": "Started"}})
+        self.assertEqual(resp.status, 400)
+        # Invalid priority
+        resp2, _ = self._post(f"/api/projects/{name}/tasks/update", {"index": 0, "fields": {"priority": "Urgent"}})
+        self.assertEqual(resp2.status, 400)
+
+    def test_update_task_invalid_name(self):
+        resp, _ = self._post("/api/projects/../etc/tasks/update", {"index": 0, "fields": {"summary": "X"}})
+        self.assertEqual(resp.status, 400)

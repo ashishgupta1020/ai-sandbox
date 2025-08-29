@@ -109,6 +109,68 @@ class Project:
         self.save_tasks_to_file()
         print("Task updated successfully.")
 
+    # API support: validate and apply partial updates from request JSON
+    def update_task_from_payload(self, payload: dict) -> tuple[dict, int]:
+        """
+        Validate an edit payload and update a single task, saving to file.
+
+        Expected payload:
+          { "index": <int 0-based>, "fields": {allowed partial fields} }
+
+        Returns a tuple of (response_json, http_status).
+        """
+        if not isinstance(payload, dict):
+            return {"error": "Invalid payload"}, 400
+        # Validate index
+        try:
+            index = int(payload.get("index", -1))
+        except (TypeError, ValueError):
+            return {"error": "'index' must be an integer"}, 400
+        fields = payload.get("fields")
+        if not isinstance(fields, dict) or not fields:
+            return {"error": "'fields' must be a non-empty object"}, 400
+
+        allowed = {"summary", "assignee", "remarks", "status", "priority"}
+        if any(k not in allowed for k in fields.keys()):
+            return {"error": "Unknown fields present"}, 400
+
+        # Bounds check
+        if index < 0 or index >= len(self.tasks):
+            return {"error": "Index out of range"}, 400
+
+        # Enum validation
+        if "status" in fields:
+            try:
+                TaskStatus(fields["status"])  # type: ignore[arg-type]
+            except Exception:
+                return {"error": "Invalid status"}, 400
+        if "priority" in fields:
+            try:
+                TaskPriority(fields["priority"])  # type: ignore[arg-type]
+            except Exception:
+                return {"error": "Invalid priority"}, 400
+
+        # Apply changes
+        task = self.tasks[index]
+        if "summary" in fields:
+            task.summary = str(fields["summary"]) if fields["summary"] is not None else ""
+        if "assignee" in fields:
+            task.assignee = str(fields["assignee"]) if fields["assignee"] is not None else ""
+        if "remarks" in fields:
+            task.remarks = str(fields["remarks"]) if fields["remarks"] is not None else ""
+        if "status" in fields:
+            task.status = TaskStatus(fields["status"])  # validated above
+        if "priority" in fields:
+            task.priority = TaskPriority(fields["priority"])  # validated above
+
+        # Persist
+        try:
+            self.save_tasks_to_file()
+        except Exception as e:
+            return {"error": f"Failed to save: {e}"}, 500
+
+        return {"ok": True, "index": index, "task": task.to_dict()}, 200
+
     def export_tasks_to_markdown(self) -> str:
         """
         Export all tasks to a Markdown table string.
