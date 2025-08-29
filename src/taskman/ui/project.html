@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Taskman Project</title>
     <link rel="stylesheet" href="/styles.css" />
+    <!-- Markdown rendering: marked.js + DOMPurify for safe HTML -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+    <!-- Grid.js for sorting/filtering/search -->
+    <link href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css" rel="stylesheet" />
+    <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
   </head>
   <body>
     <div class="container">
@@ -33,44 +39,100 @@
         try { return JSON.parse(text); } catch (_) { return {}; }
       }
 
-      async function loadTasks(name) {
-        const res = await fetch(`/api/projects/${encodeURIComponent(name)}/tasks`);
-        const data = await res.json();
+      // Grid.js instance
+      let GRID = null;
+
+      function getRemarksHTML(src) {
+        try {
+          if (window.marked && window.DOMPurify) {
+            if (typeof marked.setOptions === 'function') marked.setOptions({ breaks: true });
+            const html = marked.parse(src ?? '');
+            return `<div class="md">${DOMPurify.sanitize(html, { USE_PROFILES: { html: true } })}</div>`;
+          }
+        } catch (_) {}
+        return null;
+      }
+
+      function renderWithGrid(rows) {
         const box = document.getElementById('tasks');
-        const tasks = data.tasks || [];
-        if (!tasks.length) {
-          box.textContent = 'No tasks found.';
-          return;
+        if (!rows.length) { box.textContent = 'No tasks found.'; return; }
+        box.replaceChildren();
+        const columns = [
+          { name: 'Index', sort: true },
+          { name: 'Summary', sort: true },
+          { name: 'Assignee', sort: true },
+          { name: 'Status', sort: true },
+          { name: 'Priority', sort: true },
+          { name: 'Remarks', sort: false }
+        ];
+        if (!GRID) {
+          GRID = new gridjs.Grid({ columns, data: rows, sort: true, search: true, pagination: { limit: 20 } });
+          GRID.render(box);
+        } else {
+          GRID.updateConfig({ columns, data: rows }).forceRender();
         }
+      }
+
+      function renderFallbackTable(tasks) {
+        const box = document.getElementById('tasks');
+        if (!Array.isArray(tasks) || tasks.length === 0) { box.textContent = 'No tasks found.'; return; }
         const table = document.createElement('table');
         const thead = document.createElement('thead');
         const trh = document.createElement('tr');
         const headers = ['Index', 'Summary', 'Assignee', 'Status', 'Priority', 'Remarks'];
-        for (const h of headers) {
-          const th = document.createElement('th'); th.textContent = h; trh.appendChild(th);
-        }
+        for (const h of headers) { const th = document.createElement('th'); th.textContent = h; trh.appendChild(th); }
         thead.appendChild(trh);
         const tbody = document.createElement('tbody');
         tasks.forEach((t, i) => {
           const tr = document.createElement('tr');
-          const cells = [
-            String(i+1),
-            t.summary || '',
-            t.assignee || '',
-            t.status || '',
-            t.priority || '',
-            t.remarks || ''
-          ];
-          for (const c of cells) {
-            const td = document.createElement('td');
-            td.textContent = c;
-            tr.appendChild(td);
+          const plain = [String(i + 1), t.summary || '', t.assignee || '', t.status || '', t.priority || ''];
+          for (const c of plain) { const td = document.createElement('td'); td.textContent = c; tr.appendChild(td); }
+          const remarksTd = document.createElement('td');
+          remarksTd.style.textAlign = 'left';
+          const src = t.remarks || '';
+          const html = getRemarksHTML(src);
+          if (html) {
+            remarksTd.innerHTML = html;
+          } else {
+            const container = document.createElement('div');
+            container.className = 'md';
+            container.style.whiteSpace = 'pre-wrap';
+            container.textContent = src;
+            remarksTd.replaceChildren(container);
           }
+          tr.appendChild(remarksTd);
           tbody.appendChild(tr);
         });
         table.appendChild(thead);
         table.appendChild(tbody);
         box.replaceChildren(table);
+      }
+
+      async function loadTasks(name) {
+        const box = document.getElementById('tasks');
+        try {
+          const res = await fetch(`/api/projects/${encodeURIComponent(name)}/tasks`);
+          const data = await res.json();
+          const tasks = Array.isArray(data.tasks) ? data.tasks : [];
+          if (window.gridjs && typeof gridjs.Grid === 'function') {
+            const rows = tasks.map((t, i) => {
+              const idx = i + 1;
+              const summary = t.summary || '';
+              const assignee = t.assignee || '';
+              const status = t.status || '';
+              const priority = t.priority || '';
+              const src = t.remarks || '';
+              const rhtml = getRemarksHTML(src);
+              const remarksCell = rhtml ? gridjs.html(rhtml) : (src || '');
+              return [idx, summary, assignee, status, priority, remarksCell];
+            });
+            renderWithGrid(rows);
+          } else {
+            renderFallbackTable(tasks);
+          }
+        } catch (e) {
+          box.textContent = `Error loading tasks: ${e && e.message ? e.message : e}`;
+        }
       }
 
       (async function init() {
