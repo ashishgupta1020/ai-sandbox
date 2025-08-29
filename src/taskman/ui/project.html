@@ -41,6 +41,8 @@
 
       // Grid.js instance
       let GRID = null;
+      // Columns definition (initialized once)
+      let GRID_COLUMNS = null;
       // Allowed option values for select editors
       const STATUS_OPTS = ['Not Started', 'In Progress', 'Completed'];
       const PRIORITY_OPTS = ['Low', 'Medium', 'High'];
@@ -73,20 +75,35 @@
       function renderWithGrid(rows) {
         const box = document.getElementById('tasks');
         if (!rows.length) { box.textContent = 'No tasks found.'; return; }
-        // Recreate the grid each time to avoid layout drift after updates
-        if (GRID && typeof GRID.destroy === 'function') {
-          try { GRID.destroy(); } catch (_) {}
+        // Initialize columns once
+        if (!GRID_COLUMNS) {
+          GRID_COLUMNS = [
+            { name: 'Index', sort: true },
+            { name: 'Summary',  sort: true, formatter: editableFormatter('summary',  'text') },
+            { name: 'Assignee', sort: true, formatter: editableFormatter('assignee', 'text') },
+            { name: 'Status',   sort: true, formatter: editableFormatter('status',   'select', STATUS_OPTS) },
+            { name: 'Priority', sort: true, formatter: editableFormatter('priority', 'select', PRIORITY_OPTS) },
+            { name: 'Remarks', sort: false }
+          ];
         }
+
+        // If a grid already exists, update data in place to avoid jitter
+        if (GRID) {
+          // Stabilize container height during re-render to reduce flicker
+          const prevHeight = box.offsetHeight;
+          if (prevHeight > 0) box.style.minHeight = prevHeight + 'px';
+          try {
+            GRID.updateConfig({ data: rows }).forceRender();
+          } finally {
+            // Release the min-height after the browser paints
+            setTimeout(() => { box.style.minHeight = ''; }, 0);
+          }
+          return;
+        }
+
+        // First-time render
         box.replaceChildren();
-        const columns = [
-          { name: 'Index', sort: true },
-          { name: 'Summary',  sort: true, formatter: editableFormatter('summary',  'text') },
-          { name: 'Assignee', sort: true, formatter: editableFormatter('assignee', 'text') },
-          { name: 'Status',   sort: true, formatter: editableFormatter('status',   'select', STATUS_OPTS) },
-          { name: 'Priority', sort: true, formatter: editableFormatter('priority', 'select', PRIORITY_OPTS) },
-          { name: 'Remarks', sort: false }
-        ];
-        GRID = new gridjs.Grid({ columns, data: rows, sort: true, search: true, pagination: { limit: 20 } });
+        GRID = new gridjs.Grid({ columns: GRID_COLUMNS, data: rows, sort: true, search: true, pagination: { limit: 20 } });
         GRID.render(box);
       }
 
