@@ -182,70 +182,7 @@ class TestMainMenuAPI(unittest.TestCase):
             if os.path.exists(fname):
                 os.remove(fname)
 
-    # ----- New tests for /api/projects/<name>/tasks -----
-    def test_tasks_endpoint_empty(self):
-        # No task file created yet
-        resp, body = self._get("/api/projects/Alpha/tasks")
-        self.assertEqual(resp.status, 200)
-        data = json.loads(body)
-        self.assertEqual(data["project"], "Alpha")
-        self.assertEqual(data["tasks"], [])
-
-    def test_tasks_endpoint_with_tasks(self):
-        # Create a valid tasks list
-        path = ProjectManager.get_task_file_path("Alpha")
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        tasks = [
-            {"summary": "S1", "assignee": "A1", "remarks": "R1", "status": "Not Started", "priority": "Low"},
-            {"summary": "S2", "assignee": "A2", "remarks": "R2", "status": "Completed", "priority": "High"},
-        ]
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(tasks, f)
-        resp, body = self._get("/api/projects/Alpha/tasks")
-        self.assertEqual(resp.status, 200)
-        data = json.loads(body)
-        self.assertEqual(len(data["tasks"]), 2)
-        self.assertEqual(data["tasks"][0]["summary"], "S1")
-
-    def test_tasks_endpoint_non_list_json(self):
-        # Write a dict instead of list
-        path = ProjectManager.get_task_file_path("Bravo")
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump({"oops": True}, f)
-        resp, body = self._get("/api/projects/Bravo/tasks")
-        self.assertEqual(resp.status, 200)
-        data = json.loads(body)
-        self.assertEqual(data["tasks"], [])
-
-    def test_tasks_endpoint_malformed_json(self):
-        path = ProjectManager.get_task_file_path("Charlie")
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            f.write("{not valid json}")
-        resp, body = self._get("/api/projects/Charlie/tasks")
-        self.assertEqual(resp.status, 200)
-        data = json.loads(body)
-        self.assertEqual(data["tasks"], [])
-
-    def test_tasks_endpoint_invalid_names(self):
-        # Traversal-like
-        resp, _ = self._get("/api/projects/../etc/tasks")
-        self.assertEqual(resp.status, 400)
-        # Leading dot
-        resp, _ = self._get("/api/projects/.hidden/tasks")
-        self.assertEqual(resp.status, 400)
-
-    def test_tasks_endpoint_url_decoding(self):
-        name = "Alpha Beta"
-        path = ProjectManager.get_task_file_path(name)
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump([], f)
-        resp, body = self._get("/api/projects/Alpha%20Beta/tasks")
-        self.assertEqual(resp.status, 200)
-        data = json.loads(body)
-        self.assertEqual(data["project"], name)
+    # (moved) tests for /api/projects/<name>/tasks are in tests/server/test_tasks_page.py
 
     def test_exit_endpoint(self):
         # Make a separate server just for exit test to avoid tearing down main instance mid-run
