@@ -92,21 +92,29 @@ code {
 .btn:hover { background: #f1f5f9; }
 
 /* Shared icon button behavior */
-.btn-icon, .btn-icon-sm { opacity: 0; pointer-events: none; transition: opacity 0.15s ease-in-out; margin-left: 0.5rem; }
-
-.btn-icon {
-  width: 1.6rem;
-  height: 1.6rem;
+.btn-icon, .btn-icon-sm {
+  /* Reveal behavior */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease-in-out;
+  margin-left: 0.5rem;
+  /* Common button box */
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  border: 1px solid var(--border);
   background: var(--surface);
+  line-height: 0;
 }
+
+/* Icon buttons should be borderless even if combined with .btn */
+.btn.btn-icon, .btn.btn-icon-sm { border: 0; }
+
+.btn-icon { width: 1.6rem; height: 1.6rem; }
 .btn-icon .icon { width: 1.15rem; height: 1.15rem; }
-.btn-icon:hover { background: #f8fafc; border-color: var(--border-strong); }
+.btn-icon .icon, .btn-icon-sm .icon { display: block; }
+.btn-icon:hover, .btn-icon-sm:hover { background: #f8fafc; }
 .title-row:hover .btn-icon,
 .btn-icon:focus { opacity: 1; pointer-events: auto; }
 .btn-danger { border-color: var(--danger-border); background: var(--danger-bg); }
@@ -118,6 +126,7 @@ code {
 .project-row { display: flex; align-items: center; gap: 0.6rem; }
 .btn-icon-sm { width: 1.3rem; height: 1.3rem; }
 .btn-icon-sm .icon { width: 0.85rem; height: 0.85rem; }
+
 .project-row:hover .btn-icon-sm,
 .btn-icon-sm:focus { opacity: 1; pointer-events: auto; }
 
