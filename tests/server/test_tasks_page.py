@@ -185,3 +185,30 @@ class TestTasksPageAPI(unittest.TestCase):
         self.assertEqual(resp.status, 400)
         resp2, _ = self._post("/api/projects/../etc/tasks/create", {})
         self.assertEqual(resp2.status, 400)
+
+    # ----- Tests for /api/projects/<name>/tasks/delete -----
+    def test_delete_task_success(self):
+        name = "Kilo"
+        # Seed task file
+        path = ProjectManager.get_task_file_path(name)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        tasks = [
+            {"summary": "S1", "assignee": "A1", "remarks": "R1", "status": "Not Started", "priority": "Low"},
+            {"summary": "S2", "assignee": "A2", "remarks": "R2", "status": "Completed", "priority": "High"},
+        ]
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(tasks, f)
+        resp, body = self._post(f"/api/projects/{name}/tasks/delete", {"index": 0})
+        self.assertEqual(resp.status, 200)
+        # Verify one left and it's S2
+        resp2, body2 = self._get(f"/api/projects/{name}/tasks")
+        self.assertEqual(resp2.status, 200)
+        listing = json.loads(body2)
+        self.assertEqual(len(listing["tasks"]), 1)
+        self.assertEqual(listing["tasks"][0]["summary"], "S2")
+
+    def test_delete_task_invalid_name(self):
+        resp, _ = self._post("/api/projects/.hidden/tasks/delete", {"index": 0})
+        self.assertEqual(resp.status, 400)
+        resp2, _ = self._post("/api/projects/../etc/tasks/delete", {"index": 0})
+        self.assertEqual(resp2.status, 400)

@@ -105,7 +105,7 @@ code {
   border: 1px solid var(--border);
   background: var(--surface);
 }
-.btn-icon .icon { width: 0.85rem; height: 0.85rem; }
+.btn-icon .icon { width: 1.15rem; height: 1.15rem; }
 .btn-icon:hover { background: #f8fafc; border-color: var(--border-strong); }
 .title-row:hover .btn-icon,
 .btn-icon:focus { opacity: 1; pointer-events: auto; }
@@ -117,9 +117,13 @@ code {
 .list a:hover { text-decoration: underline; }
 .project-row { display: flex; align-items: center; gap: 0.6rem; }
 .btn-icon-sm { width: 1.3rem; height: 1.3rem; }
-.btn-icon-sm .icon { width: 0.75rem; height: 0.75rem; }
+.btn-icon-sm .icon { width: 0.85rem; height: 0.85rem; }
 .project-row:hover .btn-icon-sm,
 .btn-icon-sm:focus { opacity: 1; pointer-events: auto; }
+
+/* Reveal row action icons inside task tables on row hover */
+table.gridjs-table tr:hover .btn-icon { opacity: 1; pointer-events: auto; }
+table.gridjs-table .btn-icon { vertical-align: middle; }
 
 /* Markdown Reset inside table cells */
 .md { padding: 0; }

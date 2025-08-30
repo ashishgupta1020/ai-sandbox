@@ -187,6 +187,31 @@ class TestProject(unittest.TestCase):
         resp, status = project.create_task_from_payload("not a dict")  # type: ignore[arg-type]
         self.assertEqual(status, 400)
 
+    def test_delete_task_from_payload_success(self):
+        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        project.add_task(Task("S1", "A1", "R1", "Not Started", "Low"))
+        project.add_task(Task("S2", "A2", "R2", "Completed", "High"))
+        resp, status = project.delete_task_from_payload({"index": 0})
+        self.assertEqual(status, 200)
+        self.assertTrue(resp.get("ok"))
+        self.assertEqual(len(project.tasks), 1)
+        self.assertEqual(project.tasks[0].summary, "S2")
+        # Persist check
+        project2 = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        self.assertEqual(len(project2.tasks), 1)
+        self.assertEqual(project2.tasks[0].summary, "S2")
+
+    def test_delete_task_from_payload_invalid_index_type(self):
+        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        project.add_task(Task("S", "A", "R", "Not Started", "Low"))
+        resp, status = project.delete_task_from_payload({"index": "zero"})  # type: ignore[arg-type]
+        self.assertEqual(status, 400)
+
+    def test_delete_task_from_payload_out_of_range(self):
+        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        resp, status = project.delete_task_from_payload({"index": 0})
+        self.assertEqual(status, 400)
+
     def test_export_tasks_to_markdown_content(self):
         project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
         project.add_task(Task("S1", "A1", "R1", "Not Started", "Low"))

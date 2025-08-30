@@ -14,6 +14,7 @@ Currently supported routes:
   - GET  /api/projects/<name>/tasks              -> list tasks JSON for a project
   - POST /api/projects/<name>/tasks/update       -> update a single task { index, fields }
   - POST /api/projects/<name>/tasks/create       -> create a new task { optional fields }
+  - POST /api/projects/<name>/tasks/delete       -> delete a task { index }
   - POST /api/projects/open                      -> open/create a project { name }
   - POST /api/projects/edit-name                 -> rename project { old_name, new_name }
   - POST /api/exit                               -> graceful shutdown
@@ -248,6 +249,22 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
                 return self._json(resp, status)
             except Exception as e:
                 return self._json({"error": f"Failed to create task: {e}"}, 500)
+
+        # Delete a task in a project: POST /api/projects/<name>/tasks/delete
+        m_delete = re.match(r"^/api/projects/(.+)/tasks/delete$", path)
+        if m_delete:
+            name = unquote(m_delete.group(1))
+            if not name or ".." in name or name.startswith(".") or "/" in name:
+                _ = self._read_json()  # drain
+                return self._json({"error": "Invalid project name"}, 400)
+            body = self._read_json()
+            try:
+                cur_obj = getattr(self.server, "current_project", None)
+                proj = cur_obj if (isinstance(cur_obj, Project) and cur_obj.name == name) else Project(name)
+                resp, status = proj.delete_task_from_payload(body)
+                return self._json(resp, status)
+            except Exception as e:
+                return self._json({"error": f"Failed to delete task: {e}"}, 500)
 
         if path == "/api/exit":
             # Respond then shutdown the server gracefully

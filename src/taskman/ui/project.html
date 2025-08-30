@@ -37,14 +37,24 @@
         return url.searchParams.get(name);
       }
 
-      async function openProject(name) {
-        const res = await fetch('/api/projects/open', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name })
-        });
+      // Minimal JSON API helper for POST/GET returning parsed JSON or throwing on error
+      async function api(path, opts = {}) {
+        const { method, body } = opts || {};
+        const fetchOpts = { method, headers: { 'Content-Type': 'application/json' } };
+        if (body !== undefined) fetchOpts.body = typeof body === 'string' ? body : JSON.stringify(body);
+        const res = await fetch(path, fetchOpts);
         const text = await res.text();
-        try { return JSON.parse(text); } catch (_) { return {}; }
+        let data = {};
+        try { data = text ? JSON.parse(text) : {}; } catch (_) { data = {}; }
+        if (!res.ok || (data && data.error)) {
+          const msg = (data && data.error) ? data.error : `HTTP ${res.status}`;
+          throw new Error(msg);
+        }
+        return data;
+      }
+
+      async function openProject(name) {
+        return api('/api/projects/open', { method: 'POST', body: { name } });
       }
 
       // Grid.js instance
@@ -133,10 +143,12 @@
       }
 
       // Reusable formatter to attach inline editing behavior to a cell
+      // Uses a hidden first column that stores the 0-based index for stable lookups
       function editableFormatter(field, type, options) {
         return (cell, row) => {
           const h = gridjs.h;
-          const idx0 = Number(row.cells[0].data) - 1;
+          // First hidden column is the 0-based index
+          const idx0 = Number(row.cells[0].data);
           // For markdown cells, render markdown preview as the display value
           if (type === 'markdown') {
             const isEmpty = !cell || (typeof cell === 'string' && cell.trim() === '');
@@ -161,12 +173,35 @@
         };
       }
 
+      async function apiDeleteTask(name, index0) {
+        return api(`/api/projects/${encodeURIComponent(name)}/tasks/delete`, { method: 'POST', body: { index: index0 } });
+      }
+
       function renderWithGrid(rows) {
         const box = document.getElementById('tasks');
         if (!rows.length) { box.textContent = 'No tasks found.'; return; }
         // Initialize columns once
         if (!GRID_COLUMNS) {
           GRID_COLUMNS = [
+            // Hidden stable index column (0-based)
+            { name: '_idx0', hidden: true },
+            { name: '', sort: false, width: '60px', formatter: (_, row) => {
+                const h = gridjs.h;
+                const idx0 = Number(row.cells[0].data);
+                const icon = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6a1 1 0 0 1 1 1v1h4v2H4V5h4V4a1 1 0 0 1 1-1zm1 6h2v9h-2V9zm4 0h2v9h-2V9zM7 9h2v9H7V9z" fill="currentColor"/></svg>';
+                const btn = h('button', {
+                  className: 'btn btn-icon',
+                  title: `Delete task #${idx0 + 1}`,
+                  'aria-label': `Delete task ${idx0 + 1}`,
+                  style: 'margin-left:0',
+                  onClick: async () => {
+                    try { await apiDeleteTask(CURRENT_PROJECT, idx0); await loadTasks(CURRENT_PROJECT); }
+                    catch (e) { alert(e && e.message ? e.message : String(e)); }
+                  }
+                }, gridjs.html(icon));
+                return h('div', { style: 'display:flex;align-items:center;justify-content:center;' }, btn);
+              }
+            },
             { name: 'Index', sort: true },
             { name: 'Summary',  sort: true, formatter: editableFormatter('summary',  'text') },
             { name: 'Assignee', sort: true, formatter: editableFormatter('assignee', 'text') },
@@ -238,7 +273,7 @@
           const data = await res.json();
           const tasks = Array.isArray(data.tasks) ? data.tasks : [];
           if (window.gridjs && typeof gridjs.Grid === 'function') {
-            const rows = tasks.map((t, i) => {
+          const rows = tasks.map((t, i) => {
               const idx = i + 1;
               const summary = t.summary || '';
               const assignee = t.assignee || '';
@@ -246,7 +281,8 @@
               const priority = t.priority || '';
               const src = t.remarks || '';
               // For Grid.js, pass raw text; formatter will render markdown
-              return [idx, summary, assignee, status, priority, src];
+              // First column: hidden 0-based index; Second column: actions; Third: visible Index
+              return [i, null, idx, summary, assignee, status, priority, src];
             });
             renderWithGrid(rows);
           } else {
@@ -259,32 +295,10 @@
 
       let CURRENT_PROJECT = null;
       async function apiCreateTask(name, fields = {}) {
-        const res = await fetch(`/api/projects/${encodeURIComponent(name)}/tasks/create`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(fields || {})
-        });
-        const text = await res.text();
-        let json = {};
-        try { json = JSON.parse(text); } catch (_) {}
-        if (!res.ok || json.error) {
-          throw new Error(json.error || `HTTP ${res.status}`);
-        }
-        return json;
+        return api(`/api/projects/${encodeURIComponent(name)}/tasks/create`, { method: 'POST', body: fields || {} });
       }
       async function apiUpdateTask(name, index0, fields) {
-        const res = await fetch(`/api/projects/${encodeURIComponent(name)}/tasks/update`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ index: index0, fields })
-        });
-        const text = await res.text();
-        let json = {};
-        try { json = JSON.parse(text); } catch (_) {}
-        if (!res.ok || json.error) {
-          throw new Error(json.error || `HTTP ${res.status}`);
-        }
-        return json;
+        return api(`/api/projects/${encodeURIComponent(name)}/tasks/update`, { method: 'POST', body: { index: index0, fields } });
       }
 
       // Build a standalone editor element for a given field type

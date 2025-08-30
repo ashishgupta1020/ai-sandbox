@@ -246,3 +246,29 @@ class Project:
         with open(self.markdown_file_path, "w") as md_file:
             md_file.write(md_output)
         print(f"\nTasks exported to Markdown file: '{self.markdown_file_path}'")
+
+    # API support: validate and delete a task from request JSON
+    def delete_task_from_payload(self, payload: Optional[dict]) -> Tuple[dict, int]:
+        """
+        Validate a deletion payload and remove a task by index, saving to file.
+
+        Expected payload:
+          { "index": <int 0-based> }
+
+        Returns a tuple of (response_json, http_status).
+        """
+        if payload is None or not isinstance(payload, dict):
+            return {"error": "Invalid payload"}, 400
+        try:
+            index = int(payload.get("index", -1))
+        except (TypeError, ValueError):
+            return {"error": "'index' must be an integer"}, 400
+        if index < 0 or index >= len(self.tasks):
+            return {"error": "Index out of range"}, 400
+        # Remove and persist
+        removed = self.tasks.pop(index)
+        try:
+            self.save_tasks_to_file()
+        except Exception as e:
+            return {"error": f"Failed to save: {e}"}, 500
+        return {"ok": True, "index": index, "task": removed.to_dict()}, 200
