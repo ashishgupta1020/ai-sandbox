@@ -58,11 +58,83 @@
         return null;
       }
 
+      // Small reusable Markdown editor with Preview toggle
+      // createMarkdownEditor(initialText, { onSave(value), onCancel() }) => HTMLElement
+      function createMarkdownEditor(initialText, hooks = {}) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'md-editor';
+
+        const toolbar = document.createElement('div');
+        toolbar.className = 'md-toolbar';
+        const btnSave = document.createElement('button');
+        btnSave.type = 'button'; btnSave.className = 'btn btn-sm'; btnSave.textContent = 'Save';
+        const btnPreview = document.createElement('button');
+        btnPreview.type = 'button'; btnPreview.className = 'btn btn-sm'; btnPreview.textContent = 'Preview';
+        const btnCancel = document.createElement('button');
+        btnCancel.type = 'button'; btnCancel.className = 'btn btn-sm'; btnCancel.textContent = 'Cancel';
+        toolbar.append(btnSave, btnPreview, btnCancel);
+
+        const textarea = document.createElement('textarea');
+        textarea.className = 'inline-input multiline';
+        textarea.value = typeof initialText === 'string' ? initialText : '';
+
+        const preview = document.createElement('div');
+        preview.className = 'md preview';
+        preview.style.display = 'none';
+
+        const updatePreview = () => {
+          const html = getRemarksHTML(textarea.value);
+          if (html) { preview.innerHTML = html; }
+          else { preview.textContent = textarea.value || ''; }
+        };
+
+        let showingPreview = false;
+        btnPreview.addEventListener('click', () => {
+          showingPreview = !showingPreview;
+          if (showingPreview) {
+            updatePreview();
+            textarea.style.display = 'none';
+            preview.style.display = 'block';
+            btnPreview.textContent = 'Edit';
+          } else {
+            textarea.style.display = '';
+            preview.style.display = 'none';
+            btnPreview.textContent = 'Preview';
+            textarea.focus();
+          }
+        });
+
+        btnSave.addEventListener('click', () => { if (hooks.onSave) hooks.onSave(textarea.value); });
+        btnCancel.addEventListener('click', () => { if (hooks.onCancel) hooks.onCancel(); });
+
+        textarea.addEventListener('keydown', (e) => {
+          if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); if (hooks.onSave) hooks.onSave(textarea.value); }
+          else if (e.key === 'Escape') { e.preventDefault(); if (hooks.onCancel) hooks.onCancel(); }
+        });
+
+        wrapper.appendChild(toolbar);
+        wrapper.appendChild(textarea);
+        wrapper.appendChild(preview);
+        return wrapper;
+      }
+
       // Reusable formatter to attach inline editing behavior to a cell
       function editableFormatter(field, type, options) {
         return (cell, row) => {
           const h = gridjs.h;
           const idx0 = Number(row.cells[0].data) - 1;
+          // For markdown cells, render markdown preview as the display value
+          if (type === 'markdown') {
+            const displayHTML = getRemarksHTML(cell);
+            const displayNode = displayHTML ? gridjs.html(displayHTML) : (cell || '');
+            return h('span', {
+              className: 'editable',
+              onMouseEnter: (ev) => ev.target.closest('td')?.classList.add('editable-cell'),
+              onMouseLeave: (ev) => ev.target.closest('td')?.classList.remove('editable-cell'),
+              onClick: (ev) => startInlineEditor(ev.target, idx0, field, type, options, cell)
+            }, displayNode);
+          }
+          // Default single-line behavior
           return h('span', {
             className: 'editable',
             onMouseEnter: (ev) => ev.target.closest('td')?.classList.add('editable-cell'),
@@ -83,8 +155,8 @@
             { name: 'Assignee', sort: true, formatter: editableFormatter('assignee', 'text') },
             { name: 'Status',   sort: true, formatter: editableFormatter('status',   'select', STATUS_OPTS) },
             { name: 'Priority', sort: true, formatter: editableFormatter('priority', 'select', PRIORITY_OPTS) },
-            { name: 'Remarks', sort: false }
-          ];
+          { name: 'Remarks', sort: false, formatter: editableFormatter('remarks', 'markdown') }
+        ];
         }
 
         // If a grid already exists, update data in place to avoid jitter
@@ -156,9 +228,8 @@
               const status = t.status || '';
               const priority = t.priority || '';
               const src = t.remarks || '';
-              const rhtml = getRemarksHTML(src);
-              const remarksCell = rhtml ? gridjs.html(rhtml) : (src || '');
-              return [idx, summary, assignee, status, priority, remarksCell];
+              // For Grid.js, pass raw text; formatter will render markdown
+              return [idx, summary, assignee, status, priority, src];
             });
             renderWithGrid(rows);
           } else {
@@ -200,7 +271,10 @@
             alert(`Failed to save: ${e && e.message ? e.message : e}`);
           }
         };
-        const cancel = () => { td.textContent = currentValue || ''; };
+        const cancel = async () => {
+          // Reload data to restore cell with proper formatter and handlers
+          await loadTasks(CURRENT_PROJECT);
+        };
 
         if (type === 'select') {
           const select = document.createElement('select');
@@ -217,6 +291,11 @@
             else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
           });
           select.addEventListener('blur', () => commit(select.value));
+        } else if (type === 'markdown') {
+          editor = createMarkdownEditor(typeof currentValue === 'string' ? currentValue : '', {
+            onSave: (val) => commit(val),
+            onCancel: () => cancel()
+          });
         } else {
           const input = document.createElement('input');
           input.type = 'text';
@@ -230,8 +309,9 @@
           input.addEventListener('blur', () => commit(input.value));
         }
         td.replaceChildren(editor);
-        editor.focus();
-        if (editor.select) editor.select();
+        const focusable = (editor && editor.querySelector) ? (editor.querySelector('textarea, input, select, [contenteditable="true"]') || editor) : editor;
+        if (focusable && focusable.focus) focusable.focus();
+        if (focusable && focusable.select) focusable.select();
       }
 
       (async function init() {

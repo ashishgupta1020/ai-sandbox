@@ -26,6 +26,7 @@ from __future__ import annotations
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse, unquote
+import re
 import mimetypes
 import os
 import json
@@ -112,39 +113,35 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
         # API endpoints (read-only)
         if req_path == "/api/projects":
             projects = ProjectManager.load_project_names()
-            current = getattr(self.server, "current_project_name", None)
+            cur_obj = getattr(self.server, "current_project", None)
+            current = cur_obj.name if isinstance(cur_obj, Project) else None
             return self._json({"projects": projects, "currentProject": current})
         if req_path == "/api/state":
-            current = getattr(self.server, "current_project_name", None)
+            cur_obj = getattr(self.server, "current_project", None)
+            current = cur_obj.name if isinstance(cur_obj, Project) else None
             return self._json({"currentProject": current})
 
         # Project tasks for a given project name
-        if req_path.startswith("/api/projects/") and req_path.endswith("/tasks"):
-            parts = req_path.split("/")
-            # ['', 'api', 'projects', '<name>', 'tasks']
-            if len(parts) >= 5 and parts[1] == "api" and parts[2] == "projects" and parts[-1] == "tasks":
-                name = unquote(parts[3])
-                # Basic validation; prevent traversal or dotfiles
-                if not name or ".." in name or name.startswith("."):
-                    return self._json({"error": "Invalid project name"}, 400)
-                task_file = ProjectManager.get_task_file_path(name)
+        m_tasks = re.match(r"^/api/projects/([^/]+)/tasks$", req_path)
+        if m_tasks:
+            name = unquote(m_tasks.group(1))
+            # Basic validation; prevent traversal or dotfiles
+            if not name or ".." in name or name.startswith("."):
+                return self._json({"error": "Invalid project name"}, 400)
+            tasks = []
+            proj: Optional[Project] = None
+            try:
+                cur_obj = getattr(self.server, "current_project", None)
+                if isinstance(cur_obj, Project) and cur_obj.name == name:
+                    proj = cur_obj
+                else:
+                    proj = Project(name)
+                tasks = [t.to_dict() for t in getattr(proj, "tasks", [])]
+            except Exception as e:
+                # Be forgiving: if file contains unexpected JSON (non-list), return empty list
+                self.log_message("Failed loading tasks for project '%s': %r", name, e, level="warning")
                 tasks = []
-                if os.path.exists(task_file):
-                    try:
-                        with open(task_file, "r", encoding="utf-8") as f:
-                            tasks = json.load(f)
-                            if not isinstance(tasks, list):
-                                self.log_message(
-                                    "Tasks JSON for project '%s' is not a list: %r", name, type(tasks), level="warning"
-                                )
-                                tasks = []
-                    except Exception as e:
-                        # Use request handler's logger to capture details concisely
-                        self.log_message(
-                            "Failed reading tasks for project '%s' from %s: %r", name, task_file, e, level="exception"
-                        )
-                        tasks = []
-                return self._json({"project": name, "tasks": tasks})
+            return self._json({"project": name, "tasks": tasks})
 
         # Default document
         if req_path in ("", "/"):
@@ -184,10 +181,10 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
                 # Persist and load
                 ProjectManager.save_project_name(name)
                 # Initialize project (creates files/dirs as needed)
-                _ = Project(name)
-                # Remember current project on server
-                setattr(self.server, "current_project_name", name)
-                return self._json({"ok": True, "currentProject": name})
+                proj = Project(name)
+                # Remember current project object on server (drop old one; destructor handles close)
+                setattr(self.server, "current_project", proj)
+                return self._json({"ok": True, "currentProject": proj.name})
             except Exception as e:
                 return self._json({"error": str(e)}, 500)
 
@@ -204,30 +201,32 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
                 # edit_project_name already prints; respond with generic failure
                 return self._json({"ok": False}, 400)
             # update current project if it matched
-            cur = getattr(self.server, "current_project_name", None)
-            if cur == old:
-                setattr(self.server, "current_project_name", new)
-            return self._json({"ok": True, "currentProject": getattr(self.server, "current_project_name", None)})
+            cur_obj = getattr(self.server, "current_project", None)
+            if isinstance(cur_obj, Project) and cur_obj.name == old:
+                # Replace with a fresh Project bound to new name; old instance will be GC'ed
+                setattr(self.server, "current_project", Project(new))
+            cur_obj = getattr(self.server, "current_project", None)
+            cur_name = cur_obj.name if isinstance(cur_obj, Project) else None
+            return self._json({"ok": True, "currentProject": cur_name})
 
         # Update a single task in a project: POST /api/projects/<name>/tasks/update
-        if path.startswith("/api/projects/") and path.endswith("/tasks/update"):
-            parts = path.split("/")
-            # ['', 'api', 'projects', '<name>', 'tasks', 'update']
-            if len(parts) >= 6 and parts[1] == "api" and parts[2] == "projects" and parts[-2] == "tasks" and parts[-1] == "update":
-                name = unquote(parts[3])
-                if not name or ".." in name or name.startswith("."):
-                    # Drain any body to keep connection healthy
-                    _ = self._read_json()
-                    return self._json({"error": "Invalid project name"}, 400)
-                body = self._read_json()
-                if body is None:
-                    return self._json({"error": "Invalid JSON"}, 400)
-                if not isinstance(body, dict):
-                    return self._json({"error": "Invalid payload"}, 400)
-                # Delegate validation and update to Project model
-                proj = Project(name)
-                resp, status = proj.update_task_from_payload(body)
-                return self._json(resp, status)
+        m_update = re.match(r"^/api/projects/(.+)/tasks/update$", path)
+        if m_update:
+            name = unquote(m_update.group(1))
+            if not name or ".." in name or name.startswith(".") or "/" in name:
+                # Drain any body to keep connection healthy
+                _ = self._read_json()
+                return self._json({"error": "Invalid project name"}, 400)
+            body = self._read_json()
+            if body is None:
+                return self._json({"error": "Invalid JSON"}, 400)
+            if not isinstance(body, dict):
+                return self._json({"error": "Invalid payload"}, 400)
+            # Delegate validation and update to Project model
+            cur_obj = getattr(self.server, "current_project", None)
+            proj = cur_obj if (isinstance(cur_obj, Project) and cur_obj.name == name) else Project(name)
+            resp, status = proj.update_task_from_payload(body)
+            return self._json(resp, status)
 
         if path == "/api/exit":
             # Respond then shutdown the server gracefully
@@ -281,8 +280,8 @@ def start_ui(host: str = "127.0.0.1", port: int = 8765) -> None:
     """
     server_address: Tuple[str, int] = (host, port)
     httpd = ThreadingHTTPServer(server_address, _UIRequestHandler)
-    # Track current project name across requests (in-memory)
-    httpd.current_project_name = None  # type: ignore[attr-defined]
+    # Track current project object across requests (in-memory)
+    httpd.current_project = None  # type: ignore[attr-defined]
     print(f"Taskman UI server (placeholder) listening on http://{host}:{port}")
     print("Press Ctrl+C to stop.")
     try:
