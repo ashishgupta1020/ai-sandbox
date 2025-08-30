@@ -1,6 +1,7 @@
 import json
 import os
 import textwrap
+from typing import Optional, Tuple
 from prettytable import PrettyTable
 from taskman.task import Task, TaskStatus, TaskPriority
 from taskman.project_manager import ProjectManager
@@ -170,6 +171,51 @@ class Project:
             return {"error": f"Failed to save: {e}"}, 500
 
         return {"ok": True, "index": index, "task": task.to_dict()}, 200
+
+    # API support: validate and create a new task from request JSON
+    def create_task_from_payload(self, payload: Optional[dict]) -> Tuple[dict, int]:
+        """
+        Validate a creation payload and append a new task, saving to file.
+
+        Expected payload (all fields optional; defaults applied when missing):
+          { "summary": str, "assignee": str, "remarks": str,
+            "status": one of TaskStatus values,
+            "priority": one of TaskPriority values }
+
+        Returns a tuple of (response_json, http_status).
+        """
+        if payload is None:
+            payload = {}
+        if not isinstance(payload, dict):
+            return {"error": "Invalid payload"}, 400
+
+        # Extract fields with sensible defaults
+        summary = str(payload.get("summary", ""))
+        assignee = str(payload.get("assignee", ""))
+        remarks = str(payload.get("remarks", ""))
+        status_val = payload.get("status", TaskStatus.NOT_STARTED.value)
+        priority_val = payload.get("priority", TaskPriority.MEDIUM.value)
+
+        # Validate enums; coerce invalid to defaults
+        try:
+            TaskStatus(status_val)  # type: ignore[arg-type]
+        except Exception:
+            status_val = TaskStatus.NOT_STARTED.value
+        try:
+            TaskPriority(priority_val)  # type: ignore[arg-type]
+        except Exception:
+            priority_val = TaskPriority.MEDIUM.value
+
+        # Create and persist
+        new_task = Task(summary, assignee, remarks, status_val, priority_val)
+        self.tasks.append(new_task)
+        try:
+            self.save_tasks_to_file()
+        except Exception as e:
+            return {"error": f"Failed to save: {e}"}, 500
+
+        index0 = len(self.tasks) - 1
+        return {"ok": True, "index": index0, "task": new_task.to_dict()}, 200
 
     def export_tasks_to_markdown(self) -> str:
         """

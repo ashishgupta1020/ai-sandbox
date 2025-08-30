@@ -19,7 +19,15 @@
     <p id="status" class="muted">Loading…</p>
 
     <section>
-      <h2>Tasks</h2>
+      <h2 class="title-row">
+        <span>Tasks</span>
+        <button id="btn-add-task" type="button" class="btn btn-icon" title="Add task" aria-label="Add task">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          </svg>
+        </button>
+      </h2>
+      <div id="add-task-panel" class="add-task-panel card" style="display:none"></div>
       <div id="tasks" class="muted">Loading tasks…</div>
     </section>
 
@@ -66,13 +74,22 @@
 
         const toolbar = document.createElement('div');
         toolbar.className = 'md-toolbar';
-        const btnSave = document.createElement('button');
-        btnSave.type = 'button'; btnSave.className = 'btn btn-sm'; btnSave.textContent = 'Save';
         const btnPreview = document.createElement('button');
         btnPreview.type = 'button'; btnPreview.className = 'btn btn-sm'; btnPreview.textContent = 'Preview';
-        const btnCancel = document.createElement('button');
-        btnCancel.type = 'button'; btnCancel.className = 'btn btn-sm'; btnCancel.textContent = 'Cancel';
-        toolbar.append(btnSave, btnPreview, btnCancel);
+        // Only include Save/Cancel if hooks provided (editing context)
+        if (typeof hooks.onSave === 'function') {
+          const btnSave = document.createElement('button');
+          btnSave.type = 'button'; btnSave.className = 'btn btn-sm'; btnSave.textContent = 'Save';
+          btnSave.addEventListener('click', () => { hooks.onSave && hooks.onSave(textarea.value); });
+          toolbar.appendChild(btnSave);
+        }
+        toolbar.appendChild(btnPreview);
+        if (typeof hooks.onCancel === 'function') {
+          const btnCancel = document.createElement('button');
+          btnCancel.type = 'button'; btnCancel.className = 'btn btn-sm'; btnCancel.textContent = 'Cancel';
+          btnCancel.addEventListener('click', () => { hooks.onCancel && hooks.onCancel(); });
+          toolbar.appendChild(btnCancel);
+        }
 
         const textarea = document.createElement('textarea');
         textarea.className = 'inline-input multiline';
@@ -104,9 +121,6 @@
           }
         });
 
-        btnSave.addEventListener('click', () => { if (hooks.onSave) hooks.onSave(textarea.value); });
-        btnCancel.addEventListener('click', () => { if (hooks.onCancel) hooks.onCancel(); });
-
         textarea.addEventListener('keydown', (e) => {
           if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); if (hooks.onSave) hooks.onSave(textarea.value); }
           else if (e.key === 'Escape') { e.preventDefault(); if (hooks.onCancel) hooks.onCancel(); }
@@ -125,8 +139,11 @@
           const idx0 = Number(row.cells[0].data) - 1;
           // For markdown cells, render markdown preview as the display value
           if (type === 'markdown') {
-            const displayHTML = getRemarksHTML(cell);
-            const displayNode = displayHTML ? gridjs.html(displayHTML) : (cell || '');
+            const isEmpty = !cell || (typeof cell === 'string' && cell.trim() === '');
+            const displayHTML = isEmpty ? null : getRemarksHTML(cell);
+            const displayNode = isEmpty
+              ? h('span', { className: 'placeholder' }, 'Click to add remarks...')
+              : (displayHTML ? gridjs.html(displayHTML) : (cell || ''));
             return h('span', {
               className: 'editable',
               onMouseEnter: (ev) => ev.target.closest('td')?.classList.add('editable-cell'),
@@ -241,6 +258,20 @@
       }
 
       let CURRENT_PROJECT = null;
+      async function apiCreateTask(name, fields = {}) {
+        const res = await fetch(`/api/projects/${encodeURIComponent(name)}/tasks/create`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(fields || {})
+        });
+        const text = await res.text();
+        let json = {};
+        try { json = JSON.parse(text); } catch (_) {}
+        if (!res.ok || json.error) {
+          throw new Error(json.error || `HTTP ${res.status}`);
+        }
+        return json;
+      }
       async function apiUpdateTask(name, index0, fields) {
         const res = await fetch(`/api/projects/${encodeURIComponent(name)}/tasks/update`, {
           method: 'POST',
@@ -256,12 +287,56 @@
         return json;
       }
 
+      // Build a standalone editor element for a given field type
+      function buildFieldEditor(type, options, currentValue, hooks = {}) {
+        let editor;
+        const commit = (value) => { if (hooks.onCommit) hooks.onCommit(value); };
+        const cancel = () => { if (hooks.onCancel) hooks.onCancel(); };
+        if (type === 'select') {
+          const select = document.createElement('select');
+          select.className = 'inline-input';
+          for (const opt of (options || [])) {
+            const o = document.createElement('option');
+            o.value = opt; o.textContent = opt; select.appendChild(o);
+          }
+          select.value = currentValue || (options && options[0]) || '';
+          if (hooks.instantCommit) {
+            select.addEventListener('change', () => commit(select.value));
+            select.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter') { e.preventDefault(); commit(select.value); }
+              else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+            });
+            select.addEventListener('blur', () => commit(select.value));
+          }
+          editor = select;
+        } else if (type === 'markdown') {
+          const mdHooks = hooks.instantCommit ? {
+            onSave: () => { commit(editor.querySelector('textarea')?.value || ''); },
+            onCancel: () => { cancel(); }
+          } : {};
+          editor = createMarkdownEditor(typeof currentValue === 'string' ? currentValue : '', mdHooks);
+        } else {
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.className = 'inline-input';
+          input.value = currentValue || '';
+          if (hooks.instantCommit) {
+            input.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter') { e.preventDefault(); commit(input.value); }
+              else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+            });
+            input.addEventListener('blur', () => commit(input.value));
+          }
+          editor = input;
+        }
+        return editor;
+      }
+
       function startInlineEditor(target, index0, field, type, options, currentValue) {
         const td = target.closest && target.closest('td') ? target.closest('td') : null;
         if (!td) return;
         // if an editor already present, skip
         if (td.querySelector('.inline-input')) return;
-        let editor;
         const commit = async (value) => {
           try {
             await apiUpdateTask(CURRENT_PROJECT, index0, { [field]: value });
@@ -275,39 +350,7 @@
           // Reload data to restore cell with proper formatter and handlers
           await loadTasks(CURRENT_PROJECT);
         };
-
-        if (type === 'select') {
-          const select = document.createElement('select');
-          select.className = 'inline-input';
-          for (const opt of (options || [])) {
-            const o = document.createElement('option');
-            o.value = opt; o.textContent = opt; select.appendChild(o);
-          }
-          select.value = currentValue || (options && options[0]) || '';
-          editor = select;
-          select.addEventListener('change', () => commit(select.value));
-          select.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') { e.preventDefault(); commit(select.value); }
-            else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
-          });
-          select.addEventListener('blur', () => commit(select.value));
-        } else if (type === 'markdown') {
-          editor = createMarkdownEditor(typeof currentValue === 'string' ? currentValue : '', {
-            onSave: (val) => commit(val),
-            onCancel: () => cancel()
-          });
-        } else {
-          const input = document.createElement('input');
-          input.type = 'text';
-          input.className = 'inline-input';
-          input.value = currentValue || '';
-          editor = input;
-          input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') { e.preventDefault(); commit(input.value); }
-            else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
-          });
-          input.addEventListener('blur', () => commit(input.value));
-        }
+        const editor = buildFieldEditor(type, options, currentValue, { instantCommit: true, onCommit: commit, onCancel: cancel });
         td.replaceChildren(editor);
         const focusable = (editor && editor.querySelector) ? (editor.querySelector('textarea, input, select, [contenteditable="true"]') || editor) : editor;
         if (focusable && focusable.focus) focusable.focus();
@@ -336,6 +379,77 @@
           status.textContent = `Error: ${e.message}`;
         }
         await loadTasks(name);
+
+        // Wire add-task button to open inline panel for creating a task
+        const btnAddTask = document.getElementById('btn-add-task');
+        if (btnAddTask) {
+          btnAddTask.addEventListener('click', () => {
+            const panel = document.getElementById('add-task-panel');
+            if (!panel) return;
+            if (panel.getAttribute('data-open') === '1') { panel.style.display = 'none'; panel.setAttribute('data-open', '0'); panel.replaceChildren(); return; }
+
+            // Build form fields using the same editor widgets
+            panel.replaceChildren();
+            panel.setAttribute('data-open', '1');
+            panel.style.display = '';
+            const grid = document.createElement('div');
+            grid.className = 'form-grid';
+
+            const fields = [
+              { key: 'summary',  label: 'Summary',  type: 'text' },
+              { key: 'assignee', label: 'Assignee', type: 'text' },
+              { key: 'status',   label: 'Status',   type: 'select',  options: STATUS_OPTS, defaultValue: STATUS_OPTS[0] },
+              { key: 'priority', label: 'Priority', type: 'select',  options: PRIORITY_OPTS, defaultValue: PRIORITY_OPTS[1] },
+              { key: 'remarks',  label: 'Remarks',  type: 'markdown' }
+            ];
+
+            const editors = {};
+            for (const f of fields) {
+              const lab = document.createElement('div'); lab.className = 'label'; lab.textContent = f.label;
+              const fieldBox = document.createElement('div'); fieldBox.className = 'field';
+              const editor = buildFieldEditor(f.type, f.options, f.defaultValue || '', { instantCommit: false });
+              fieldBox.appendChild(editor);
+              grid.append(lab, fieldBox);
+              editors[f.key] = editor;
+            }
+            panel.appendChild(grid);
+
+            const actions = document.createElement('div');
+            actions.className = 'add-task-actions';
+            const btnSave = document.createElement('button'); btnSave.type = 'button'; btnSave.className = 'btn'; btnSave.textContent = 'Save';
+            const btnCancel = document.createElement('button'); btnCancel.type = 'button'; btnCancel.className = 'btn'; btnCancel.textContent = 'Cancel';
+            actions.append(btnSave, btnCancel);
+            panel.appendChild(actions);
+
+            const getValue = (ed) => {
+              if (!ed) return '';
+              if (ed.tagName === 'SELECT' || ed.tagName === 'INPUT') return ed.value || '';
+              const ta = ed.querySelector && ed.querySelector('textarea');
+              return ta ? (ta.value || '') : '';
+            };
+
+            btnSave.addEventListener('click', async () => {
+              const payload = {
+                summary: getValue(editors['summary']),
+                assignee: getValue(editors['assignee']),
+                status: getValue(editors['status']) || STATUS_OPTS[0],
+                priority: getValue(editors['priority']) || PRIORITY_OPTS[1],
+                remarks: getValue(editors['remarks'])
+              };
+              try {
+                await apiCreateTask(CURRENT_PROJECT, payload);
+                panel.style.display = 'none'; panel.setAttribute('data-open', '0'); panel.replaceChildren();
+                await loadTasks(CURRENT_PROJECT);
+              } catch (e) {
+                alert(e && e.message ? e.message : String(e));
+              }
+            });
+
+            btnCancel.addEventListener('click', () => {
+              panel.style.display = 'none'; panel.setAttribute('data-open', '0'); panel.replaceChildren();
+            });
+          });
+        }
       })();
     </script>
     </div>

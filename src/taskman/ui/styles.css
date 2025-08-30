@@ -47,6 +47,13 @@ h1 {
   color: var(--muted);
 }
 
+/* Placeholder text for empty editable cells */
+.placeholder {
+  color: var(--muted);
+  font-style: italic;
+  font-size: 0.9em;
+}
+
 code {
   background: var(--code-bg);
   padding: 0.1rem 0.25rem;
@@ -176,8 +183,44 @@ td.gridjs-td.editable-cell:hover { background: #f8fafc; }
 
 /* Multiline editor for markdown */
 .inline-input.multiline { min-height: 120px; line-height: 1.35; resize: vertical; }
-.md-editor { display: flex; flex-direction: column; gap: 0.5rem; }
-.md-toolbar { display: flex; gap: 0.5rem; }
+.md-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  padding: 0.5rem; /* keep content from touching the border */
+}
+/* Group the markdown editor actions visibly and separate from textarea */
+.md-toolbar {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.35rem 0.4rem;
+  border-bottom: 0; /* no divider under toolbar */
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+  background: var(--surface);
+  align-items: center;
+}
+
+/* Ensure editor controls have breathing room inside the bordered box */
+.md-editor .inline-input.multiline { margin: 0; }
+.md-editor .md.preview { margin: 0; }
 .btn.btn-sm { padding: 0.25rem 0.5rem; font-size: 0.9rem; }
 
 /* (Removed demo drawer styles; using inline editing only) */
+
+/* Add Task panel */
+.add-task-panel { margin-top: 0.5rem; padding-top: 0.5rem; }
+.form-grid {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  column-gap: 0.75rem;
+  row-gap: 0.5rem;
+  align-items: start;
+}
+.form-grid .label { color: var(--muted); padding-top: 0.35rem; }
+.form-grid .field { width: 100%; }
+.form-grid .field .inline-input { width: 100%; }
+.add-task-actions { margin-top: 0.75rem; display: flex; gap: 0.5rem; }

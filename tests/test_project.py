@@ -105,5 +105,110 @@ class TestProject(unittest.TestCase):
         project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
         self.assertEqual(project.tasks, [])
 
+    # --- New unit tests for API helper methods and exports ---
+    def test_update_task_from_payload_success(self):
+        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        project.add_task(Task("S", "A", "R", "Not Started", "Low"))
+        resp, status = project.update_task_from_payload({
+            "index": 0,
+            "fields": {"summary": "New", "status": "Completed", "priority": "High"}
+        })
+        self.assertEqual(status, 200)
+        self.assertTrue(resp.get("ok"))
+        self.assertEqual(project.tasks[0].summary, "New")
+        self.assertEqual(project.tasks[0].status, TaskStatus.COMPLETED)
+        self.assertEqual(project.tasks[0].priority, TaskPriority.HIGH)
+
+        # Verify persisted to disk
+        project2 = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        self.assertEqual(project2.tasks[0].summary, "New")
+
+    def test_update_task_from_payload_invalid_index_type(self):
+        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        project.add_task(Task("S", "A", "R", "Not Started", "Low"))
+        resp, status = project.update_task_from_payload({"index": "zero", "fields": {"summary": "X"}})
+        self.assertEqual(status, 400)
+        self.assertIn("index", resp.get("error", ""))
+
+    def test_update_task_from_payload_out_of_range(self):
+        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        resp, status = project.update_task_from_payload({"index": 1, "fields": {"summary": "X"}})
+        self.assertEqual(status, 400)
+
+    def test_update_task_from_payload_unknown_field(self):
+        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        project.add_task(Task("S", "A", "R", "Not Started", "Low"))
+        resp, status = project.update_task_from_payload({"index": 0, "fields": {"foo": "bar"}})
+        self.assertEqual(status, 400)
+
+    def test_update_task_from_payload_invalid_enums(self):
+        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        project.add_task(Task("S", "A", "R", "Not Started", "Low"))
+        # Invalid status
+        resp, status = project.update_task_from_payload({"index": 0, "fields": {"status": "Started"}})
+        self.assertEqual(status, 400)
+        # Invalid priority
+        resp2, status2 = project.update_task_from_payload({"index": 0, "fields": {"priority": "Urgent"}})
+        self.assertEqual(status2, 400)
+
+    def test_create_task_from_payload_defaults(self):
+        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        resp, status = project.create_task_from_payload({})
+        self.assertEqual(status, 200)
+        self.assertTrue(resp.get("ok"))
+        self.assertEqual(len(project.tasks), 1)
+        t = project.tasks[0]
+        self.assertEqual(t.summary, "")
+        self.assertEqual(t.assignee, "")
+        self.assertEqual(t.remarks, "")
+        self.assertEqual(t.status, TaskStatus.NOT_STARTED)
+        self.assertEqual(t.priority, TaskPriority.MEDIUM)
+
+    def test_create_task_from_payload_overrides_and_persist(self):
+        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        payload = {"summary": "S", "assignee": "A", "remarks": "R", "status": "Completed", "priority": "High"}
+        resp, status = project.create_task_from_payload(payload)
+        self.assertEqual(status, 200)
+        self.assertTrue(resp.get("ok"))
+        self.assertEqual(len(project.tasks), 1)
+        t = project.tasks[0]
+        self.assertEqual(t.summary, "S")
+        self.assertEqual(t.assignee, "A")
+        self.assertEqual(t.remarks, "R")
+        self.assertEqual(t.status, TaskStatus.COMPLETED)
+        self.assertEqual(t.priority, TaskPriority.HIGH)
+        # Persist check
+        project2 = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        self.assertEqual(len(project2.tasks), 1)
+        self.assertEqual(project2.tasks[0].summary, "S")
+
+    def test_create_task_from_payload_invalid_payload_type(self):
+        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        resp, status = project.create_task_from_payload("not a dict")  # type: ignore[arg-type]
+        self.assertEqual(status, 400)
+
+    def test_export_tasks_to_markdown_content(self):
+        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        project.add_task(Task("S1", "A1", "R1", "Not Started", "Low"))
+        project.add_task(Task("S2", "A2", "R2", "Completed", "High"))
+        md = project.export_tasks_to_markdown()
+        # Headers present
+        self.assertIn("| Index | Summary | Assignee | Status | Priority | Remarks |", md)
+        # Two rows with 1 and 2
+        self.assertIn("| 1 |", md)
+        self.assertIn("| 2 |", md)
+        self.assertIn("S1", md)
+        self.assertIn("S2", md)
+
+    def test_export_tasks_to_markdown_file(self):
+        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        project.add_task(Task("S1", "A1", "R1", "Not Started", "Low"))
+        project.export_tasks_to_markdown_file()
+        md_path = ProjectManager.get_markdown_file_path(self.TEST_PROJECT)
+        self.assertTrue(os.path.exists(md_path))
+        with open(md_path, "r") as f:
+            content = f.read()
+        self.assertIn("S1", content)
+
 if __name__ == "__main__":
     unittest.main()

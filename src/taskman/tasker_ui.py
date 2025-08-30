@@ -6,15 +6,17 @@ frontend for managing projects. Static assets (HTML/CSS/JS) live in
 `src/taskman/ui/` and are served directly by this module.
 
 Currently supported routes:
-  - GET  /health                         -> basic health check (JSON)
-  - GET  /                               -> UI index (projects list with add + inline rename)
-  - GET  /project.html?name=<name>       -> UI project view (tasks table)
-  - GET  /api/projects                   -> list saved project names + current
-  - GET  /api/state                      -> current project name
-  - GET  /api/projects/<name>/tasks      -> tasks JSON for a project
-  - POST /api/projects/open              -> open/create a project { name }
-  - POST /api/projects/edit-name         -> rename project { old_name, new_name }
-  - POST /api/exit                       -> graceful shutdown
+  - GET  /health                                 -> basic health check (JSON)
+  - GET  /                                       -> UI index (projects list with add + inline rename)
+  - GET  /project.html?name=<name>               -> UI project view (tasks table)
+  - GET  /api/projects                           -> list saved project names + current
+  - GET  /api/state                              -> current project name
+  - GET  /api/projects/<name>/tasks              -> list tasks JSON for a project
+  - POST /api/projects/<name>/tasks/update       -> update a single task { index, fields }
+  - POST /api/projects/<name>/tasks/create       -> create a new task { optional fields }
+  - POST /api/projects/open                      -> open/create a project { name }
+  - POST /api/projects/edit-name                 -> rename project { old_name, new_name }
+  - POST /api/exit                               -> graceful shutdown
 
 Usage:
   - Library: start_ui(host, port)
@@ -227,6 +229,25 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
             proj = cur_obj if (isinstance(cur_obj, Project) and cur_obj.name == name) else Project(name)
             resp, status = proj.update_task_from_payload(body)
             return self._json(resp, status)
+
+        # Create a new task in a project: POST /api/projects/<name>/tasks/create
+        m_create = re.match(r"^/api/projects/(.+)/tasks/create$", path)
+        if m_create:
+            name = unquote(m_create.group(1))
+            if not name or ".." in name or name.startswith(".") or "/" in name:
+                _ = self._read_json()  # drain
+                return self._json({"error": "Invalid project name"}, 400)
+            body = self._read_json()
+            if body is None:
+                # treat invalid JSON as empty object
+                body = {}
+            try:
+                cur_obj = getattr(self.server, "current_project", None)
+                proj = cur_obj if (isinstance(cur_obj, Project) and cur_obj.name == name) else Project(name)
+                resp, status = proj.create_task_from_payload(body)
+                return self._json(resp, status)
+            except Exception as e:
+                return self._json({"error": f"Failed to create task: {e}"}, 500)
 
         if path == "/api/exit":
             # Respond then shutdown the server gracefully

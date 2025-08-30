@@ -154,37 +154,34 @@ class TestTasksPageAPI(unittest.TestCase):
         data = json.loads(body2)
         self.assertEqual(data["tasks"][0]["summary"], "New")
 
-    def test_update_task_invalid_index(self):
-        name = "Echo"
-        path = ProjectManager.get_task_file_path(name)
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump([], f)
-        resp, body = self._post(f"/api/projects/{name}/tasks/update", {"index": 5, "fields": {"summary": "X"}})
-        self.assertEqual(resp.status, 400)
-
-    def test_update_task_reject_unknown_field(self):
-        name = "Foxtrot"
-        path = ProjectManager.get_task_file_path(name)
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump([{"summary":"S","assignee":"A","remarks":"R","status":"Not Started","priority":"Low"}], f)
-        resp, body = self._post(f"/api/projects/{name}/tasks/update", {"index": 0, "fields": {"foo": "bar"}})
-        self.assertEqual(resp.status, 400)
-
-    def test_update_task_validate_enums(self):
-        name = "Golf"
-        path = ProjectManager.get_task_file_path(name)
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump([{"summary":"S","assignee":"A","remarks":"R","status":"Not Started","priority":"Low"}], f)
-        # Invalid status
-        resp, _ = self._post(f"/api/projects/{name}/tasks/update", {"index": 0, "fields": {"status": "Started"}})
-        self.assertEqual(resp.status, 400)
-        # Invalid priority
-        resp2, _ = self._post(f"/api/projects/{name}/tasks/update", {"index": 0, "fields": {"priority": "Urgent"}})
-        self.assertEqual(resp2.status, 400)
-
     def test_update_task_invalid_name(self):
         resp, _ = self._post("/api/projects/../etc/tasks/update", {"index": 0, "fields": {"summary": "X"}})
         self.assertEqual(resp.status, 400)
+
+    # ----- Tests for /api/projects/<name>/tasks/create -----
+    def test_create_task_defaults(self):
+        name = "Hotel"
+        # Create with empty payload; expect defaults and persistence
+        resp, body = self._post(f"/api/projects/{name}/tasks/create", {})
+        self.assertEqual(resp.status, 200)
+        data = json.loads(body)
+        self.assertTrue(data.get("ok"))
+        self.assertEqual(data["index"], 0)
+        # Verify via GET
+        resp2, body2 = self._get(f"/api/projects/{name}/tasks")
+        self.assertEqual(resp2.status, 200)
+        listing = json.loads(body2)
+        self.assertEqual(len(listing["tasks"]), 1)
+        t = listing["tasks"][0]
+        self.assertEqual(t["summary"], "")
+        self.assertEqual(t["assignee"], "")
+        self.assertEqual(t["remarks"], "")
+        self.assertEqual(t["status"], "Not Started")
+        self.assertEqual(t["priority"], "Medium")
+
+
+    def test_create_task_invalid_name(self):
+        resp, _ = self._post("/api/projects/.hidden/tasks/create", {})
+        self.assertEqual(resp.status, 400)
+        resp2, _ = self._post("/api/projects/../etc/tasks/create", {})
+        self.assertEqual(resp2.status, 400)
