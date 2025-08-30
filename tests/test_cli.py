@@ -43,7 +43,7 @@ class TestTaskManager(unittest.TestCase):
             return user_inputs.pop(0)
         original_input = builtins.input
         builtins.input = mock_input
-        from taskman import task_manager
+        from taskman.cli import task_manager
         try:
             with StringIO() as buf, redirect_stdout(buf):
                 task_manager.main_cli()
@@ -61,7 +61,7 @@ class TestTaskManager(unittest.TestCase):
             return user_inputs.pop(0)
         original_input = builtins.input
         builtins.input = mock_input
-        from taskman import task_manager
+        from taskman.cli import task_manager
         try:
             with StringIO() as buf, redirect_stdout(buf):
                 task_manager.main_cli()
@@ -80,7 +80,7 @@ class TestTaskManager(unittest.TestCase):
             return user_inputs.pop(0)
         original_input = builtins.input
         builtins.input = mock_input
-        from taskman import task_manager
+        from taskman.cli import task_manager
         try:
             with StringIO() as buf, redirect_stdout(buf):
                 task_manager.main_cli()
@@ -108,7 +108,7 @@ class TestTaskManager(unittest.TestCase):
             return user_inputs.pop(0)
         original_input = builtins.input
         builtins.input = mock_input
-        from taskman import task_manager
+        from taskman.cli import task_manager
         try:
             with StringIO() as buf, redirect_stdout(buf):
                 task_manager.main_cli()
@@ -139,7 +139,7 @@ class TestTaskManager(unittest.TestCase):
             return user_inputs.pop(0)
         original_input = builtins.input
         builtins.input = mock_input
-        from taskman import task_manager
+        from taskman.cli import task_manager
         try:
             with StringIO() as buf, redirect_stdout(buf):
                 task_manager.main_cli()
@@ -164,7 +164,7 @@ class TestTaskManager(unittest.TestCase):
             return user_inputs.pop(0)
         original_input = builtins.input
         builtins.input = mock_input
-        from taskman import task_manager
+        from taskman.cli import task_manager
         try:
             with StringIO() as buf, redirect_stdout(buf):
                 task_manager.main_cli()
@@ -202,7 +202,7 @@ class TestTaskManager(unittest.TestCase):
             return user_inputs.pop(0)
         original_input = builtins.input
         builtins.input = mock_input
-        from taskman import task_manager
+        from taskman.cli import task_manager
         try:
             with StringIO() as buf, redirect_stdout(buf):
                 task_manager.main_cli()
@@ -247,7 +247,7 @@ class TestTaskManager(unittest.TestCase):
             return user_inputs.pop(0)
         original_input = builtins.input
         builtins.input = mock_input
-        from taskman import task_manager
+        from taskman.cli import task_manager
         try:
             with StringIO() as buf, redirect_stdout(buf):
                 task_manager.main_cli()
@@ -280,7 +280,7 @@ class TestTaskManager(unittest.TestCase):
             return user_inputs.pop(0)
         original_input = builtins.input
         builtins.input = mock_input
-        from taskman import task_manager
+        from taskman.cli import task_manager
         try:
             with StringIO() as buf, redirect_stdout(buf):
                 task_manager.main_cli()

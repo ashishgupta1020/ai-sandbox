@@ -1,9 +1,11 @@
 from taskman.task import Task
 
+
 class Interaction:
     """
     Handles user input for project and task details.
     """
+
     @staticmethod
     def get_project_name(prompt: str = "Enter the project name: ") -> str:
         """
@@ -19,7 +21,9 @@ class Interaction:
         summary = input("Enter the task summary: ")
         assignee = input("Enter the assignee: ")
         print("Enter remarks (Markdown format is supported).")
-        print("Examples: '* Bullet points', '**Bold text**', '[Link](https://example.com)', '1. Numbered list', '`inline code`'")
+        print(
+            "Examples: '* Bullet points', '**Bold text**', '[Link](https://example.com)', '1. Numbered list', '`inline code`'"
+        )
         print("Press Enter twice to finish:")
         lines = []
         while True:
@@ -75,7 +79,9 @@ class Interaction:
         # Edit remarks
         print(f"Current Remarks: {task.remarks}")
         print("Enter new remarks (Markdown format is supported). Leave blank to keep current.")
-        print("Examples: '* Bullet points', '**Bold text**', '[Link](https://example.com)', '1. Numbered list', '`inline code`'")
+        print(
+            "Examples: '* Bullet points', '**Bold text**', '[Link](https://example.com)', '1. Numbered list', '`inline code`'"
+        )
         print("Press Enter twice to finish:")
         lines = []
         while True:
@@ -94,7 +100,9 @@ class Interaction:
         for idx, option in enumerate(status_options, start=1):
             print(f"{idx}. {option}")
         new_status = None
-        status_input = input("Enter the number corresponding to the new status (leave blank to keep current): ")
+        status_input = input(
+            "Enter the number corresponding to the new status (leave blank to keep current): "
+        )
         if status_input.isdigit():
             num = int(status_input)
             if 1 <= num <= len(status_options):
@@ -107,10 +115,13 @@ class Interaction:
         for idx, option in enumerate(priority_options, start=1):
             print(f"{idx}. {option}")
         new_priority = None
-        priority_input = input("Enter the number corresponding to the new priority (leave blank to keep current): ")
+        priority_input = input(
+            "Enter the number corresponding to the new priority (leave blank to keep current): "
+        )
         if priority_input.isdigit():
             num = int(priority_input)
             if 1 <= num <= len(priority_options):
                 new_priority = priority_options[num - 1]
         priority = new_priority if new_priority else task.priority.value
         return Task(summary, assignee, remarks, status, priority)
+

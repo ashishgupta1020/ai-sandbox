@@ -1,22 +1,20 @@
 from taskman.project_manager import ProjectManager  # Handles project listing and saving
 from taskman.project import Project  # Represents a project and its tasks
-from taskman.interaction import Interaction  # Handles user input interactions
+from .interaction import Interaction  # Handles user input interactions
+
 
 def main_cli() -> None:
     """
     Main entry point for the CLI application.
-    Handles project selection, task management, and user interaction.
+    Provides a menu-driven interface to manage projects and tasks.
     """
     interaction = Interaction()
+
+    # Main menu loop
     current_project = None
-
-    print("\nWelcome to the Task Manager!")
-    print("=" * 30)
-
-    # Main menu loop until a project is opened
-    while not current_project:
+    while current_project is None:
         print("\nMain Menu:")
-        print("-" * 30)
+        print("=" * 30)
         print("1. List all projects")
         print("2. Open a project")
         print("3. Edit a project name")
@@ -25,18 +23,20 @@ def main_cli() -> None:
         choice = input("Enter your choice: ")
 
         if choice == "1":
-            # List all available projects
-            print("\nListing all projects:")
+            # List all projects
+            print("\nProjects:")
             print("-" * 30)
             ProjectManager.list_projects()
         elif choice == "2":
-            # Open a project by name
+            # Open or create a project
+            print("\nOpen a project:")
+            print("-" * 30)
             project_name = interaction.get_project_name()
             ProjectManager.save_project_name(project_name)
             current_project = Project(project_name)
-            print(f"\nOpened project: '{current_project.name}'")
+            print(f"Opened project: '{current_project.name}'")
         elif choice == "3":
-            # Edit a project name
+            # Edit a project's name from the main menu
             print("\nEditing a project name:")
             print("-" * 30)
             projects = ProjectManager.list_projects()
@@ -125,13 +125,19 @@ def main_cli() -> None:
             print("\nEditing current project name:")
             print("-" * 30)
             old_name = current_project.name
-            new_name = interaction.get_project_name(f"Enter the new name for project '{old_name}': ")
+            new_name = interaction.get_project_name(
+                f"Enter the new name for project '{old_name}': "
+            )
             if new_name and new_name != old_name:
                 if ProjectManager.edit_project_name(old_name, new_name):
                     current_project = Project(new_name)
-                    print(f"Project renamed. Current project is now '{current_project.name}'.")
+                    print(
+                        f"Project renamed. Current project is now '{current_project.name}'."
+                    )
             else:
-                print("Rename cancelled or new name is the same as the old name.")
+                print(
+                    "Rename cancelled or new name is the same as the old name."
+                )
         elif choice == "7":
             # List all available projects
             print("\nListing all projects:")
@@ -152,6 +158,8 @@ def main_cli() -> None:
         else:
             print("\nInvalid choice. Please try again.")
 
+
 # Run the CLI if this file is executed directly
 if __name__ == "__main__":
     main_cli()
+

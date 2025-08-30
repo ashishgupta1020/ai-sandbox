@@ -4,7 +4,9 @@
 
 1. **Run the application:**
    ```bash
-   python3 src/taskman/task_manager.py
+   python3 -m taskman.cli.task_manager
+   # or
+   python3 src/taskman/cli/task_manager.py
    ```
 
 2. **Open/Create Your First Project:**

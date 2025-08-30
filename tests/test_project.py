@@ -74,7 +74,7 @@ class TestProject(unittest.TestCase):
         original_input = builtins.input
         builtins.input = mock_input
         try:
-            from taskman.interaction import Interaction
+            from taskman.cli.interaction import Interaction
             old_task = project.tasks[0]
             new_task = Interaction.edit_task_details(old_task)
             project.edit_task(1, new_task)

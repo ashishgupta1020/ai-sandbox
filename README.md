@@ -47,7 +47,9 @@ This is a simple command-line project and task management tool implemented in Py
 
 1. Run the main script:
   ```bash
-  python3 src/taskman/task_manager.py
+  python3 -m taskman.cli.task_manager
+  # or
+  python3 src/taskman/cli/task_manager.py
   ```
 2. Follow the on-screen prompts to manage projects and tasks.
 3. Use the interactive CLI to add, list, edit, switch, and export tasks.
@@ -115,7 +117,7 @@ pytest
 
 ## File Structure
 
-- `task_manager.py`: Main CLI and logic for project/task management
+- `cli/task_manager.py`: Main CLI and logic for project/task management
 - `projects.json`: List of all project names (stored in `~/sandbox/data/ai-sandbox/`)
 - `<project_name>_tasks.json`: Tasks for each project (stored in `~/sandbox/data/ai-sandbox/`)
 - `<project_name>_tasks_export.md`: Markdown export of all tasks in a project (stored in `~/sandbox/data/ai-sandbox/`)
