@@ -1,0 +1,5 @@
+prettytable>=3.0
+
+[test]
+pytest
+pytest-cov

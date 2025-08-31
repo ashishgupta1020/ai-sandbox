@@ -61,6 +61,63 @@
       let GRID = null;
       // Columns definition (initialized once)
       let GRID_COLUMNS = null;
+      // Current data rows (kept in-memory to support in-place updates)
+      // Row shape: [idx0, null, visibleIndex, summary, assignee, status, priority, remarks]
+      let DATA_ROWS = [];
+      
+      // --- In-place update helpers for DATA_ROWS ---
+      function buildRowFromTask(index0, task) {
+        const i = Number(index0) || 0;
+        const t = task || {};
+        return [
+          i,                    // hidden 0-based index
+          null,                 // actions col (placeholder)
+          i + 1,                // visible 1-based index
+          t.summary || '',
+          t.assignee || '',
+          t.status || '',
+          t.priority || '',
+          t.remarks || ''
+        ];
+      }
+      function reindexFrom(start) {
+        const s = Math.max(0, start | 0);
+        for (let i = s; i < DATA_ROWS.length; i++) {
+          DATA_ROWS[i][0] = i;      // hidden 0-based index
+          DATA_ROWS[i][2] = i + 1;  // visible 1-based index
+        }
+      }
+      function updateRowFromTask(index0, task) {
+        const i = Number(index0);
+        if (!Array.isArray(DATA_ROWS) || i < 0 || i >= DATA_ROWS.length) return false;
+        const row = DATA_ROWS[i];
+        const t = task || {};
+        row[3] = t.summary  != null ? t.summary  : row[3];
+        row[4] = t.assignee != null ? t.assignee : row[4];
+        row[5] = t.status   != null ? t.status   : row[5];
+        row[6] = t.priority != null ? t.priority : row[6];
+        row[7] = t.remarks  != null ? t.remarks  : row[7];
+        return true;
+      }
+      function insertRowFromTask(index0, task) {
+        const i = Number(index0);
+        if (!Array.isArray(DATA_ROWS) || i < 0 || i > DATA_ROWS.length) return false;
+        const row = buildRowFromTask(i, task);
+        if (i === DATA_ROWS.length) {
+          DATA_ROWS.push(row);
+        } else {
+          DATA_ROWS.splice(i, 0, row);
+          reindexFrom(i);
+        }
+        return true;
+      }
+      function deleteRowAt(index0) {
+        const i = Number(index0);
+        if (!Array.isArray(DATA_ROWS) || i < 0 || i >= DATA_ROWS.length) return false;
+        DATA_ROWS.splice(i, 1);
+        if (DATA_ROWS.length > 0) reindexFrom(i);
+        return true;
+      }
       // Allowed option values for select editors
       const STATUS_OPTS = ['Not Started', 'In Progress', 'Completed'];
       const PRIORITY_OPTS = ['Low', 'Medium', 'High'];
@@ -195,8 +252,15 @@
                   'aria-label': `Delete task ${idx0 + 1}`,
                   style: 'margin-left:0',
                   onClick: async () => {
-                    try { await apiDeleteTask(CURRENT_PROJECT, idx0); await loadTasks(CURRENT_PROJECT); }
-                    catch (e) { alert(e && e.message ? e.message : String(e)); }
+                    try {
+                      await apiDeleteTask(CURRENT_PROJECT, idx0);
+                      if (deleteRowAt(idx0)) {
+                        if (DATA_ROWS.length === 0) { GRID = null; }
+                        renderWithGrid(DATA_ROWS);
+                      }
+                    } catch (e) {
+                      alert(e && e.message ? e.message : String(e));
+                    }
                   }
                 }, gridjs.html(icon));
                 return h('div', { style: 'display:flex;align-items:center;justify-content:center;' }, btn);
@@ -284,7 +348,9 @@
               // First column: hidden 0-based index; Second column: actions; Third: visible Index
               return [i, null, idx, summary, assignee, status, priority, src];
             });
-            renderWithGrid(rows);
+            // Keep rows cached for in-place updates
+            DATA_ROWS = rows;
+            renderWithGrid(DATA_ROWS);
           } else {
             renderFallbackTable(tasks);
           }
@@ -353,16 +419,22 @@
         if (td.querySelector('.inline-input')) return;
         const commit = async (value) => {
           try {
-            await apiUpdateTask(CURRENT_PROJECT, index0, { [field]: value });
-            await loadTasks(CURRENT_PROJECT);
+            const resp = await apiUpdateTask(CURRENT_PROJECT, index0, { [field]: value });
+            // Update in-memory row using server response (source of truth)
+            if (resp && resp.ok && typeof resp.index === 'number' && resp.task && updateRowFromTask(resp.index, resp.task)) {
+              renderWithGrid(DATA_ROWS);
+            } else {
+              // Fallback: reload on unexpected or out-of-sync response
+              await loadTasks(CURRENT_PROJECT);
+            }
           } catch (e) {
             td.textContent = currentValue || '';
             alert(`Failed to save: ${e && e.message ? e.message : e}`);
           }
         };
         const cancel = async () => {
-          // Reload data to restore cell with proper formatter and handlers
-          await loadTasks(CURRENT_PROJECT);
+          // Re-render from current in-memory rows to restore cell
+          renderWithGrid(DATA_ROWS);
         };
         const editor = buildFieldEditor(type, options, currentValue, { instantCommit: true, onCommit: commit, onCancel: cancel });
         td.replaceChildren(editor);
@@ -451,9 +523,15 @@
                 remarks: getValue(editors['remarks'])
               };
               try {
-                await apiCreateTask(CURRENT_PROJECT, payload);
+                const resp = await apiCreateTask(CURRENT_PROJECT, payload);
                 panel.style.display = 'none'; panel.setAttribute('data-open', '0'); panel.replaceChildren();
-                await loadTasks(CURRENT_PROJECT);
+                // Append to in-memory rows and re-render
+                if (resp && resp.ok && typeof resp.index === 'number' && resp.task && insertRowFromTask(resp.index, resp.task)) {
+                  renderWithGrid(DATA_ROWS);
+                } else {
+                  // Fallback: reload on unexpected response
+                  await loadTasks(CURRENT_PROJECT);
+                }
               } catch (e) {
                 alert(e && e.message ? e.message : String(e));
               }

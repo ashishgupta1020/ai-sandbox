@@ -1,3 +1,15 @@
+Metadata-Version: 2.4
+Name: taskman
+Version: 0.1.0
+Summary: Simple project and task manager with CLI and UI.
+Author: Taskman Authors
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Requires-Dist: prettytable>=3.0
+Provides-Extra: test
+Requires-Dist: pytest; extra == "test"
+Requires-Dist: pytest-cov; extra == "test"
+
 # Taskman (CLI + UI)
 
 Simple project and task manager with both a command‑line interface and a lightweight browser UI. Data persists to local JSON files per project.

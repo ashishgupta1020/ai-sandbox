@@ -1,0 +1,32 @@
+Here are targeted, code-aware suggestions to make task loading/refresh much snappier, without changing behavior.
+
+Quick Wins
+
+Update in place after edits: Instead of reloading all tasks after each edit/create/delete, update the affected row(s) in the grid using the API response. The server already returns the updated/new/deleted task and index from update/create/delete in src/taskman/project.py:173 and src/taskman/project.py:217 and src/taskman/project.py:274. Today the UI calls await loadTasks(...) after each action in src/taskman/ui/project.html:198, src/taskman/ui/project.html:456, and src/taskman/ui/project.html:320.
+Cache static assets: You’re sending Cache-Control: no-store for everything (src/taskman/tasker_ui.py:64). Allow caching for CSS/JS and static HTML (with versioned filenames or ETag/Last-Modified) to cut reload time significantly.
+Defer CDN scripts: Add defer to external script tags in src/taskman/ui/project.html:9:13. This reduces blocking on first paint and speeds perceived load.
+Server-Side
+
+Reuse/caching of Project instances: In the GET tasks path (src/taskman/tasker_ui.py:129–147), a new Project(name) is created when it isn’t the current one, then discarded. Keep a small in-memory LRU (e.g., self.server.projects[name]) and reuse between requests to avoid re-opening/JSON-parsing per view switch. Also consider setting current_project when serving tasks for a different project to reuse across subsequent calls.
+Cache serialized tasks JSON: Building [t.to_dict() for t in proj.tasks] for every GET (src/taskman/tasker_ui.py:142) is O(n). Maintain a cached JSON string and a monotonic “version” on the Project; invalidate only on mutations (save_tasks_to_file). Then serve the cached bytes in _json to avoid re-serialization on hot paths.
+Conditional GETs: Add ETag/Last-Modified on /api/projects/<name>/tasks (e.g., based on Project version or file mtime) and return 304 when unchanged. Combine with client If-None-Match to avoid re-downloading task lists during passive refreshes.
+Faster JSON: Switch to a faster JSON lib (e.g., orjson/ujson) for large projects. Also drop pretty printing (indent) when persisting (src/taskman/project.py:38) to reduce CPU and file size.
+Coalesce writes: save_tasks_to_file() truncates and writes the whole file on every small change (src/taskman/project.py:36–39). Debounce within a short window (e.g., 100–300 ms) or buffer multiple field changes before persisting to cut disk IO bursts during fast edits.
+Optional: gzip JSON responses for large task lists to reduce transfer size (especially if you ever access remotely).
+Client/UI
+
+Avoid full-grid re-render: Today GRID.updateConfig({ data: rows }).forceRender() (src/taskman/ui/project.html:220) causes a full re-render on each refresh. Prefer updating grid data in place (e.g., mutate the data source for just the row that changed, or use Grid.js row APIs if available) and re-render minimally. At the least, batch updates and re-render once.
+Markdown rendering cost: getRemarksHTML() runs marked + DOMPurify per row on every refresh (src/taskman/ui/project.html:68–76, used via formatter). Options:
+Render plain text in grid; show full Markdown preview on click/hover or in a side panel.
+Only render Markdown for visible rows (pagination/viewport).
+Move Markdown rendering to a Web Worker to keep the UI responsive.
+Reduce extra fetches: After edit/create/delete, update the local grid model using the API result (see “Quick Wins”) and only re-fetch when necessary (e.g., after delete where indices shift, update the local indices instead of refetching).
+Initial load: Keep using openProject before first fetch (src/taskman/ui/project.html:386) so the server reuses the in-memory project. Combine it with a single loadTasks call; you already do this once.
+Other
+
+Static file serving: _serve_file reads the whole file into memory (src/taskman/tasker_ui.py:79–87). For large assets, stream in chunks. Minor, but helps with big files.
+Logging noise: High-volume request logs can add overhead; consider lowering verbosity in log_message (src/taskman/tasker_ui.py:289–308) for hot endpoints.
+If you want, I can implement a minimal, high-impact slice first:
+
+Client-only: stop full reloads after edits and update the grid row from the API response.
+Server-only: cache serialized tasks and add ETag on the tasks endpoint.
