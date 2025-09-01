@@ -143,6 +143,7 @@
         toolbar.className = 'md-toolbar';
         const btnPreview = document.createElement('button');
         btnPreview.type = 'button'; btnPreview.className = 'btn btn-sm'; btnPreview.textContent = 'Preview';
+        toolbar.appendChild(btnPreview);
         // Only include Save/Cancel if hooks provided (editing context)
         if (typeof hooks.onSave === 'function') {
           const btnSave = document.createElement('button');
@@ -150,7 +151,6 @@
           btnSave.addEventListener('click', () => { hooks.onSave && hooks.onSave(textarea.value); });
           toolbar.appendChild(btnSave);
         }
-        toolbar.appendChild(btnPreview);
         if (typeof hooks.onCancel === 'function') {
           const btnCancel = document.createElement('button');
           btnCancel.type = 'button'; btnCancel.className = 'btn btn-sm'; btnCancel.textContent = 'Cancel';
@@ -249,7 +249,7 @@
             { name: 'Priority', sort: true, formatter: editableFormatter('priority', 'select', PRIORITY_OPTS) },
             { name: 'Remarks', sort: false, formatter: editableFormatter('remarks', 'markdown') },
             // Actions column at the end
-            { name: '', sort: false, width: '60px', formatter: (_, row) => {
+            { name: '', sort: false, formatter: (_, row) => {
                 const h = gridjs.h;
                 const idx0 = Number(row.cells[0].data);
                 const icon = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6a1 1 0 0 1 1 1v1h4v2H4V5h4V4a1 1 0 0 1 1-1zm1 6h2v9h-2V9zm4 0h2v9h-2V9zM7 9h2v9H7V9z" fill="currentColor"/></svg>';

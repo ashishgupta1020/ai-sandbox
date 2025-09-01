@@ -180,6 +180,14 @@ table.gridjs-table td.gridjs-td { padding: 12px; }
 /* Hide the trailing actions column header cell entirely */
 .gridjs thead tr th:last-child { display: none !important; }
 
+/* Make trailing actions column fit icon width tightly */
+table.gridjs-table td.gridjs-td:last-child {
+  width: 1%;
+  white-space: nowrap;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
 /* Make Grid.js search box a bit shorter */
 .gridjs input.gridjs-input {
   padding: 6px 10px;
@@ -209,6 +217,10 @@ td.gridjs-td.editable-cell:hover { background: #f8fafc; }
   border-radius: 6px;
   background: var(--surface);
   padding: 0.5rem; /* keep content from touching the border */
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden; /* prevent inner toolbar from spilling */
 }
 /* Group the markdown editor actions visibly and separate from textarea */
 .md-toolbar {
@@ -220,6 +232,10 @@ td.gridjs-td.editable-cell:hover { background: #f8fafc; }
   border-top-right-radius: 6px;
   background: var(--surface);
   align-items: center;
+  flex-wrap: wrap;            /* allow controls to wrap within editor width */
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 /* Ensure editor controls have breathing room inside the bordered box */
