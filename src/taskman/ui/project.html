@@ -62,7 +62,7 @@
       // Columns definition (initialized once)
       let GRID_COLUMNS = null;
       // Current data rows (kept in-memory to support in-place updates)
-      // Row shape: [idx0, null, visibleIndex, summary, assignee, status, priority, remarks]
+      // Row shape: [idx0, visibleIndex, summary, assignee, status, priority, remarks, null]
       let DATA_ROWS = [];
       
       // --- In-place update helpers for DATA_ROWS ---
@@ -71,20 +71,20 @@
         const t = task || {};
         return [
           i,                    // hidden 0-based index
-          null,                 // actions col (placeholder)
           i + 1,                // visible 1-based index
           t.summary || '',
           t.assignee || '',
           t.status || '',
           t.priority || '',
-          t.remarks || ''
+          t.remarks || '',
+          null                  // actions col (placeholder at end)
         ];
       }
       function reindexFrom(start) {
         const s = Math.max(0, start | 0);
         for (let i = s; i < DATA_ROWS.length; i++) {
           DATA_ROWS[i][0] = i;      // hidden 0-based index
-          DATA_ROWS[i][2] = i + 1;  // visible 1-based index
+          DATA_ROWS[i][1] = i + 1;  // visible 1-based index
         }
       }
       function updateRowFromTask(index0, task) {
@@ -92,11 +92,11 @@
         if (!Array.isArray(DATA_ROWS) || i < 0 || i >= DATA_ROWS.length) return false;
         const row = DATA_ROWS[i];
         const t = task || {};
-        row[3] = t.summary  != null ? t.summary  : row[3];
-        row[4] = t.assignee != null ? t.assignee : row[4];
-        row[5] = t.status   != null ? t.status   : row[5];
-        row[6] = t.priority != null ? t.priority : row[6];
-        row[7] = t.remarks  != null ? t.remarks  : row[7];
+        row[2] = t.summary  != null ? t.summary  : row[2];
+        row[3] = t.assignee != null ? t.assignee : row[3];
+        row[4] = t.status   != null ? t.status   : row[4];
+        row[5] = t.priority != null ? t.priority : row[5];
+        row[6] = t.remarks  != null ? t.remarks  : row[6];
         return true;
       }
       function insertRowFromTask(index0, task) {
@@ -242,6 +242,13 @@
           GRID_COLUMNS = [
             // Hidden stable index column (0-based)
             { name: '_idx0', hidden: true },
+            { name: 'Index', sort: true },
+            { name: 'Summary',  sort: true, formatter: editableFormatter('summary',  'text') },
+            { name: 'Assignee', sort: true, formatter: editableFormatter('assignee', 'text') },
+            { name: 'Status',   sort: true, formatter: editableFormatter('status',   'select', STATUS_OPTS) },
+            { name: 'Priority', sort: true, formatter: editableFormatter('priority', 'select', PRIORITY_OPTS) },
+            { name: 'Remarks', sort: false, formatter: editableFormatter('remarks', 'markdown') },
+            // Actions column at the end
             { name: '', sort: false, width: '60px', formatter: (_, row) => {
                 const h = gridjs.h;
                 const idx0 = Number(row.cells[0].data);
@@ -265,14 +272,8 @@
                 }, gridjs.html(icon));
                 return h('div', { style: 'display:flex;align-items:center;justify-content:center;' }, btn);
               }
-            },
-            { name: 'Index', sort: true },
-            { name: 'Summary',  sort: true, formatter: editableFormatter('summary',  'text') },
-            { name: 'Assignee', sort: true, formatter: editableFormatter('assignee', 'text') },
-            { name: 'Status',   sort: true, formatter: editableFormatter('status',   'select', STATUS_OPTS) },
-            { name: 'Priority', sort: true, formatter: editableFormatter('priority', 'select', PRIORITY_OPTS) },
-          { name: 'Remarks', sort: false, formatter: editableFormatter('remarks', 'markdown') }
-        ];
+            }
+          ];
         }
 
         // If a grid already exists, update data in place to avoid jitter
@@ -345,8 +346,8 @@
               const priority = t.priority || '';
               const src = t.remarks || '';
               // For Grid.js, pass raw text; formatter will render markdown
-              // First column: hidden 0-based index; Second column: actions; Third: visible Index
-              return [i, null, idx, summary, assignee, status, priority, src];
+              // First column: hidden 0-based index; Second: visible Index; Last: actions placeholder
+              return [i, idx, summary, assignee, status, priority, src, null];
             });
             // Keep rows cached for in-place updates
             DATA_ROWS = rows;
