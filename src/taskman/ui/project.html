@@ -32,6 +32,7 @@
     </section>
 
     <script>
+      // Utils
       function getParam(name) {
         const url = new URL(window.location.href);
         return url.searchParams.get(name);
@@ -53,19 +54,32 @@
         return data;
       }
 
+      // API wrappers
       async function openProject(name) {
         return api('/api/projects/open', { method: 'POST', body: { name } });
       }
+      async function apiCreateTask(name, fields = {}) {
+        return api(`/api/projects/${encodeURIComponent(name)}/tasks/create`, { method: 'POST', body: fields || {} });
+      }
+      async function apiUpdateTask(name, index0, fields) {
+        return api(`/api/projects/${encodeURIComponent(name)}/tasks/update`, { method: 'POST', body: { index: index0, fields } });
+      }
+      async function apiDeleteTask(name, index0) {
+        return api(`/api/projects/${encodeURIComponent(name)}/tasks/delete`, { method: 'POST', body: { index: index0 } });
+      }
 
-      // Grid.js instance
-      let GRID = null;
-      // Columns definition (initialized once)
-      let GRID_COLUMNS = null;
+      // App state
+      let GRID = null;           // Grid.js instance
+      let GRID_COLUMNS = null;   // Columns definition (initialized once)
       // Current data rows (kept in-memory to support in-place updates)
       // Row shape: [idx0, visibleIndex, summary, assignee, status, priority, remarks, null]
       let DATA_ROWS = [];
-      
-      // --- In-place update helpers for DATA_ROWS ---
+      // Allowed option values for select editors
+      const STATUS_OPTS = ['Not Started', 'In Progress', 'Completed'];
+      const PRIORITY_OPTS = ['Low', 'Medium', 'High'];
+      let CURRENT_PROJECT = null;
+
+      // DATA_ROWS helpers
       function buildRowFromTask(index0, task) {
         const i = Number(index0) || 0;
         const t = task || {};
@@ -118,10 +132,8 @@
         if (DATA_ROWS.length > 0) reindexFrom(i);
         return true;
       }
-      // Allowed option values for select editors
-      const STATUS_OPTS = ['Not Started', 'In Progress', 'Completed'];
-      const PRIORITY_OPTS = ['Low', 'Medium', 'High'];
 
+      // Markdown/HTML helpers
       function getRemarksHTML(src) {
         try {
           if (window.marked && window.DOMPurify) {
@@ -199,8 +211,52 @@
         return wrapper;
       }
 
-      // Reusable formatter to attach inline editing behavior to a cell
-      // Uses a hidden first column that stores the 0-based index for stable lookups
+      // Build a standalone editor element for a given field type
+      function buildFieldEditor(type, options, currentValue, hooks = {}) {
+        let editor;
+        const commit = (value) => { if (hooks.onCommit) hooks.onCommit(value); };
+        const cancel = () => { if (hooks.onCancel) hooks.onCancel(); };
+        if (type === 'select') {
+          const select = document.createElement('select');
+          select.className = 'inline-input';
+          for (const opt of (options || [])) {
+            const o = document.createElement('option');
+            o.value = opt; o.textContent = opt; select.appendChild(o);
+          }
+          select.value = currentValue || (options && options[0]) || '';
+          if (hooks.instantCommit) {
+            select.addEventListener('change', () => commit(select.value));
+            select.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter') { e.preventDefault(); commit(select.value); }
+              else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+            });
+            select.addEventListener('blur', () => commit(select.value));
+          }
+          editor = select;
+        } else if (type === 'markdown') {
+          const mdHooks = hooks.instantCommit ? {
+            onSave: () => { commit(editor.querySelector('textarea')?.value || ''); },
+            onCancel: () => { cancel(); }
+          } : {};
+          editor = createMarkdownEditor(typeof currentValue === 'string' ? currentValue : '', mdHooks);
+        } else {
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.className = 'inline-input';
+          input.value = currentValue || '';
+          if (hooks.instantCommit) {
+            input.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter') { e.preventDefault(); commit(input.value); }
+              else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+            });
+            input.addEventListener('blur', () => commit(input.value));
+          }
+          editor = input;
+        }
+        return editor;
+      }
+
+      // Grid cell editable wrapper
       function editableFormatter(field, type, options) {
         return (cell, row) => {
           const h = gridjs.h;
@@ -230,10 +286,7 @@
         };
       }
 
-      async function apiDeleteTask(name, index0) {
-        return api(`/api/projects/${encodeURIComponent(name)}/tasks/delete`, { method: 'POST', body: { index: index0 } });
-      }
-
+      // Renderers
       function renderWithGrid(rows) {
         const box = document.getElementById('tasks');
         if (!rows.length) { box.textContent = 'No tasks found.'; return; }
@@ -331,6 +384,7 @@
         box.replaceChildren(table);
       }
 
+      // Data load
       async function loadTasks(name) {
         const box = document.getElementById('tasks');
         try {
@@ -360,59 +414,7 @@
         }
       }
 
-      let CURRENT_PROJECT = null;
-      async function apiCreateTask(name, fields = {}) {
-        return api(`/api/projects/${encodeURIComponent(name)}/tasks/create`, { method: 'POST', body: fields || {} });
-      }
-      async function apiUpdateTask(name, index0, fields) {
-        return api(`/api/projects/${encodeURIComponent(name)}/tasks/update`, { method: 'POST', body: { index: index0, fields } });
-      }
-
-      // Build a standalone editor element for a given field type
-      function buildFieldEditor(type, options, currentValue, hooks = {}) {
-        let editor;
-        const commit = (value) => { if (hooks.onCommit) hooks.onCommit(value); };
-        const cancel = () => { if (hooks.onCancel) hooks.onCancel(); };
-        if (type === 'select') {
-          const select = document.createElement('select');
-          select.className = 'inline-input';
-          for (const opt of (options || [])) {
-            const o = document.createElement('option');
-            o.value = opt; o.textContent = opt; select.appendChild(o);
-          }
-          select.value = currentValue || (options && options[0]) || '';
-          if (hooks.instantCommit) {
-            select.addEventListener('change', () => commit(select.value));
-            select.addEventListener('keydown', (e) => {
-              if (e.key === 'Enter') { e.preventDefault(); commit(select.value); }
-              else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
-            });
-            select.addEventListener('blur', () => commit(select.value));
-          }
-          editor = select;
-        } else if (type === 'markdown') {
-          const mdHooks = hooks.instantCommit ? {
-            onSave: () => { commit(editor.querySelector('textarea')?.value || ''); },
-            onCancel: () => { cancel(); }
-          } : {};
-          editor = createMarkdownEditor(typeof currentValue === 'string' ? currentValue : '', mdHooks);
-        } else {
-          const input = document.createElement('input');
-          input.type = 'text';
-          input.className = 'inline-input';
-          input.value = currentValue || '';
-          if (hooks.instantCommit) {
-            input.addEventListener('keydown', (e) => {
-              if (e.key === 'Enter') { e.preventDefault(); commit(input.value); }
-              else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
-            });
-            input.addEventListener('blur', () => commit(input.value));
-          }
-          editor = input;
-        }
-        return editor;
-      }
-
+      // Inline editing
       function startInlineEditor(target, index0, field, type, options, currentValue) {
         const td = target.closest && target.closest('td') ? target.closest('td') : null;
         if (!td) return;
@@ -444,6 +446,7 @@
         if (focusable && focusable.select) focusable.select();
       }
 
+      // Init
       (async function init() {
         const name = getParam('name');
         const title = document.getElementById('title');
