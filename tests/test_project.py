@@ -212,18 +212,7 @@ class TestProject(unittest.TestCase):
         resp, status = project.delete_task_from_payload({"index": 0})
         self.assertEqual(status, 400)
 
-    def test_export_tasks_to_markdown_content(self):
-        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
-        project.add_task(Task("S1", "A1", "R1", "Not Started", "Low"))
-        project.add_task(Task("S2", "A2", "R2", "Completed", "High"))
-        md = project.export_tasks_to_markdown()
-        # Headers present
-        self.assertIn("| Index | Summary | Assignee | Status | Priority | Remarks |", md)
-        # Two rows with 1 and 2
-        self.assertIn("| 1 |", md)
-        self.assertIn("| 2 |", md)
-        self.assertIn("S1", md)
-        self.assertIn("S2", md)
+    
 
     def test_export_tasks_to_markdown_file(self):
         project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))

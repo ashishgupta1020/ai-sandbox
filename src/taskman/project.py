@@ -217,32 +217,29 @@ class Project:
         index0 = len(self.tasks) - 1
         return {"ok": True, "index": index0, "task": new_task.to_dict()}, 200
 
-    def export_tasks_to_markdown(self) -> str:
-        """
-        Export all tasks to a Markdown table string.
-        """
-        if not self.tasks:
-            return "No tasks found in this project."
-        headers = ["Index", "Summary", "Assignee", "Status", "Priority", "Remarks"]
-        md = "| " + " | ".join(headers) + " |\n"
-        md += "| " + " | ".join(["---"] * len(headers)) + " |\n"
-        for idx, task in enumerate(self.tasks, start=1):
-            row = [
-                str(idx),
-                task.summary.replace("|", "\\|"),
-                task.assignee.replace("|", "\\|"),
-                task.status.value.replace("|", "\\|"),
-                task.priority.value.replace("|", "\\|"),
-                task.remarks.replace("|", "\\|"),
-            ]
-            md += "| " + " | ".join(row) + " |\n"
-        return md
-
     def export_tasks_to_markdown_file(self) -> None:
         """
         Write the Markdown table of tasks to the project's markdown file path.
         """
-        md_output = self.export_tasks_to_markdown()
+        # Build markdown content inline to avoid extra helper
+        if not self.tasks:
+            md_output = "No tasks found in this project."
+        else:
+            headers = ["Index", "Summary", "Assignee", "Status", "Priority", "Remarks"]
+            lines = []
+            lines.append("| " + " | ".join(headers) + " |")
+            lines.append("| " + " | ".join(["---"] * len(headers)) + " |")
+            for idx, task in enumerate(self.tasks, start=1):
+                row = [
+                    str(idx),
+                    task.summary.replace("|", "\\|"),
+                    task.assignee.replace("|", "\\|"),
+                    task.status.value.replace("|", "\\|"),
+                    task.priority.value.replace("|", "\\|"),
+                    task.remarks.replace("|", "\\|"),
+                ]
+                lines.append("| " + " | ".join(row) + " |")
+            md_output = "\n".join(lines) + "\n"
         with open(self.markdown_file_path, "w") as md_file:
             md_file.write(md_output)
         print(f"\nTasks exported to Markdown file: '{self.markdown_file_path}'")
