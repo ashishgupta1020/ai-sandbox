@@ -68,20 +68,24 @@ class Project:
             print(f"Tasks in project '{self.name}':")
             table = PrettyTable(["Index", "Summary", "Assignee", "Status", "Priority", "Remarks"])
             table.align = "l"
-            tasks = self.tasks
+            # Pair each task with its original 1-based index
+            indexed_tasks = list(enumerate(self.tasks, start=1))
+            # Optionally sort by status or priority, but keep original index
             if sort_by == "status":
                 status_order = [s.value.lower() for s in TaskStatus]
-                def status_key(t):
+                def status_key(item):
+                    _idx, t = item
                     status = t.status.value.lower()
                     return status_order.index(status) if status in status_order else len(status_order)
-                tasks = sorted(tasks, key=status_key)
+                indexed_tasks = sorted(indexed_tasks, key=status_key)
             elif sort_by == "priority":
                 priority_order = [p.value.lower() for p in TaskPriority]
-                def priority_key(t):
+                def priority_key(item):
+                    _idx, t = item
                     priority = t.priority.value.lower()
                     return priority_order.index(priority) if priority in priority_order else len(priority_order)
-                tasks = sorted(tasks, key=priority_key)
-            for idx, task in enumerate(tasks, start=1):
+                indexed_tasks = sorted(indexed_tasks, key=priority_key)
+            for idx, task in indexed_tasks:
                 # Wrap text for better display
                 wrapped_summary = textwrap.fill(task.summary, width=40)
                 wrapped_assignee = textwrap.fill(task.assignee, width=20)

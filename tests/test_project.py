@@ -46,6 +46,54 @@ class TestProject(unittest.TestCase):
         self.assertIn("Assignee1", output)
         self.assertIn("Assignee2", output)
 
+    def _parse_table_rows(self, output: str):
+        """Helper: parse PrettyTable output to list of [Index, Summary, Assignee, Status, Priority, Remarks]."""
+        rows = []
+        for line in output.splitlines():
+            line = line.rstrip('\n')
+            if not line.startswith('|'):
+                continue
+            if '---' in line:
+                continue  # divider
+            parts = [p.strip() for p in line.strip().split('|')[1:-1]]
+            if not parts:
+                continue
+            if parts[0] == 'Index':
+                continue  # header
+            # Ensure we have at least the first five columns consistently
+            while len(parts) < 6:
+                parts.append('')
+            rows.append(parts[:6])
+        return rows
+
+    def test_list_tasks_preserves_index_when_sorted_by_status(self):
+        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        # Original order indices: 1 (Not Started), 2 (Completed), 3 (In Progress)
+        project.add_task(Task("S1", "A1", "R1", "Not Started", "Low"))
+        project.add_task(Task("S2", "A2", "R2", "Completed", "High"))
+        project.add_task(Task("S3", "A3", "R3", "In Progress", "Medium"))
+        with StringIO() as buf, redirect_stdout(buf):
+            project.list_tasks(sort_by="status")
+            output = buf.getvalue()
+        rows = self._parse_table_rows(output)
+        # Expect order by status: Not Started (S1 idx=1), In Progress (S3 idx=3), Completed (S2 idx=2)
+        self.assertEqual([r[1] for r in rows], ["S1", "S3", "S2"])  # summaries order
+        self.assertEqual([int(r[0]) for r in rows], [1, 3, 2])          # original indices preserved
+
+    def test_list_tasks_preserves_index_when_sorted_by_priority(self):
+        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        # Original order indices: 1 (Low), 2 (High), 3 (Medium)
+        project.add_task(Task("P1", "A1", "R1", "Not Started", "Low"))
+        project.add_task(Task("P2", "A2", "R2", "Completed", "High"))
+        project.add_task(Task("P3", "A3", "R3", "In Progress", "Medium"))
+        with StringIO() as buf, redirect_stdout(buf):
+            project.list_tasks(sort_by="priority")
+            output = buf.getvalue()
+        rows = self._parse_table_rows(output)
+        # Expect order by priority: Low (P1 idx=1), Medium (P3 idx=3), High (P2 idx=2)
+        self.assertEqual([r[1] for r in rows], ["P1", "P3", "P2"])  # summaries order
+        self.assertEqual([int(r[0]) for r in rows], [1, 3, 2])          # original indices preserved
+
     def test_list_tasks_empty(self):
         project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
         # Ensure output is correct when no tasks exist
