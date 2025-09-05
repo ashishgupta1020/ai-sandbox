@@ -460,10 +460,10 @@
         title.textContent = `Project: ${name}`;
         try {
           const result = await openProject(name);
-          if (result && result.ok) {
-            status.textContent = `Opened '${name}'.`;
-          } else {
+          if (!(result && result.ok)) {
             status.textContent = 'Failed to open project.';
+          } else {
+            status.textContent = '';
           }
         } catch (e) {
           status.textContent = `Error: ${e.message}`;
