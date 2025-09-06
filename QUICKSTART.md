@@ -12,7 +12,7 @@ This project has both a browser UI and a CLI. The UI is the primary experience; 
 
 ## UI (recommended)
 
-- Start server: `taskman-ui` (or `python -m taskman.tasker_ui`)
+- Start server: `taskman-ui` (or `python -m taskman.tasker_server`)
 - Open: `http://127.0.0.1:8765`
 - Do: Add/rename projects, open a project, then add/edit/delete tasks inline. Remarks support markdown with preview.
 

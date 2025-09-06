@@ -8,12 +8,12 @@ from contextlib import closing
 
 from taskman.client.api_client import TaskmanApiClient
 from taskman.project_manager import ProjectManager
-from taskman.tasker_ui import start_ui
+from taskman.tasker_server import start_server
 
 
 class _ServerThread:
     def __init__(self, host: str, port: int):
-        self.thread = threading.Thread(target=start_ui, kwargs={"host": host, "port": port})
+        self.thread = threading.Thread(target=start_server, kwargs={"host": host, "port": port})
         self.thread.daemon = True
         self.host = host
         self.port = port

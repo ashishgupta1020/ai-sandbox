@@ -4,7 +4,7 @@ src/taskman/__init__.py
 src/taskman/project.py
 src/taskman/project_manager.py
 src/taskman/task.py
-src/taskman/tasker_ui.py
+src/taskman/tasker_server.py
 src/taskman.egg-info/PKG-INFO
 src/taskman.egg-info/SOURCES.txt
 src/taskman.egg-info/dependency_links.txt
@@ -14,10 +14,14 @@ src/taskman.egg-info/top_level.txt
 src/taskman/cli/__init__.py
 src/taskman/cli/interaction.py
 src/taskman/cli/task_manager.py
+src/taskman/client/__init__.py
+src/taskman/client/api_client.py
+src/taskman/client/project_adapter.py
 src/taskman/ui/index.html
 src/taskman/ui/project.html
 src/taskman/ui/styles.css
 tests/test_cli.py
+tests/test_cli_no_server.py
 tests/test_project.py
 tests/test_project_manager.py
 tests/test_task.py

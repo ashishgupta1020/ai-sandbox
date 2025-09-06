@@ -9,9 +9,9 @@ from urllib.parse import quote
 
 class TaskmanApiClient:
     """
-    Minimal REST client for the taskman UI server.
+    Minimal REST client for the taskman server.
 
-    Defaults to connecting to 127.0.0.1:8765, matching start_ui().
+    Defaults to connecting to 127.0.0.1:8765, matching start_server().
     All methods return parsed JSON objects or raise on connection errors.
     """
 

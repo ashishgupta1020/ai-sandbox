@@ -4,7 +4,7 @@ import unittest
 import http.client
 from contextlib import closing
 
-from taskman.tasker_ui import _UIRequestHandler  # testing internal handler intentionally
+from taskman.tasker_server import _UIRequestHandler  # testing internal handler intentionally
 from http.server import ThreadingHTTPServer
 
 
@@ -79,4 +79,3 @@ class TestBasicServer(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

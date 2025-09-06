@@ -22,7 +22,7 @@ test = [
 ]
 
 [project.scripts]
-taskman-ui = "taskman.tasker_ui:main"
+taskman-ui = "taskman.tasker_server:main"
 taskman-cli = "taskman.cli.task_manager:main_cli"
 
 [tool.setuptools]
@@ -37,4 +37,3 @@ taskman = [
   "ui/*.html",
   "ui/*.css",
 ]
-

@@ -9,14 +9,14 @@ import threading
 import time
 import http.client
 from contextlib import closing
-from taskman.tasker_ui import start_ui
+from taskman.tasker_server import start_server
 
 
 class _ServerThread:
     def __init__(self, host: str, port: int):
         self.host = host
         self.port = port
-        self.thread = threading.Thread(target=start_ui, kwargs={"host": host, "port": port})
+        self.thread = threading.Thread(target=start_server, kwargs={"host": host, "port": port})
         self.thread.daemon = True
 
     def start(self):

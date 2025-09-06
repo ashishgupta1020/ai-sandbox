@@ -14,7 +14,7 @@ Note on direction: the UI is where new development happens. The CLI remains supp
 
 ## Components
 
-- UI server: `python -m taskman.tasker_ui` then open `http://127.0.0.1:8765`
+- UI server: `python -m taskman.tasker_server` then open `http://127.0.0.1:8765`
   - Projects list with add/rename and per‑project tasks table
   - Inline edit for task fields, add/delete tasks, basic search/sort
 - CLI app: `python -m taskman.cli.task_manager`
@@ -33,7 +33,7 @@ UI loads its JS libraries from CDNs; the Python server has no extra UI deps.
 ## Quick Start
 
 - UI
-  - Run: `taskman-ui` (or `python -m taskman.tasker_ui`)
+  - Run: `taskman-ui` (or `python -m taskman.tasker_server`)
   - Visit: `http://127.0.0.1:8765` and use the Projects list
 - CLI
   - Run: `taskman-cli` (or `python -m taskman.cli.task_manager`)

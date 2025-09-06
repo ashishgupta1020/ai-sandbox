@@ -1,5 +1,5 @@
 """
-Tasker UI server for the taskman package.
+Tasker server for the taskman package.
 
 This module provides a lightweight, dependency-free HTTP server and a minimal
 frontend for managing projects. Static assets (HTML/CSS/JS) live in
@@ -20,8 +20,8 @@ Currently supported routes:
   - POST /api/exit                               -> graceful shutdown
 
 Usage:
-  - Library: start_ui(host, port)
-  - CLI:     python -m taskman.tasker_ui
+  - Library: start_server(host, port)
+  - CLI:     python -m taskman.tasker_server
 """
 
 from __future__ import annotations
@@ -43,20 +43,33 @@ from .project import Project
 
 
 UI_DIR = (Path(__file__).parent / "ui").resolve()
-logger = logging.getLogger("taskman.tasker_ui")
+logger = logging.getLogger("taskman.tasker_server")
 # Configure a simple console handler if none are present so info logs show up
 if not logger.handlers:
     handler = logging.StreamHandler()
-    handler.setLevel(logging.INFO)
+    # Let the logger's level control emission; don't filter here
+    handler.setLevel(logging.NOTSET)
     handler.setFormatter(logging.Formatter("%(message)s"))
     logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 
 
 class _UIRequestHandler(BaseHTTPRequestHandler):
-    """Minimal HTTP handler serving static UI and a health endpoint."""
+    """HTTP handler for Taskman UI and API.
 
-    server_version = "taskman-tasker-ui/0.1"
+    - Serves static assets from ``UI_DIR`` (``/`` and other files).
+    - Exposes a JSON health check at ``/health``.
+    - Implements project/task API endpoints under ``/api/...`` (GET/POST).
+    - Validates paths to prevent traversal and dotfile access.
+    - Overrides ``log_request`` to emit debug-level access logs via ``log_message``.
+    - Uses the module logger for output instead of default stderr logging.
+    """
+
+    server_version = "taskman-server/0.1"
+
+    def log_request(self, code='-', size='-') -> None:  # noqa: D401, N802
+        """Log an accepted request at debug level."""
+        self.log_message('"%s" %s %s', self.requestline, str(code), str(size), level="debug")
 
     def _set_headers(self, status: int = 200, content_type: str = "text/html; charset=utf-8") -> None:
         self.send_response(status)
@@ -308,9 +321,9 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
             logger.info(line)
 
 
-def start_ui(host: str = "127.0.0.1", port: int = 8765) -> None:
+def start_server(host: str = "127.0.0.1", port: int = 8765) -> None:
     """
-    Start the placeholder UI HTTP server.
+    Start the Taskman HTTP server.
 
     Parameters:
         host: Interface to bind. Defaults to loopback.
@@ -320,19 +333,19 @@ def start_ui(host: str = "127.0.0.1", port: int = 8765) -> None:
     httpd = ThreadingHTTPServer(server_address, _UIRequestHandler)
     # Track current project object across requests (in-memory)
     httpd.current_project = None  # type: ignore[attr-defined]
-    print(f"Taskman UI server (placeholder) listening on http://{host}:{port}")
+    print(f"Taskman server listening on http://{host}:{port}")
     print("Press Ctrl+C to stop.")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
-        print("\nShutting down UI server...")
+        print("\nShutting down server...")
     finally:
         httpd.server_close()
 
 
 def main() -> None:
-    """Console entry: start the UI with defaults."""
-    start_ui()
+    """Console entry: start the server with defaults."""
+    start_server()
 
 
 if __name__ == "__main__":

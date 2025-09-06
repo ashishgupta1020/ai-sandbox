@@ -5,7 +5,7 @@ import time
 import unittest
 from contextlib import closing
 
-from taskman.tasker_ui import start_ui
+from taskman.tasker_server import start_server
 
 
 def _pick_free_port(host: str = "127.0.0.1") -> int:
@@ -20,7 +20,7 @@ class TestStartUI(unittest.TestCase):
         host = "127.0.0.1"
         port = _pick_free_port(host)
 
-        t = threading.Thread(target=start_ui, kwargs={"host": host, "port": port})
+        t = threading.Thread(target=start_server, kwargs={"host": host, "port": port})
         t.daemon = True
         t.start()
 
