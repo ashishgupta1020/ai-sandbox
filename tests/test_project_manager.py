@@ -36,20 +36,6 @@ class TestProjectManager(unittest.TestCase):
         projects = ProjectManager.load_project_names()
         self.assertIn(self.TEST_PROJECT, projects)
 
-    def test_list_projects(self):
-        # Add multiple projects
-        ProjectManager.save_project_name(self.TEST_PROJECT)
-        ProjectManager.save_project_name(self.PROJECT_A)
-        expected_projects = [self.TEST_PROJECT, self.PROJECT_A]
-        # Capture output
-        with StringIO() as buf, redirect_stdout(buf):
-            listed_projects = ProjectManager.list_projects()
-            output = buf.getvalue()
-        # Assert all project names are in output
-        for project in expected_projects:
-            self.assertIn(project, output)
-        self.assertEqual(sorted(expected_projects), sorted(listed_projects))
-
     def test_edit_project_name(self):
         old_name = "OldProject"
         new_name = "NewProject"
@@ -97,13 +83,6 @@ class TestProjectManager(unittest.TestCase):
         new_md_file = ProjectManager.get_markdown_file_path(new_name)
         self.assertFalse(os.path.exists(old_md_file))
         self.assertTrue(os.path.exists(new_md_file))
-
-    def test_list_projects_empty(self):
-        # Ensure output is correct when no projects exist
-        with StringIO() as buf, redirect_stdout(buf):
-            ProjectManager.list_projects()
-            output = buf.getvalue()
-        self.assertIn("No projects found.", output)
 
     def test_save_project_name_duplicate(self):
         ProjectManager.save_project_name(self.TEST_PROJECT)

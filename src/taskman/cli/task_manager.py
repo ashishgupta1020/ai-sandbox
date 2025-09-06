@@ -1,5 +1,5 @@
-from taskman.project_manager import ProjectManager  # Handles project listing and saving
-from taskman.project import Project  # Represents a project and its tasks
+from taskman.client.api_client import TaskmanApiClient  # REST API client to talk to UI server
+from taskman.client.project_adapter import ProjectAdapter  # Project-like adapter backed by REST API
 from .interaction import Interaction  # Handles user input interactions
 
 
@@ -9,6 +9,11 @@ def main_cli() -> None:
     Provides a menu-driven interface to manage projects and tasks.
     """
     interaction = Interaction()
+    api = TaskmanApiClient()
+    if not api.is_available():
+        print("Error: Taskman API is not available.")
+        print(f"Please start the UI server at http://{api.host}:{api.port} and retry.")
+        return
 
     # Main menu loop
     current_project = None
@@ -26,24 +31,45 @@ def main_cli() -> None:
             # List all projects
             print("\nProjects:")
             print("-" * 30)
-            ProjectManager.list_projects()
+            obj = api.list_projects()
+            projects = obj.get("projects", []) or []
+            if not projects:
+                print("No projects found.")
+            else:
+                print("Projects:")
+                for idx, project_name in enumerate(projects, start=1):
+                    print(f"{idx}. {project_name}")
         elif choice == "2":
             # Open or create a project
             print("\nOpen a project:")
             print("-" * 30)
             project_name = interaction.get_project_name()
-            ProjectManager.save_project_name(project_name)
-            current_project = Project(project_name)
+            api.open_project(project_name)
+            current_project = ProjectAdapter(project_name, api)
             print(f"Opened project: '{current_project.name}'")
         elif choice == "3":
             # Edit a project's name from the main menu
             print("\nEditing a project name:")
             print("-" * 30)
-            projects = ProjectManager.list_projects()
+            obj = api.list_projects()
+            projects = obj.get("projects", []) or []
+            if not projects:
+                print("No projects found.")
+            else:
+                print("Projects:")
+                for idx, project_name in enumerate(projects, start=1):
+                    print(f"{idx}. {project_name}")
             if projects:
                 old_name = interaction.get_project_name("Enter the project name to rename: ")
                 new_name = interaction.get_project_name("Enter the new project name: ")
-                ProjectManager.edit_project_name(old_name, new_name)
+                try:
+                    resp = api.rename_project(old_name, new_name)
+                    if resp.get("ok"):
+                        print(f"Project '{old_name}' has been renamed to '{new_name}'.")
+                    else:
+                        print("Error: Failed to rename project.")
+                except Exception:
+                    print("Error: Failed to rename project.")
         elif choice == "4":
             # Exit the application
             print("\nExiting Task Manager. Goodbye!")
@@ -129,27 +155,42 @@ def main_cli() -> None:
                 f"Enter the new name for project '{old_name}': "
             )
             if new_name and new_name != old_name:
-                if ProjectManager.edit_project_name(old_name, new_name):
-                    current_project = Project(new_name)
-                    print(
-                        f"Project renamed. Current project is now '{current_project.name}'."
-                    )
+                try:
+                    resp = api.rename_project(old_name, new_name)
+                    if resp.get("ok"):
+                        print(f"Project '{old_name}' has been renamed to '{new_name}'.")
+                        current_project = ProjectAdapter(new_name, api)
+                        print(
+                            f"Project renamed. Current project is now '{current_project.name}'."
+                        )
+                    else:
+                        print("Error: Failed to rename project.")
+                except Exception:
+                    print("Error: Failed to rename project.")
             else:
                 print(
                     "Rename cancelled or new name is the same as the old name."
                 )
+        # TODO: Replace choice 7 and 8 with going back to main menu to do the same operations
         elif choice == "7":
             # List all available projects
             print("\nListing all projects:")
             print("-" * 30)
-            ProjectManager.list_projects()
+            obj = api.list_projects()
+            projects = obj.get("projects", []) or []
+            if not projects:
+                print("No projects found.")
+            else:
+                print("Projects:")
+                for idx, project_name in enumerate(projects, start=1):
+                    print(f"{idx}. {project_name}")
         elif choice == "8":
             # Switch to another project
             print("\nSwitching project:")
             print("-" * 30)
             project_name = interaction.get_project_name()
-            ProjectManager.save_project_name(project_name)
-            current_project = Project(project_name)
+            api.open_project(project_name)
+            current_project = ProjectAdapter(project_name, api)
             print(f"\nSwitched to project: '{current_project.name}'")
         elif choice == "9":
             # Exit the application
@@ -162,4 +203,3 @@ def main_cli() -> None:
 # Run the CLI if this file is executed directly
 if __name__ == "__main__":
     main_cli()
-

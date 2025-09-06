@@ -70,17 +70,3 @@ class ProjectManager:
             with open(ProjectManager.PROJECTS_FILE, "r") as file:
                 return json.load(file)
         return []
-
-    @staticmethod
-    def list_projects() -> list[str]:
-        """
-        Print all saved project names to the console and return the list.
-        """
-        projects = ProjectManager.load_project_names()
-        if not projects:
-            print("No projects found.")
-        else:
-            print("Projects:")
-            for idx, project_name in enumerate(projects, start=1):
-                print(f"{idx}. {project_name}")
-        return projects

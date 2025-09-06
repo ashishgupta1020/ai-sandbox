@@ -29,78 +29,6 @@ class TestProject(unittest.TestCase):
         # Restore original projects dir
         ProjectManager.PROJECTS_DIR = self._orig_projects_dir
 
-    def test_add_and_list_task(self):
-        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
-        task1 = Task("Summary1", "Assignee1", "Remarks1", "Not Started", "Low")
-        task2 = Task("Summary2", "Assignee2", "Remarks2", "Completed", "High")
-        project.add_task(task1)
-        project.add_task(task2)
-        self.assertEqual(len(project.tasks), 2)
-        # Capture output
-        with StringIO() as buf, redirect_stdout(buf):
-            project.list_tasks()
-            output = buf.getvalue()
-        # Assert all task summaries and assignees are in output
-        self.assertIn("Summary1", output)
-        self.assertIn("Summary2", output)
-        self.assertIn("Assignee1", output)
-        self.assertIn("Assignee2", output)
-
-    def _parse_table_rows(self, output: str):
-        """Helper: parse PrettyTable output to list of [Index, Summary, Assignee, Status, Priority, Remarks]."""
-        rows = []
-        for line in output.splitlines():
-            line = line.rstrip('\n')
-            if not line.startswith('|'):
-                continue
-            if '---' in line:
-                continue  # divider
-            parts = [p.strip() for p in line.strip().split('|')[1:-1]]
-            if not parts:
-                continue
-            if parts[0] == 'Index':
-                continue  # header
-            # Ensure we have at least the first five columns consistently
-            while len(parts) < 6:
-                parts.append('')
-            rows.append(parts[:6])
-        return rows
-
-    def test_list_tasks_preserves_index_when_sorted_by_status(self):
-        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
-        # Original order indices: 1 (Not Started), 2 (Completed), 3 (In Progress)
-        project.add_task(Task("S1", "A1", "R1", "Not Started", "Low"))
-        project.add_task(Task("S2", "A2", "R2", "Completed", "High"))
-        project.add_task(Task("S3", "A3", "R3", "In Progress", "Medium"))
-        with StringIO() as buf, redirect_stdout(buf):
-            project.list_tasks(sort_by="status")
-            output = buf.getvalue()
-        rows = self._parse_table_rows(output)
-        # Expect order by status: Not Started (S1 idx=1), In Progress (S3 idx=3), Completed (S2 idx=2)
-        self.assertEqual([r[1] for r in rows], ["S1", "S3", "S2"])  # summaries order
-        self.assertEqual([int(r[0]) for r in rows], [1, 3, 2])          # original indices preserved
-
-    def test_list_tasks_preserves_index_when_sorted_by_priority(self):
-        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
-        # Original order indices: 1 (Low), 2 (High), 3 (Medium)
-        project.add_task(Task("P1", "A1", "R1", "Not Started", "Low"))
-        project.add_task(Task("P2", "A2", "R2", "Completed", "High"))
-        project.add_task(Task("P3", "A3", "R3", "In Progress", "Medium"))
-        with StringIO() as buf, redirect_stdout(buf):
-            project.list_tasks(sort_by="priority")
-            output = buf.getvalue()
-        rows = self._parse_table_rows(output)
-        # Expect order by priority: Low (P1 idx=1), Medium (P3 idx=3), High (P2 idx=2)
-        self.assertEqual([r[1] for r in rows], ["P1", "P3", "P2"])  # summaries order
-        self.assertEqual([int(r[0]) for r in rows], [1, 3, 2])          # original indices preserved
-
-    def test_list_tasks_empty(self):
-        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
-        # Ensure output is correct when no tasks exist
-        with StringIO() as buf, redirect_stdout(buf):
-            project.list_tasks()
-            output = buf.getvalue()
-        self.assertIn("No tasks found in this project.", output)
 
     def test_edit_task(self):
         project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
@@ -260,17 +188,6 @@ class TestProject(unittest.TestCase):
         resp, status = project.delete_task_from_payload({"index": 0})
         self.assertEqual(status, 400)
 
-    
-
-    def test_export_tasks_to_markdown_file(self):
-        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
-        project.add_task(Task("S1", "A1", "R1", "Not Started", "Low"))
-        project.export_tasks_to_markdown_file()
-        md_path = ProjectManager.get_markdown_file_path(self.TEST_PROJECT)
-        self.assertTrue(os.path.exists(md_path))
-        with open(md_path, "r") as f:
-            content = f.read()
-        self.assertIn("S1", content)
 
 if __name__ == "__main__":
     unittest.main()

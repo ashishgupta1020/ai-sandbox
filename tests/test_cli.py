@@ -4,6 +4,47 @@ import shutil
 from io import StringIO
 from contextlib import redirect_stdout
 from taskman.project_manager import ProjectManager
+import socket
+import threading
+import time
+import http.client
+from contextlib import closing
+from taskman.tasker_ui import start_ui
+
+
+class _ServerThread:
+    def __init__(self, host: str, port: int):
+        self.host = host
+        self.port = port
+        self.thread = threading.Thread(target=start_ui, kwargs={"host": host, "port": port})
+        self.thread.daemon = True
+
+    def start(self):
+        self.thread.start()
+        deadline = time.time() + 3.0
+        healthy = False
+        while time.time() < deadline:
+            try:
+                with closing(http.client.HTTPConnection(self.host, self.port, timeout=0.25)) as conn:
+                    conn.request("GET", "/health")
+                    resp = conn.getresponse()
+                    _ = resp.read()
+                    if resp.status == 200:
+                        healthy = True
+                        break
+            except Exception:
+                time.sleep(0.05)
+        if not healthy:
+            raise AssertionError("UI server did not start in time for CLI tests")
+
+    def stop(self):
+        try:
+            with closing(http.client.HTTPConnection(self.host, self.port, timeout=1)) as conn:
+                conn.request("POST", "/api/exit", body=b"{}", headers={"Content-Type": "application/json"})
+                _ = conn.getresponse()
+        except Exception:
+            pass
+        self.thread.join(timeout=2)
 
 class TestTaskManager(unittest.TestCase):
     TEST_PROJECT = "TestProject"
@@ -25,6 +66,17 @@ class TestTaskManager(unittest.TestCase):
         ProjectManager.PROJECTS_FILE = self.TEST_PROJECTS_FILE
         self._orig_projects_dir = ProjectManager.PROJECTS_DIR
         ProjectManager.PROJECTS_DIR = self.TEST_DATA_DIR
+        # Ensure any previous server on default port is stopped
+        try:
+            with closing(http.client.HTTPConnection("127.0.0.1", 8765, timeout=0.5)) as conn:
+                conn.request("POST", "/api/exit", body=b"{}", headers={"Content-Type": "application/json"})
+                _ = conn.getresponse()
+                time.sleep(0.1)
+        except Exception:
+            pass
+        # Start UI server (API) on default host:port used by CLI
+        self._server = _ServerThread("127.0.0.1", 8765)
+        self._server.start()
 
     def tearDown(self):
         # Clean up test data directory
@@ -33,6 +85,9 @@ class TestTaskManager(unittest.TestCase):
         # Restore original ProjectManager settings
         ProjectManager.PROJECTS_FILE = self._orig_projects_file
         ProjectManager.PROJECTS_DIR = self._orig_projects_dir
+        # Stop server
+        if hasattr(self, "_server"):
+            self._server.stop()
 
     def test_main_cli_exit(self):
         from unittest.mock import patch
@@ -68,6 +123,45 @@ class TestTaskManager(unittest.TestCase):
                 output = buf.getvalue()
             self.assertIn("Invalid choice. Please try again.", output)
             self.assertIn("Exiting Task Manager. Goodbye!", output)
+        finally:
+            builtins.input = original_input
+
+    def test_main_menu_list_projects_empty(self):
+        # With no projects, listing should say none
+        import builtins
+        user_inputs = ["1", "4"]
+        def mock_input(prompt=None):
+            return user_inputs.pop(0)
+        original_input = builtins.input
+        builtins.input = mock_input
+        from taskman.cli import task_manager
+        try:
+            with StringIO() as buf, redirect_stdout(buf):
+                task_manager.main_cli()
+                output = buf.getvalue()
+            self.assertIn("No projects found.", output)
+            self.assertIn("Exiting Task Manager. Goodbye!", output)
+        finally:
+            builtins.input = original_input
+
+    def test_main_menu_list_projects_with_entries(self):
+        # Create a project via API and list it
+        from taskman.client.api_client import TaskmanApiClient
+        api = TaskmanApiClient()
+        api.open_project(self.PROJECT_A)
+        import builtins
+        user_inputs = ["1", "4"]
+        def mock_input(prompt=None):
+            return user_inputs.pop(0)
+        original_input = builtins.input
+        builtins.input = mock_input
+        from taskman.cli import task_manager
+        try:
+            with StringIO() as buf, redirect_stdout(buf):
+                task_manager.main_cli()
+                output = buf.getvalue()
+            self.assertIn("Projects:", output)
+            self.assertIn(self.PROJECT_A, output)
         finally:
             builtins.input = original_input
 
@@ -123,6 +217,113 @@ class TestTaskManager(unittest.TestCase):
             self.assertIn("Exiting Task Manager. Goodbye!", output)
             self.assertIn("First line of remarks", output)
             self.assertIn("Second line with **markdown**", output)
+        finally:
+            builtins.input = original_input
+
+    def test_project_menu_sort_invalid_choice(self):
+        # Open, add, then choose invalid sort option
+        import builtins
+        user_inputs = [
+            "2", self.PROJECT_A,
+            "1", "S", "A", "R", "", "2", "2",
+            "3", "99",  # invalid sort option
+            "9"
+        ]
+        def mock_input(prompt=None):
+            return user_inputs.pop(0)
+        original_input = builtins.input
+        builtins.input = mock_input
+        from taskman.cli import task_manager
+        try:
+            with StringIO() as buf, redirect_stdout(buf):
+                task_manager.main_cli()
+                output = buf.getvalue()
+            self.assertIn("Invalid sort choice. Showing unsorted tasks.", output)
+        finally:
+            builtins.input = original_input
+
+    def test_project_menu_edit_invalid_index_numeric(self):
+        # Open, add 1 task, then try editing index 2
+        import builtins
+        user_inputs = [
+            "2", self.PROJECT_A,
+            "1", "S", "A", "R", "", "2", "2",
+            "4", "2",  # invalid index (out of range)
+            "9"
+        ]
+        def mock_input(prompt=None):
+            return user_inputs.pop(0)
+        original_input = builtins.input
+        builtins.input = mock_input
+        from taskman.cli import task_manager
+        try:
+            with StringIO() as buf, redirect_stdout(buf):
+                task_manager.main_cli()
+                output = buf.getvalue()
+            self.assertIn("Invalid task index.", output)
+        finally:
+            builtins.input = original_input
+
+    def test_project_menu_rename_failure(self):
+        # Create two projects, try renaming current to the other -> fail
+        from taskman.client.api_client import TaskmanApiClient
+        api = TaskmanApiClient()
+        api.open_project(self.PROJECT_A)
+        api.open_project(self.PROJECT_B)
+        import builtins
+        user_inputs = [
+            "2", self.PROJECT_A,  # open A
+            "6", self.PROJECT_B,  # rename to existing B -> error
+            "9"
+        ]
+        def mock_input(prompt=None):
+            return user_inputs.pop(0)
+        original_input = builtins.input
+        builtins.input = mock_input
+        from taskman.cli import task_manager
+        try:
+            with StringIO() as buf, redirect_stdout(buf):
+                task_manager.main_cli()
+                output = buf.getvalue()
+            self.assertIn("Error: Failed to rename project.", output)
+        finally:
+            builtins.input = original_input
+
+    def test_project_menu_invalid_choice(self):
+        # In project menu, choose invalid option then exit
+        import builtins
+        user_inputs = [
+            "2", self.PROJECT_A,
+            "99",  # invalid choice in project menu
+            "9"
+        ]
+        def mock_input(prompt=None):
+            return user_inputs.pop(0)
+        original_input = builtins.input
+        builtins.input = mock_input
+        from taskman.cli import task_manager
+        try:
+            with StringIO() as buf, redirect_stdout(buf):
+                task_manager.main_cli()
+                output = buf.getvalue()
+            self.assertIn("Invalid choice. Please try again.", output)
+        finally:
+            builtins.input = original_input
+
+    def test_main_menu_rename_no_projects(self):
+        # Select rename from main menu when no projects exist
+        import builtins
+        user_inputs = ["3", "4"]
+        def mock_input(prompt=None):
+            return user_inputs.pop(0)
+        original_input = builtins.input
+        builtins.input = mock_input
+        from taskman.cli import task_manager
+        try:
+            with StringIO() as buf, redirect_stdout(buf):
+                task_manager.main_cli()
+                output = buf.getvalue()
+            self.assertIn("No projects found.", output)
         finally:
             builtins.input = original_input
 

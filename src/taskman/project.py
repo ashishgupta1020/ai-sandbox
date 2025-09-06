@@ -1,8 +1,6 @@
 import json
 import os
-import textwrap
 from typing import Optional, Tuple
-from prettytable import PrettyTable
 from taskman.task import Task, TaskStatus, TaskPriority
 from taskman.project_manager import ProjectManager
 
@@ -57,51 +55,6 @@ class Project:
         self.tasks.append(task)
         self.save_tasks_to_file()
 
-    def list_tasks(self, sort_by: str = None) -> None:
-        """
-        Print all tasks in the project in a formatted table.
-        Optionally sort by 'status' or 'priority'.
-        """
-        if not self.tasks:
-            print("No tasks found in this project.")
-        else:
-            print(f"Tasks in project '{self.name}':")
-            table = PrettyTable(["Index", "Summary", "Assignee", "Status", "Priority", "Remarks"])
-            table.align = "l"
-            # Pair each task with its original 1-based index
-            indexed_tasks = list(enumerate(self.tasks, start=1))
-            # Optionally sort by status or priority, but keep original index
-            if sort_by == "status":
-                status_order = [s.value.lower() for s in TaskStatus]
-                def status_key(item):
-                    _idx, t = item
-                    status = t.status.value.lower()
-                    return status_order.index(status) if status in status_order else len(status_order)
-                indexed_tasks = sorted(indexed_tasks, key=status_key)
-            elif sort_by == "priority":
-                priority_order = [p.value.lower() for p in TaskPriority]
-                def priority_key(item):
-                    _idx, t = item
-                    priority = t.priority.value.lower()
-                    return priority_order.index(priority) if priority in priority_order else len(priority_order)
-                indexed_tasks = sorted(indexed_tasks, key=priority_key)
-            for idx, task in indexed_tasks:
-                # Wrap text for better display
-                wrapped_summary = textwrap.fill(task.summary, width=40)
-                wrapped_assignee = textwrap.fill(task.assignee, width=20)
-                wrapped_status = textwrap.fill(task.status.value, width=15)
-                wrapped_priority = textwrap.fill(task.priority.value, width=10)
-                # Preserve newlines in remarks by wrapping each line individually
-                wrapped_remarks = '\n'.join(textwrap.fill(line, width=80) for line in task.remarks.splitlines())
-                table.add_row([
-                    idx,
-                    wrapped_summary,
-                    wrapped_assignee,
-                    wrapped_status,
-                    wrapped_priority,
-                    wrapped_remarks
-                ])
-            print(table)
 
     def edit_task(self, task_index: int, new_task: 'Task') -> None:
         """
@@ -221,32 +174,6 @@ class Project:
         index0 = len(self.tasks) - 1
         return {"ok": True, "index": index0, "task": new_task.to_dict()}, 200
 
-    def export_tasks_to_markdown_file(self) -> None:
-        """
-        Write the Markdown table of tasks to the project's markdown file path.
-        """
-        # Build markdown content inline to avoid extra helper
-        if not self.tasks:
-            md_output = "No tasks found in this project."
-        else:
-            headers = ["Index", "Summary", "Assignee", "Status", "Priority", "Remarks"]
-            lines = []
-            lines.append("| " + " | ".join(headers) + " |")
-            lines.append("| " + " | ".join(["---"] * len(headers)) + " |")
-            for idx, task in enumerate(self.tasks, start=1):
-                row = [
-                    str(idx),
-                    task.summary.replace("|", "\\|"),
-                    task.assignee.replace("|", "\\|"),
-                    task.status.value.replace("|", "\\|"),
-                    task.priority.value.replace("|", "\\|"),
-                    task.remarks.replace("|", "\\|"),
-                ]
-                lines.append("| " + " | ".join(row) + " |")
-            md_output = "\n".join(lines) + "\n"
-        with open(self.markdown_file_path, "w") as md_file:
-            md_file.write(md_output)
-        print(f"\nTasks exported to Markdown file: '{self.markdown_file_path}'")
 
     # API support: validate and delete a task from request JSON
     def delete_task_from_payload(self, payload: Optional[dict]) -> Tuple[dict, int]:
