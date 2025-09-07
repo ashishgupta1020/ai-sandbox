@@ -148,7 +148,7 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
             proj: Optional[Project] = None
             try:
                 cur_obj = getattr(self.server, "current_project", None)
-                if isinstance(cur_obj, Project) and cur_obj.name == name:
+                if isinstance(cur_obj, Project) and cur_obj.name.lower() == name.lower():
                     proj = cur_obj
                 else:
                     proj = Project(name)
@@ -195,9 +195,9 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
             name = str(body["name"]).strip()
             try:
                 # Persist and load
-                ProjectManager.save_project_name(name)
+                canonical = ProjectManager.save_project_name(name)
                 # Initialize project (creates files/dirs as needed)
-                proj = Project(name)
+                proj = Project(canonical)
                 # Remember current project object on server (drop old one; destructor handles close)
                 setattr(self.server, "current_project", proj)
                 return self._json({"ok": True, "currentProject": proj.name})
@@ -218,7 +218,7 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
                 return self._json({"ok": False}, 400)
             # update current project if it matched
             cur_obj = getattr(self.server, "current_project", None)
-            if isinstance(cur_obj, Project) and cur_obj.name == old:
+            if isinstance(cur_obj, Project) and cur_obj.name.lower() == old.lower():
                 # Replace with a fresh Project bound to new name; old instance will be GC'ed
                 setattr(self.server, "current_project", Project(new))
             cur_obj = getattr(self.server, "current_project", None)
@@ -240,7 +240,7 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
                 return self._json({"error": "Invalid payload"}, 400)
             # Delegate validation and update to Project model
             cur_obj = getattr(self.server, "current_project", None)
-            proj = cur_obj if (isinstance(cur_obj, Project) and cur_obj.name == name) else Project(name)
+            proj = cur_obj if (isinstance(cur_obj, Project) and cur_obj.name.lower() == name.lower()) else Project(name)
             resp, status = proj.update_task_from_payload(body)
             return self._json(resp, status)
 
@@ -257,7 +257,7 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
                 body = {}
             try:
                 cur_obj = getattr(self.server, "current_project", None)
-                proj = cur_obj if (isinstance(cur_obj, Project) and cur_obj.name == name) else Project(name)
+                proj = cur_obj if (isinstance(cur_obj, Project) and cur_obj.name.lower() == name.lower()) else Project(name)
                 resp, status = proj.create_task_from_payload(body)
                 return self._json(resp, status)
             except Exception as e:
@@ -273,7 +273,7 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
             body = self._read_json()
             try:
                 cur_obj = getattr(self.server, "current_project", None)
-                proj = cur_obj if (isinstance(cur_obj, Project) and cur_obj.name == name) else Project(name)
+                proj = cur_obj if (isinstance(cur_obj, Project) and cur_obj.name.lower() == name.lower()) else Project(name)
                 resp, status = proj.delete_task_from_payload(body)
                 return self._json(resp, status)
             except Exception as e:

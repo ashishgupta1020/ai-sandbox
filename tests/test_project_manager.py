@@ -32,7 +32,8 @@ class TestProjectManager(unittest.TestCase):
         ProjectManager.PROJECTS_DIR = self._orig_projects_dir
 
     def test_save_and_load_project_name(self):
-        ProjectManager.save_project_name(self.TEST_PROJECT)
+        saved = ProjectManager.save_project_name(self.TEST_PROJECT)
+        self.assertEqual(saved, self.TEST_PROJECT)
         projects = ProjectManager.load_project_names()
         self.assertIn(self.TEST_PROJECT, projects)
 
@@ -84,8 +85,29 @@ class TestProjectManager(unittest.TestCase):
         self.assertFalse(os.path.exists(old_md_file))
         self.assertTrue(os.path.exists(new_md_file))
 
+    def test_edit_project_name_same_name_ok(self):
+        name = "SameNameProject"
+        ProjectManager.save_project_name(name)
+        # Renaming to the same name should be a no-op but succeed
+        with StringIO() as buf, redirect_stdout(buf):
+            result = ProjectManager.edit_project_name(name, name)
+            output = buf.getvalue()
+        self.assertTrue(result)
+        projects = ProjectManager.load_project_names()
+        self.assertEqual(projects.count(name), 1)
+
     def test_save_project_name_duplicate(self):
-        ProjectManager.save_project_name(self.TEST_PROJECT)
-        ProjectManager.save_project_name(self.TEST_PROJECT)
+        first = ProjectManager.save_project_name(self.TEST_PROJECT)
+        second = ProjectManager.save_project_name(self.TEST_PROJECT)
         projects = ProjectManager.load_project_names()
         self.assertEqual(projects.count(self.TEST_PROJECT), 1)
+        self.assertEqual(first, self.TEST_PROJECT)
+        self.assertEqual(second, self.TEST_PROJECT)
+
+    def test_save_project_name_case_returns_canonical(self):
+        canonical = ProjectManager.save_project_name("Alpha")
+        self.assertEqual(canonical, "Alpha")
+        again = ProjectManager.save_project_name("alpha")
+        self.assertEqual(again, "Alpha")
+        projects = ProjectManager.load_project_names()
+        self.assertEqual(projects, ["Alpha"])

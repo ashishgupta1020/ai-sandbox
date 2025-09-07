@@ -44,8 +44,10 @@ def main_cli() -> None:
             print("\nOpen a project:")
             print("-" * 30)
             project_name = interaction.get_project_name()
-            api.open_project(project_name)
-            current_project = ProjectAdapter(project_name, api)
+            resp = api.open_project(project_name)
+            # Use canonical name returned by server (handles case-insensitive open)
+            canonical = resp.get("currentProject") or project_name
+            current_project = ProjectAdapter(canonical, api)
             print(f"Opened project: '{current_project.name}'")
         elif choice == "3":
             # Edit a project's name from the main menu
@@ -154,23 +156,18 @@ def main_cli() -> None:
             new_name = interaction.get_project_name(
                 f"Enter the new name for project '{old_name}': "
             )
-            if new_name and new_name != old_name:
-                try:
-                    resp = api.rename_project(old_name, new_name)
-                    if resp.get("ok"):
-                        print(f"Project '{old_name}' has been renamed to '{new_name}'.")
-                        current_project = ProjectAdapter(new_name, api)
-                        print(
-                            f"Project renamed. Current project is now '{current_project.name}'."
-                        )
-                    else:
-                        print("Error: Failed to rename project.")
-                except Exception:
+            try:
+                resp = api.rename_project(old_name, new_name)
+                if resp.get("ok"):
+                    print(f"Project '{old_name}' has been renamed to '{new_name}'.")
+                    current_project = ProjectAdapter(new_name, api)
+                    print(
+                        f"Project renamed. Current project is now '{current_project.name}'."
+                    )
+                else:
                     print("Error: Failed to rename project.")
-            else:
-                print(
-                    "Rename cancelled or new name is the same as the old name."
-                )
+            except Exception:
+                print("Error: Failed to rename project.")
         # TODO: Replace choice 7 and 8 with going back to main menu to do the same operations
         elif choice == "7":
             # List all available projects
@@ -189,8 +186,9 @@ def main_cli() -> None:
             print("\nSwitching project:")
             print("-" * 30)
             project_name = interaction.get_project_name()
-            api.open_project(project_name)
-            current_project = ProjectAdapter(project_name, api)
+            resp = api.open_project(project_name)
+            canonical = resp.get("currentProject") or project_name
+            current_project = ProjectAdapter(canonical, api)
             print(f"\nSwitched to project: '{current_project.name}'")
         elif choice == "9":
             # Exit the application

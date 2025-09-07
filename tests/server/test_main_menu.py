@@ -139,6 +139,25 @@ class TestMainMenuAPI(unittest.TestCase):
         obj = json.loads(body)
         self.assertFalse(obj.get("ok", True))
 
+    def test_edit_name_same_name_is_ok(self):
+        # Open a project then rename to the same name; should succeed (no-op)
+        resp, body = self._post("/api/projects/open", {"name": "Alpha"})
+        self.assertEqual(resp.status, 200)
+        obj = json.loads(body)
+        self.assertTrue(obj["ok"]) 
+        self.assertEqual(obj["currentProject"], "Alpha")
+        # Rename to same
+        resp, body = self._post("/api/projects/edit-name", {"old_name": "Alpha", "new_name": "Alpha"})
+        self.assertEqual(resp.status, 200)
+        obj = json.loads(body)
+        self.assertTrue(obj["ok"]) 
+        self.assertEqual(obj["currentProject"], "Alpha")
+        # List remains unchanged
+        resp, body = self._get("/api/projects")
+        self.assertEqual(resp.status, 200)
+        obj = json.loads(body)
+        self.assertEqual(obj["projects"], ["Alpha"])
+
     def test_unknown_mutation_endpoint(self):
         with closing(http.client.HTTPConnection(self.host, self.port, timeout=2)) as conn:
             conn.request("POST", "/api/does-not-exist", body=b"{}", headers={"Content-Type": "application/json"})

@@ -460,6 +460,11 @@
         title.textContent = `Project: ${name}`;
         try {
           const result = await openProject(name);
+          if (result && result.currentProject) {
+            // Server may canonicalize casing; update local state/title
+            CURRENT_PROJECT = result.currentProject;
+            title.textContent = `Project: ${CURRENT_PROJECT}`;
+          }
           if (!(result && result.ok)) {
             status.textContent = 'Failed to open project.';
           } else {
@@ -468,7 +473,7 @@
         } catch (e) {
           status.textContent = `Error: ${e.message}`;
         }
-        await loadTasks(name);
+        await loadTasks(CURRENT_PROJECT);
 
         // Wire add-task button to open inline panel for creating a task
         const btnAddTask = document.getElementById('btn-add-task');
