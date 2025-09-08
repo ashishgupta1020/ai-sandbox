@@ -34,7 +34,7 @@ class TestProject(unittest.TestCase):
     def test_edit_task(self):
         project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
         task = Task("Summary", "Assignee", "Remarks", "Not Started", "Low")
-        project.add_task(task)
+        tid = project.add_task(task)
         # Prepare simulated user input for editing the task
         user_inputs = [
             "New Summary",      # new summary
@@ -52,13 +52,13 @@ class TestProject(unittest.TestCase):
         builtins.input = mock_input
         try:
             from taskman.cli.interaction import Interaction
-            old_task = project.tasks[0]
-            new_task = Interaction.edit_task_details(old_task)
-            project.edit_task(project.tasks[0].id, new_task)  # type: ignore[arg-type]
+            first = project._tasks_by_id[tid]
+            new_task = Interaction.edit_task_details(first)
+            project.edit_task(tid, new_task)  # type: ignore[arg-type]
         finally:
             builtins.input = original_input
         # Check that the task was updated as expected
-        updated_task = project.tasks[0]
+        updated_task = project._tasks_by_id[tid]
         self.assertEqual(updated_task.summary, "New Summary")
         self.assertEqual(updated_task.assignee, "New Assignee")
         self.assertEqual(updated_task.remarks, "New Remarks")
@@ -68,8 +68,8 @@ class TestProject(unittest.TestCase):
     def test_edit_task_invalid_id(self):
         project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
         # Add a task so index 2 is invalid
-        project.add_task(Task("Summary", "Assignee", "Remarks", "Not Started", "Low"))
-        dummy_task = project.tasks[0]
+        tid = project.add_task(Task("Summary", "Assignee", "Remarks", "Not Started", "Low"))
+        dummy_task = project._tasks_by_id[tid]
         with StringIO() as buf, redirect_stdout(buf):
             project.edit_task(999, dummy_task)
             output = buf.getvalue()
@@ -80,30 +80,32 @@ class TestProject(unittest.TestCase):
         with open(self.task_file, "w") as f:
             f.write("invalid json")
         project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
-        self.assertEqual(project.tasks, [])
+        self.assertEqual(project._tasks_by_id, {})
 
     # --- Tests for API helper methods and exports ---
     def test_update_task_from_payload_success(self):
         project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
-        project.add_task(Task("S", "A", "R", "Not Started", "Low"))
+        tid = project.add_task(Task("S", "A", "R", "Not Started", "Low"))
+        first = project._tasks_by_id[tid]
         resp, status = project.update_task_from_payload({
-            "id": project.tasks[0].id,
+            "id": first.id,
             "fields": {"summary": "New", "status": "Completed", "priority": "High"}
         })
         self.assertEqual(status, 200)
         self.assertTrue(resp.get("ok"))
-        self.assertEqual(resp.get("id"), project.tasks[0].id)
-        self.assertEqual(project.tasks[0].summary, "New")
-        self.assertEqual(project.tasks[0].status, TaskStatus.COMPLETED)
-        self.assertEqual(project.tasks[0].priority, TaskPriority.HIGH)
+        after = project._tasks_by_id[tid]
+        self.assertEqual(resp.get("id"), after.id)
+        self.assertEqual(after.summary, "New")
+        self.assertEqual(after.status, TaskStatus.COMPLETED)
+        self.assertEqual(after.priority, TaskPriority.HIGH)
 
-        # Verify persisted to disk
+        # Verify persisted to disk (use original task id)
         project2 = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
-        self.assertEqual(project2.tasks[0].summary, "New")
+        self.assertEqual(project2._tasks_by_id[tid].summary, "New")
 
     def test_update_task_from_payload_invalid_id_type(self):
         project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
-        project.add_task(Task("S", "A", "R", "Not Started", "Low"))
+        tid = project.add_task(Task("S", "A", "R", "Not Started", "Low"))
         resp, status = project.update_task_from_payload({"id": "zero", "fields": {"summary": "X"}})
         self.assertEqual(status, 400)
         self.assertIn("id", resp.get("error", ""))
@@ -115,13 +117,13 @@ class TestProject(unittest.TestCase):
 
     def test_update_task_from_payload_unknown_field(self):
         project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
-        project.add_task(Task("S", "A", "R", "Not Started", "Low"))
+        tid = project.add_task(Task("S", "A", "R", "Not Started", "Low"))
         resp, status = project.update_task_from_payload({"id": 0, "fields": {"foo": "bar"}})
         self.assertEqual(status, 400)
 
     def test_update_task_from_payload_invalid_enums(self):
         project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
-        project.add_task(Task("S", "A", "R", "Not Started", "Low"))
+        tid = project.add_task(Task("S", "A", "R", "Not Started", "Low"))
         # Invalid status
         resp, status = project.update_task_from_payload({"id": 0, "fields": {"status": "Started"}})
         self.assertEqual(status, 400)
@@ -135,9 +137,10 @@ class TestProject(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertTrue(resp.get("ok"))
         self.assertIn("id", resp)
-        self.assertEqual(resp.get("id"), project.tasks[0].id)
-        self.assertEqual(len(project.tasks), 1)
-        t = project.tasks[0]
+        first = list(project._tasks_by_id.values())[0]
+        self.assertEqual(resp.get("id"), first.id)
+        self.assertEqual(len(project._tasks_by_id), 1)
+        t = project._tasks_by_id[first.id]
         self.assertEqual(t.summary, "")
         self.assertEqual(t.assignee, "")
         self.assertEqual(t.remarks, "")
@@ -151,9 +154,10 @@ class TestProject(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertTrue(resp.get("ok"))
         self.assertIn("id", resp)
-        self.assertEqual(resp.get("id"), project.tasks[0].id)
-        self.assertEqual(len(project.tasks), 1)
-        t = project.tasks[0]
+        first = list(project._tasks_by_id.values())[0]
+        self.assertEqual(resp.get("id"), first.id)
+        self.assertEqual(len(project._tasks_by_id), 1)
+        t = project._tasks_by_id[first.id]
         self.assertEqual(t.summary, "S")
         self.assertEqual(t.assignee, "A")
         self.assertEqual(t.remarks, "R")
@@ -161,8 +165,8 @@ class TestProject(unittest.TestCase):
         self.assertEqual(t.priority, TaskPriority.HIGH)
         # Persist check
         project2 = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
-        self.assertEqual(len(project2.tasks), 1)
-        self.assertEqual(project2.tasks[0].summary, "S")
+        self.assertEqual(len(project2._tasks_by_id), 1)
+        self.assertEqual(project2._tasks_by_id[first.id].summary, "S")
 
     def test_create_task_from_payload_invalid_payload_type(self):
         project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
@@ -178,16 +182,16 @@ class TestProject(unittest.TestCase):
         self.assertTrue(resp.get("ok"))
         self.assertEqual(resp.get("id"), 0)
         self.assertTrue(resp.get("ok"))
-        self.assertEqual(len(project.tasks), 1)
-        self.assertEqual(project.tasks[0].summary, "S2")
+        self.assertEqual(len(project._tasks_by_id), 1)
+        self.assertEqual(list(project._tasks_by_id.values())[0].summary, "S2")
         # Persist check
         project2 = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
-        self.assertEqual(len(project2.tasks), 1)
-        self.assertEqual(project2.tasks[0].summary, "S2")
+        self.assertEqual(len(project2._tasks_by_id), 1)
+        self.assertEqual(list(project2._tasks_by_id.values())[0].summary, "S2")
 
     def test_delete_task_from_payload_invalid_id_type(self):
         project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
-        project.add_task(Task("S", "A", "R", "Not Started", "Low"))
+        tid = project.add_task(Task("S", "A", "R", "Not Started", "Low"))
         resp, status = project.delete_task_from_payload({"id": "zero"})  # type: ignore[arg-type]
         self.assertEqual(status, 400)
 
@@ -217,11 +221,12 @@ class TestProject(unittest.TestCase):
 
         # Load in a new Project instance and verify contents
         project2 = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
-        self.assertEqual(len(project2.tasks), 2)
-        self.assertEqual(project2.tasks[0].id, 0)
-        self.assertEqual(project2.tasks[1].id, 1)
-        self.assertEqual(project2.tasks[0].summary, "S1")
-        self.assertEqual(project2.tasks[1].summary, "S2")
+        self.assertEqual(len(project2._tasks_by_id), 2)
+        vals = list(project2._tasks_by_id.values())
+        self.assertEqual(vals[0].id, 0)
+        self.assertEqual(vals[1].id, 1)
+        self.assertEqual(vals[0].summary, "S1")
+        self.assertEqual(vals[1].summary, "S2")
 
     def test_load_recomputes_last_id_and_persists(self):
         # Seed file with inconsistent last_id vs max task id
@@ -243,13 +248,13 @@ class TestProject(unittest.TestCase):
             data = json.load(f)
         self.assertEqual(data.get("last_id"), 7)
         # Tasks loaded with same ids
-        self.assertEqual([t.id for t in project.tasks], [5, 7])
+        self.assertEqual([t.id for t in project._tasks_by_id.values()], [5, 7])
 
     def test_save_tasks_to_file_overwrites_content(self):
         project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
-        project.add_task(Task("S", "A", "R", "Not Started", "Low"))
+        tid = project.add_task(Task("S", "A", "R", "Not Started", "Low"))
         # Edit in-memory and save
-        t = project.tasks[0]
+        t = project._tasks_by_id[tid]
         t.summary = "S-edit"
         project.save_tasks_to_file()
         # Verify file reflects changes

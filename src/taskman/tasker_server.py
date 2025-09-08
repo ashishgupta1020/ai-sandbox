@@ -152,7 +152,7 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
                     proj = cur_obj
                 else:
                     proj = Project(name)
-                tasks = [t.to_dict() for t in getattr(proj, "tasks", [])]
+                tasks = [t.to_dict() for t in proj.iter_tasks()]
             except Exception as e:
                 # Be forgiving: if file contains unexpected JSON (non-list), return empty list
                 self.log_message("Failed loading tasks for project '%s': %r", name, e, level="warning")

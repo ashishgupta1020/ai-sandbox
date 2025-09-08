@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import textwrap
-from typing import List, Optional
+from typing import Dict, List, Optional
 from prettytable import PrettyTable
 
 from taskman.client.api_client import TaskmanApiClient
@@ -20,14 +20,24 @@ class ProjectAdapter:
     def __init__(self, name: str, client: TaskmanApiClient) -> None:
         self.name = name
         self._client = client
-        # local cache to support CLI flows that inspect length; populated on demand
-        self.tasks: List[Task] = []
+        # Local cache keyed by task ID for fast lookups; populated on demand
+        self.tasks: Dict[int, Task] = {}
+        # Maintain display order mapping: 1-based index -> task ID
+        self._index_to_id: List[int] = []
         self._refresh_cache()
 
     # ----- internals -----
     def _refresh_cache(self) -> None:
         items = self._client.get_tasks(self.name)
-        self.tasks = [Task.from_dict(it) for it in items]
+        self.tasks = {}
+        self._index_to_id = []
+        for it in items:
+            t = Task.from_dict(it)
+            if t.id is None:
+                continue
+            tid = int(t.id)
+            self.tasks[tid] = t
+            self._index_to_id.append(tid)
 
     # ----- CLI-compatible methods -----
     def add_task(self, task: Task) -> None:
@@ -35,21 +45,11 @@ class ProjectAdapter:
 
     def edit_task(self, task_index: int, new_task: Task) -> None:
         # CLI passes 1-based index
-        if task_index < 1:
+        tid = self.get_task_id_by_index(task_index)
+        if tid is None:
             print("Invalid task index.")
             return
-        # Map index to ID using current cache snapshot (matches last list shown)
-        index0 = task_index - 1
-        if index0 < 0 or index0 >= len(self.tasks):
-            print("Invalid task index.")
-            return
-        task_id = getattr(self.tasks[index0], "id", None)
-        if task_id is None:
-            print("Invalid task index.")
-            return
-
-        # Perform update by ID
-        self._client.update_task(self.name, int(task_id), new_task.to_dict())
+        self._client.update_task(self.name, int(tid), new_task.to_dict())
         print("Task updated successfully.")
 
     def list_tasks(self, sort_by: Optional[str] = None) -> None:
@@ -62,7 +62,8 @@ class ProjectAdapter:
         table = PrettyTable(["Index", "Summary", "Assignee", "Status", "Priority", "Remarks"])
         table.align = "l"
 
-        indexed_tasks = list(enumerate(self.tasks, start=1))
+        # Build (display_index, Task) pairs using current display order
+        indexed_tasks = [(idx, self.tasks[tid]) for idx, tid in enumerate(self._index_to_id, start=1)]
         if sort_by == "status":
             status_order = [s.value.lower() for s in TaskStatus]
             def status_key(item):
@@ -103,7 +104,8 @@ class ProjectAdapter:
             lines = []
             lines.append("| " + " | ".join(headers) + " |")
             lines.append("| " + " | ".join(["---"] * len(headers)) + " |")
-            for idx, task in enumerate(self.tasks, start=1):
+            for idx, tid in enumerate(self._index_to_id, start=1):
+                task = self.tasks[tid]
                 row = [
                     str(idx),
                     task.summary.replace("|", "\\|"),
@@ -119,3 +121,20 @@ class ProjectAdapter:
         with open(md_path, "w") as md_file:
             md_file.write(md_output)
         print(f"\nTasks exported to Markdown file: '{md_path}'")
+
+    # ----- ID-centric helpers for CLI -----
+    def get_task_id_by_index(self, task_index: int) -> Optional[int]:
+        if task_index < 1 or task_index > len(self._index_to_id):
+            return None
+        return self._index_to_id[task_index - 1]
+
+    def get_task_by_index(self, task_index: int) -> Optional[Task]:
+        tid = self.get_task_id_by_index(task_index)
+        return self.tasks.get(tid) if tid is not None else None
+
+    def edit_task_by_id(self, task_id: int, new_task: Task) -> None:
+        if task_id is None or int(task_id) not in self.tasks:
+            print("Invalid task id.")
+            return
+        self._client.update_task(self.name, int(task_id), new_task.to_dict())
+        print("Task updated successfully.")

@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Iterator, Dict
 from taskman.task import Task, TaskStatus, TaskPriority
 from taskman.project_manager import ProjectManager
 
@@ -10,8 +10,8 @@ class Project:
         Initialize a Project with a name and load its tasks from file.
         """
         self.name = name
-        # TODO: this should be a dict keyed by task ID
-        self.tasks = []
+        # Backing store: dict keyed by task ID for fast lookups/updates
+        self._tasks_by_id: Dict[int, Task] = {}
         # Tracks the last assigned task ID for this project. Starts at -1 so first is 0.
         self.last_id: int = -1
         os.makedirs(ProjectManager.PROJECTS_DIR, exist_ok=True)
@@ -38,7 +38,7 @@ class Project:
         self.file.truncate()
         payload = {
             "last_id": self.last_id,
-            "tasks": [task.to_dict() for task in self.tasks],
+            "tasks": [task.to_dict() for task in self._tasks_by_id.values()],
         }
         json.dump(payload, self.file, indent=4)
         self.file.flush()
@@ -52,23 +52,24 @@ class Project:
             self.file.seek(0)
             data = json.load(self.file)
             if not isinstance(data, dict):
-                self.tasks = []
+                self._tasks_by_id = {}
                 self.last_id = -1
                 return
             raw_tasks = data.get("tasks", [])
             if not isinstance(raw_tasks, list):
                 raw_tasks = []
             # Build tasks and compute max id
-            tasks_list: list[Task] = []
+            tasks_map: dict[int, Task] = {}
             computed_last_id = -1
             for d in raw_tasks:
                 t = Task.from_dict(d)
-                tasks_list.append(t)
                 tid = getattr(t, "id", None)
                 if tid is None:
                     continue
-                computed_last_id = max(computed_last_id, int(tid))
-            self.tasks = tasks_list
+                itid = int(tid)
+                tasks_map[itid] = t
+                computed_last_id = max(computed_last_id, itid)
+            self._tasks_by_id = tasks_map
 
             try:
                 self.last_id = int(data.get("last_id", -1))
@@ -80,10 +81,14 @@ class Project:
                 self.save_tasks_to_file()
         except json.JSONDecodeError:
             # If file is empty/corrupt, start with an empty task list.
-            self.tasks = []
+            self._tasks_by_id = {}
             self.last_id = -1
 
-    def add_task(self, task: 'Task') -> None:
+    def iter_tasks(self) -> Iterator[Task]:
+        """Iterate over tasks in their current order."""
+        return iter(self._tasks_by_id.values())
+
+    def add_task(self, task: 'Task') -> int:
         """
         Add a new task to the project and save to file.
         """
@@ -91,8 +96,10 @@ class Project:
         self.last_id = (self.last_id if isinstance(self.last_id, int) else -1)
         task.id = self.last_id + 1
         self.last_id = task.id
-        self.tasks.append(task)
+        # Insert into dict keyed by id
+        self._tasks_by_id[int(task.id)] = task
         self.save_tasks_to_file()
+        return int(task.id)
 
 
     def edit_task(self, task_id: int, new_task: 'Task') -> None:
@@ -100,14 +107,12 @@ class Project:
         Update the details of a task identified by ID using a new Task object.
         """
         # Find task by ID
-        idx = next((i for i, t in enumerate(self.tasks) if getattr(t, "id", None) == task_id), -1)
-        if idx < 0:
+        if int(task_id) not in self._tasks_by_id:
             print("Invalid task id.")
             return
         # Preserve the original task ID
-        orig = self.tasks[idx]
-        new_task.id = getattr(orig, "id", None)
-        self.tasks[idx] = new_task
+        new_task.id = int(task_id)
+        self._tasks_by_id[int(task_id)] = new_task
         self.save_tasks_to_file()
         print("Task updated successfully.")
 
@@ -137,8 +142,8 @@ class Project:
             return {"error": "Unknown fields present"}, 400
 
         # Resolve task by ID
-        index = next((i for i, t in enumerate(self.tasks) if getattr(t, "id", None) == tid), -1)
-        if index < 0:
+        task = self._tasks_by_id.get(tid)
+        if task is None:
             return {"error": "Task not found"}, 400
 
         # Enum validation
@@ -154,7 +159,6 @@ class Project:
                 return {"error": "Invalid priority"}, 400
 
         # Apply changes
-        task = self.tasks[index]
         if "summary" in fields:
             task.summary = str(fields["summary"]) if fields["summary"] is not None else ""
         if "assignee" in fields:
@@ -237,11 +241,12 @@ class Project:
             tid = int(payload.get("id", -1))
         except (TypeError, ValueError):
             return {"error": "'id' must be an integer"}, 400
-        index = next((i for i, t in enumerate(self.tasks) if getattr(t, "id", None) == tid), -1)
-        if index < 0:
+        if tid not in self._tasks_by_id:
             return {"error": "Task not found"}, 400
         # Remove and persist
-        removed = self.tasks.pop(index)
+        removed = self._tasks_by_id.pop(tid, None)
+        if removed is None:
+            return {"error": "Task not found"}, 400
         try:
             self.save_tasks_to_file()
         except Exception as e:
