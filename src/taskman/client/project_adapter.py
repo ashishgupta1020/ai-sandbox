@@ -34,7 +34,7 @@ class ProjectAdapter:
         self._client.create_task(self.name, task.to_dict())
 
     def edit_task(self, task_index: int, new_task: Task) -> None:
-        # CLI passes 1-based index; API expects 0-based
+        # CLI passes 1-based index
         if task_index < 1:
             print("Invalid task index.")
             return
