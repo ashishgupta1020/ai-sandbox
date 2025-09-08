@@ -10,7 +10,10 @@ class Project:
         Initialize a Project with a name and load its tasks from file.
         """
         self.name = name
+        # TODO: this should be a dict keyed by task ID
         self.tasks = []
+        # Tracks the last assigned task ID for this project. Starts at -1 so first is 0.
+        self.last_id: int = -1
         os.makedirs(ProjectManager.PROJECTS_DIR, exist_ok=True)
         self.task_file_path = ProjectManager.get_task_file_path(self.name)
         self.markdown_file_path = ProjectManager.get_markdown_file_path(self.name)
@@ -33,37 +36,78 @@ class Project:
         """
         self.file.seek(0)
         self.file.truncate()
-        json.dump([task.to_dict() for task in self.tasks], self.file, indent=4)
+        payload = {
+            "last_id": self.last_id,
+            "tasks": [task.to_dict() for task in self.tasks],
+        }
+        json.dump(payload, self.file, indent=4)
         self.file.flush()
 
     def load_tasks_from_file(self) -> None:
         """
         Load tasks from the project's tasks file.
         """
+        # Strict loader: expect {"last_id": int, "tasks": [ ... ]}
         try:
             self.file.seek(0)
-            tasks_data = json.load(self.file)
-            self.tasks = [Task.from_dict(data) for data in tasks_data]
+            data = json.load(self.file)
+            if not isinstance(data, dict):
+                self.tasks = []
+                self.last_id = -1
+                return
+            raw_tasks = data.get("tasks", [])
+            if not isinstance(raw_tasks, list):
+                raw_tasks = []
+            # Build tasks and compute max id
+            tasks_list: list[Task] = []
+            computed_last_id = -1
+            for d in raw_tasks:
+                t = Task.from_dict(d)
+                tasks_list.append(t)
+                tid = getattr(t, "id", None)
+                if tid is None:
+                    continue
+                computed_last_id = max(computed_last_id, int(tid))
+            self.tasks = tasks_list
+
+            try:
+                self.last_id = int(data.get("last_id", -1))
+            except (TypeError, ValueError):
+                self.last_id = -1
+            if computed_last_id != self.last_id:
+                self.last_id = computed_last_id
+                # Persist corrected metadata while keeping tasks unchanged
+                self.save_tasks_to_file()
         except json.JSONDecodeError:
             # If file is empty/corrupt, start with an empty task list.
             self.tasks = []
+            self.last_id = -1
 
     def add_task(self, task: 'Task') -> None:
         """
         Add a new task to the project and save to file.
         """
+        # Always assign a new monotonically increasing ID, ignoring any provided value
+        self.last_id = (self.last_id if isinstance(self.last_id, int) else -1)
+        task.id = self.last_id + 1
+        self.last_id = task.id
         self.tasks.append(task)
         self.save_tasks_to_file()
 
 
-    def edit_task(self, task_index: int, new_task: 'Task') -> None:
+    def edit_task(self, task_id: int, new_task: 'Task') -> None:
         """
-        Update the details of a task by its index using a new Task object.
+        Update the details of a task identified by ID using a new Task object.
         """
-        if task_index < 1 or task_index > len(self.tasks):
-            print("Invalid task index.")
+        # Find task by ID
+        idx = next((i for i, t in enumerate(self.tasks) if getattr(t, "id", None) == task_id), -1)
+        if idx < 0:
+            print("Invalid task id.")
             return
-        self.tasks[task_index - 1] = new_task
+        # Preserve the original task ID
+        orig = self.tasks[idx]
+        new_task.id = getattr(orig, "id", None)
+        self.tasks[idx] = new_task
         self.save_tasks_to_file()
         print("Task updated successfully.")
 
@@ -73,28 +117,29 @@ class Project:
         Validate an edit payload and update a single task, saving to file.
 
         Expected payload:
-          { "index": <int 0-based>, "fields": {allowed partial fields} }
+          { "id": <int task id>, "fields": {allowed partial fields} }
 
         Returns a tuple of (response_json, http_status).
         """
         if not isinstance(payload, dict):
             return {"error": "Invalid payload"}, 400
-        # Validate index
+        # Validate id
         try:
-            index = int(payload.get("index", -1))
+            tid = int(payload.get("id", -1))
         except (TypeError, ValueError):
-            return {"error": "'index' must be an integer"}, 400
+            return {"error": "'id' must be an integer"}, 400
         fields = payload.get("fields")
         if not isinstance(fields, dict) or not fields:
             return {"error": "'fields' must be a non-empty object"}, 400
 
-        allowed = {"summary", "assignee", "remarks", "status", "priority"}
+        allowed = {"id", "summary", "assignee", "remarks", "status", "priority"}
         if any(k not in allowed for k in fields.keys()):
             return {"error": "Unknown fields present"}, 400
 
-        # Bounds check
-        if index < 0 or index >= len(self.tasks):
-            return {"error": "Index out of range"}, 400
+        # Resolve task by ID
+        index = next((i for i, t in enumerate(self.tasks) if getattr(t, "id", None) == tid), -1)
+        if index < 0:
+            return {"error": "Task not found"}, 400
 
         # Enum validation
         if "status" in fields:
@@ -127,7 +172,7 @@ class Project:
         except Exception as e:
             return {"error": f"Failed to save: {e}"}, 500
 
-        return {"ok": True, "index": index, "task": task.to_dict()}, 200
+        return {"ok": True, "id": tid, "task": task.to_dict()}, 200
 
     # API support: validate and create a new task from request JSON
     def create_task_from_payload(self, payload: Optional[dict]) -> Tuple[dict, int]:
@@ -165,38 +210,40 @@ class Project:
 
         # Create and persist
         new_task = Task(summary, assignee, remarks, status_val, priority_val)
-        self.tasks.append(new_task)
+        
         try:
-            self.save_tasks_to_file()
+            # Use the common add_task path to assign ID and persist
+            self.add_task(new_task)
         except Exception as e:
             return {"error": f"Failed to save: {e}"}, 500
 
-        index0 = len(self.tasks) - 1
-        return {"ok": True, "index": index0, "task": new_task.to_dict()}, 200
+        # Return new task id for clients; index is derivable client-side
+        return {"ok": True, "id": new_task.id, "task": new_task.to_dict()}, 200
 
 
     # API support: validate and delete a task from request JSON
     def delete_task_from_payload(self, payload: Optional[dict]) -> Tuple[dict, int]:
         """
-        Validate a deletion payload and remove a task by index, saving to file.
+        Validate a deletion payload and remove a task by ID, saving to file.
 
         Expected payload:
-          { "index": <int 0-based> }
+          { "id": <int task id> }
 
         Returns a tuple of (response_json, http_status).
         """
         if payload is None or not isinstance(payload, dict):
             return {"error": "Invalid payload"}, 400
         try:
-            index = int(payload.get("index", -1))
+            tid = int(payload.get("id", -1))
         except (TypeError, ValueError):
-            return {"error": "'index' must be an integer"}, 400
-        if index < 0 or index >= len(self.tasks):
-            return {"error": "Index out of range"}, 400
+            return {"error": "'id' must be an integer"}, 400
+        index = next((i for i, t in enumerate(self.tasks) if getattr(t, "id", None) == tid), -1)
+        if index < 0:
+            return {"error": "Task not found"}, 400
         # Remove and persist
         removed = self.tasks.pop(index)
         try:
             self.save_tasks_to_file()
         except Exception as e:
             return {"error": f"Failed to save: {e}"}, 500
-        return {"ok": True, "index": index, "task": removed.to_dict()}, 200
+        return {"ok": True, "id": tid, "task": removed.to_dict()}, 200

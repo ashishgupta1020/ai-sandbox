@@ -1,4 +1,5 @@
 import unittest
+import json
 import os
 import shutil
 from io import StringIO
@@ -53,7 +54,7 @@ class TestProject(unittest.TestCase):
             from taskman.cli.interaction import Interaction
             old_task = project.tasks[0]
             new_task = Interaction.edit_task_details(old_task)
-            project.edit_task(1, new_task)
+            project.edit_task(project.tasks[0].id, new_task)  # type: ignore[arg-type]
         finally:
             builtins.input = original_input
         # Check that the task was updated as expected
@@ -64,15 +65,15 @@ class TestProject(unittest.TestCase):
         self.assertEqual(updated_task.status, TaskStatus.COMPLETED)
         self.assertEqual(updated_task.priority, TaskPriority.MEDIUM)
 
-    def test_edit_task_invalid_index(self):
+    def test_edit_task_invalid_id(self):
         project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
         # Add a task so index 2 is invalid
         project.add_task(Task("Summary", "Assignee", "Remarks", "Not Started", "Low"))
         dummy_task = project.tasks[0]
         with StringIO() as buf, redirect_stdout(buf):
-            project.edit_task(2, dummy_task)
+            project.edit_task(999, dummy_task)
             output = buf.getvalue()
-        self.assertIn("Invalid task index.", output)
+        self.assertIn("Invalid task id.", output)
 
     def test_load_tasks_from_file_invalid_json(self):
         # Write invalid JSON to the test task file
@@ -81,16 +82,17 @@ class TestProject(unittest.TestCase):
         project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
         self.assertEqual(project.tasks, [])
 
-    # --- New unit tests for API helper methods and exports ---
+    # --- Tests for API helper methods and exports ---
     def test_update_task_from_payload_success(self):
         project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
         project.add_task(Task("S", "A", "R", "Not Started", "Low"))
         resp, status = project.update_task_from_payload({
-            "index": 0,
+            "id": project.tasks[0].id,
             "fields": {"summary": "New", "status": "Completed", "priority": "High"}
         })
         self.assertEqual(status, 200)
         self.assertTrue(resp.get("ok"))
+        self.assertEqual(resp.get("id"), project.tasks[0].id)
         self.assertEqual(project.tasks[0].summary, "New")
         self.assertEqual(project.tasks[0].status, TaskStatus.COMPLETED)
         self.assertEqual(project.tasks[0].priority, TaskPriority.HIGH)
@@ -99,32 +101,32 @@ class TestProject(unittest.TestCase):
         project2 = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
         self.assertEqual(project2.tasks[0].summary, "New")
 
-    def test_update_task_from_payload_invalid_index_type(self):
+    def test_update_task_from_payload_invalid_id_type(self):
         project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
         project.add_task(Task("S", "A", "R", "Not Started", "Low"))
-        resp, status = project.update_task_from_payload({"index": "zero", "fields": {"summary": "X"}})
+        resp, status = project.update_task_from_payload({"id": "zero", "fields": {"summary": "X"}})
         self.assertEqual(status, 400)
-        self.assertIn("index", resp.get("error", ""))
+        self.assertIn("id", resp.get("error", ""))
 
     def test_update_task_from_payload_out_of_range(self):
         project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
-        resp, status = project.update_task_from_payload({"index": 1, "fields": {"summary": "X"}})
+        resp, status = project.update_task_from_payload({"id": 1, "fields": {"summary": "X"}})
         self.assertEqual(status, 400)
 
     def test_update_task_from_payload_unknown_field(self):
         project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
         project.add_task(Task("S", "A", "R", "Not Started", "Low"))
-        resp, status = project.update_task_from_payload({"index": 0, "fields": {"foo": "bar"}})
+        resp, status = project.update_task_from_payload({"id": 0, "fields": {"foo": "bar"}})
         self.assertEqual(status, 400)
 
     def test_update_task_from_payload_invalid_enums(self):
         project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
         project.add_task(Task("S", "A", "R", "Not Started", "Low"))
         # Invalid status
-        resp, status = project.update_task_from_payload({"index": 0, "fields": {"status": "Started"}})
+        resp, status = project.update_task_from_payload({"id": 0, "fields": {"status": "Started"}})
         self.assertEqual(status, 400)
         # Invalid priority
-        resp2, status2 = project.update_task_from_payload({"index": 0, "fields": {"priority": "Urgent"}})
+        resp2, status2 = project.update_task_from_payload({"id": 0, "fields": {"priority": "Urgent"}})
         self.assertEqual(status2, 400)
 
     def test_create_task_from_payload_defaults(self):
@@ -132,6 +134,8 @@ class TestProject(unittest.TestCase):
         resp, status = project.create_task_from_payload({})
         self.assertEqual(status, 200)
         self.assertTrue(resp.get("ok"))
+        self.assertIn("id", resp)
+        self.assertEqual(resp.get("id"), project.tasks[0].id)
         self.assertEqual(len(project.tasks), 1)
         t = project.tasks[0]
         self.assertEqual(t.summary, "")
@@ -146,6 +150,8 @@ class TestProject(unittest.TestCase):
         resp, status = project.create_task_from_payload(payload)
         self.assertEqual(status, 200)
         self.assertTrue(resp.get("ok"))
+        self.assertIn("id", resp)
+        self.assertEqual(resp.get("id"), project.tasks[0].id)
         self.assertEqual(len(project.tasks), 1)
         t = project.tasks[0]
         self.assertEqual(t.summary, "S")
@@ -167,8 +173,10 @@ class TestProject(unittest.TestCase):
         project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
         project.add_task(Task("S1", "A1", "R1", "Not Started", "Low"))
         project.add_task(Task("S2", "A2", "R2", "Completed", "High"))
-        resp, status = project.delete_task_from_payload({"index": 0})
+        resp, status = project.delete_task_from_payload({"id": 0})
         self.assertEqual(status, 200)
+        self.assertTrue(resp.get("ok"))
+        self.assertEqual(resp.get("id"), 0)
         self.assertTrue(resp.get("ok"))
         self.assertEqual(len(project.tasks), 1)
         self.assertEqual(project.tasks[0].summary, "S2")
@@ -177,16 +185,77 @@ class TestProject(unittest.TestCase):
         self.assertEqual(len(project2.tasks), 1)
         self.assertEqual(project2.tasks[0].summary, "S2")
 
-    def test_delete_task_from_payload_invalid_index_type(self):
+    def test_delete_task_from_payload_invalid_id_type(self):
         project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
         project.add_task(Task("S", "A", "R", "Not Started", "Low"))
-        resp, status = project.delete_task_from_payload({"index": "zero"})  # type: ignore[arg-type]
+        resp, status = project.delete_task_from_payload({"id": "zero"})  # type: ignore[arg-type]
         self.assertEqual(status, 400)
 
     def test_delete_task_from_payload_out_of_range(self):
         project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
-        resp, status = project.delete_task_from_payload({"index": 0})
+        resp, status = project.delete_task_from_payload({"id": 0})
         self.assertEqual(status, 400)
+
+
+    # --- Tests for file load/save behavior ---
+    def test_save_and_load_tasks_roundtrip(self):
+        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        # Add two tasks and persist
+        project.add_task(Task("S1", "A1", "R1", "Not Started", "Low"))
+        project.add_task(Task("S2", "A2", "R2", "Completed", "High"))
+
+        # Read raw file and verify structured format with ids
+        with open(self.task_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        self.assertIsInstance(data, dict)
+        self.assertIn("last_id", data)
+        self.assertIn("tasks", data)
+        self.assertEqual(len(data["tasks"]), 2)
+        ids = [t.get("id") for t in data["tasks"]]
+        self.assertEqual(ids, [0, 1])
+        self.assertEqual(data["last_id"], 1)
+
+        # Load in a new Project instance and verify contents
+        project2 = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        self.assertEqual(len(project2.tasks), 2)
+        self.assertEqual(project2.tasks[0].id, 0)
+        self.assertEqual(project2.tasks[1].id, 1)
+        self.assertEqual(project2.tasks[0].summary, "S1")
+        self.assertEqual(project2.tasks[1].summary, "S2")
+
+    def test_load_recomputes_last_id_and_persists(self):
+        # Seed file with inconsistent last_id vs max task id
+        initial = {
+            "last_id": 0,
+            "tasks": [
+                {"id": 5, "summary": "A", "assignee": "a", "remarks": "", "status": "Not Started", "priority": "Low"},
+                {"id": 7, "summary": "B", "assignee": "b", "remarks": "", "status": "In Progress", "priority": "Medium"},
+            ],
+        }
+        with open(self.task_file, "w", encoding="utf-8") as f:
+            json.dump(initial, f)
+
+        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        # last_id should be recomputed to 7
+        self.assertEqual(project.last_id, 7)
+        # File should be updated to persist corrected last_id
+        with open(self.task_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        self.assertEqual(data.get("last_id"), 7)
+        # Tasks loaded with same ids
+        self.assertEqual([t.id for t in project.tasks], [5, 7])
+
+    def test_save_tasks_to_file_overwrites_content(self):
+        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        project.add_task(Task("S", "A", "R", "Not Started", "Low"))
+        # Edit in-memory and save
+        t = project.tasks[0]
+        t.summary = "S-edit"
+        project.save_tasks_to_file()
+        # Verify file reflects changes
+        with open(self.task_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        self.assertEqual(data["tasks"][0]["summary"], "S-edit")
 
 
 if __name__ == "__main__":

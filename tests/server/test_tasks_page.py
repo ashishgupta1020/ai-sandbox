@@ -84,12 +84,15 @@ class TestTasksPageAPI(unittest.TestCase):
         # Create a valid tasks list
         path = ProjectManager.get_task_file_path("Alpha")
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        tasks = [
-            {"summary": "S1", "assignee": "A1", "remarks": "R1", "status": "Not Started", "priority": "Low"},
-            {"summary": "S2", "assignee": "A2", "remarks": "R2", "status": "Completed", "priority": "High"},
-        ]
+        tasks_obj = {
+            "last_id": 1,
+            "tasks": [
+                {"id": 0, "summary": "S1", "assignee": "A1", "remarks": "R1", "status": "Not Started", "priority": "Low"},
+                {"id": 1, "summary": "S2", "assignee": "A2", "remarks": "R2", "status": "Completed", "priority": "High"},
+            ],
+        }
         with open(path, "w", encoding="utf-8") as f:
-            json.dump(tasks, f)
+            json.dump(tasks_obj, f)
         resp, body = self._get("/api/projects/Alpha/tasks")
         self.assertEqual(resp.status, 200)
         data = json.loads(body)
@@ -140,13 +143,17 @@ class TestTasksPageAPI(unittest.TestCase):
         name = "Delta"
         path = ProjectManager.get_task_file_path(name)
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        tasks = [{"summary": "Old", "assignee": "A", "remarks": "R", "status": "Not Started", "priority": "Low"}]
+        tasks_obj = {
+            "last_id": 0,
+            "tasks": [{"id": 0, "summary": "Old", "assignee": "A", "remarks": "R", "status": "Not Started", "priority": "Low"}],
+        }
         with open(path, "w", encoding="utf-8") as f:
-            json.dump(tasks, f)
-        resp, body = self._post(f"/api/projects/{name}/tasks/update", {"index": 0, "fields": {"summary": "New"}})
+            json.dump(tasks_obj, f)
+        resp, body = self._post(f"/api/projects/{name}/tasks/update", {"id": 0, "fields": {"summary": "New"}})
         self.assertEqual(resp.status, 200)
         obj = json.loads(body)
         self.assertTrue(obj.get("ok"))
+        self.assertEqual(obj.get("id"), 0)
         self.assertEqual(obj["task"]["summary"], "New")
         # Verify persisted
         resp2, body2 = self._get(f"/api/projects/{name}/tasks")
@@ -155,7 +162,7 @@ class TestTasksPageAPI(unittest.TestCase):
         self.assertEqual(data["tasks"][0]["summary"], "New")
 
     def test_update_task_invalid_name(self):
-        resp, _ = self._post("/api/projects/../etc/tasks/update", {"index": 0, "fields": {"summary": "X"}})
+        resp, _ = self._post("/api/projects/../etc/tasks/update", {"id": 0, "fields": {"summary": "X"}})
         self.assertEqual(resp.status, 400)
 
     # ----- Tests for /api/projects/<name>/tasks/create -----
@@ -166,7 +173,9 @@ class TestTasksPageAPI(unittest.TestCase):
         self.assertEqual(resp.status, 200)
         data = json.loads(body)
         self.assertTrue(data.get("ok"))
-        self.assertEqual(data["index"], 0)
+        # Backend now returns task id instead of index
+        self.assertIn("id", data)
+        self.assertEqual(data["id"], 0)
         # Verify via GET
         resp2, body2 = self._get(f"/api/projects/{name}/tasks")
         self.assertEqual(resp2.status, 200)
@@ -192,14 +201,20 @@ class TestTasksPageAPI(unittest.TestCase):
         # Seed task file
         path = ProjectManager.get_task_file_path(name)
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        tasks = [
-            {"summary": "S1", "assignee": "A1", "remarks": "R1", "status": "Not Started", "priority": "Low"},
-            {"summary": "S2", "assignee": "A2", "remarks": "R2", "status": "Completed", "priority": "High"},
-        ]
+        tasks_obj = {
+            "last_id": 1,
+            "tasks": [
+                {"id": 0, "summary": "S1", "assignee": "A1", "remarks": "R1", "status": "Not Started", "priority": "Low"},
+                {"id": 1, "summary": "S2", "assignee": "A2", "remarks": "R2", "status": "Completed", "priority": "High"},
+            ],
+        }
         with open(path, "w", encoding="utf-8") as f:
-            json.dump(tasks, f)
-        resp, body = self._post(f"/api/projects/{name}/tasks/delete", {"index": 0})
+            json.dump(tasks_obj, f)
+        resp, body = self._post(f"/api/projects/{name}/tasks/delete", {"id": 0})
         self.assertEqual(resp.status, 200)
+        obj = json.loads(body)
+        self.assertTrue(obj.get("ok"))
+        self.assertEqual(obj.get("id"), 0)
         # Verify one left and it's S2
         resp2, body2 = self._get(f"/api/projects/{name}/tasks")
         self.assertEqual(resp2.status, 200)
@@ -208,7 +223,7 @@ class TestTasksPageAPI(unittest.TestCase):
         self.assertEqual(listing["tasks"][0]["summary"], "S2")
 
     def test_delete_task_invalid_name(self):
-        resp, _ = self._post("/api/projects/.hidden/tasks/delete", {"index": 0})
+        resp, _ = self._post("/api/projects/.hidden/tasks/delete", {"id": 0})
         self.assertEqual(resp.status, 400)
-        resp2, _ = self._post("/api/projects/../etc/tasks/delete", {"index": 0})
+        resp2, _ = self._post("/api/projects/../etc/tasks/delete", {"id": 0})
         self.assertEqual(resp2.status, 400)

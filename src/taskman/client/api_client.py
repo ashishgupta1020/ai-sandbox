@@ -87,10 +87,10 @@ class TaskmanApiClient:
         name = quote(project, safe="")
         return self._post_json(f"/api/projects/{name}/tasks/create", fields)
 
-    def update_task(self, project: str, index0: int, fields: Dict[str, Any]) -> Dict[str, Any]:
+    def update_task(self, project: str, task_id: int, fields: Dict[str, Any]) -> Dict[str, Any]:
         name = quote(project, safe="")
-        return self._post_json(f"/api/projects/{name}/tasks/update", {"index": index0, "fields": fields})
+        return self._post_json(f"/api/projects/{name}/tasks/update", {"id": task_id, "fields": fields})
 
-    def delete_task(self, project: str, index0: int) -> Dict[str, Any]:
+    def delete_task(self, project: str, task_id: int) -> Dict[str, Any]:
         name = quote(project, safe="")
-        return self._post_json(f"/api/projects/{name}/tasks/delete", {"index": index0})
+        return self._post_json(f"/api/projects/{name}/tasks/delete", {"id": task_id})

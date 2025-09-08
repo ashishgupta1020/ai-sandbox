@@ -61,18 +61,18 @@
       async function apiCreateTask(name, fields = {}) {
         return api(`/api/projects/${encodeURIComponent(name)}/tasks/create`, { method: 'POST', body: fields || {} });
       }
-      async function apiUpdateTask(name, index0, fields) {
-        return api(`/api/projects/${encodeURIComponent(name)}/tasks/update`, { method: 'POST', body: { index: index0, fields } });
+      async function apiUpdateTask(name, taskId, fields) {
+        return api(`/api/projects/${encodeURIComponent(name)}/tasks/update`, { method: 'POST', body: { id: taskId, fields } });
       }
-      async function apiDeleteTask(name, index0) {
-        return api(`/api/projects/${encodeURIComponent(name)}/tasks/delete`, { method: 'POST', body: { index: index0 } });
+      async function apiDeleteTask(name, taskId) {
+        return api(`/api/projects/${encodeURIComponent(name)}/tasks/delete`, { method: 'POST', body: { id: taskId } });
       }
 
       // App state
       let GRID = null;           // Grid.js instance
       let GRID_COLUMNS = null;   // Columns definition (initialized once)
       // Current data rows (kept in-memory to support in-place updates)
-      // Row shape: [idx0, visibleIndex, summary, assignee, status, priority, remarks, null]
+      // Row shape: [idx0, id, visibleIndex, summary, assignee, status, priority, remarks, null]
       let DATA_ROWS = [];
       // Allowed option values for select editors
       const STATUS_OPTS = ['Not Started', 'In Progress', 'Completed'];
@@ -85,6 +85,7 @@
         const t = task || {};
         return [
           i,                    // hidden 0-based index
+          (typeof t.id === 'number' ? t.id : (t.id != null ? Number(t.id) : null)), // hidden task id
           i + 1,                // visible 1-based index
           t.summary || '',
           t.assignee || '',
@@ -98,7 +99,7 @@
         const s = Math.max(0, start | 0);
         for (let i = s; i < DATA_ROWS.length; i++) {
           DATA_ROWS[i][0] = i;      // hidden 0-based index
-          DATA_ROWS[i][1] = i + 1;  // visible 1-based index
+          DATA_ROWS[i][2] = i + 1;  // visible 1-based index
         }
       }
       function updateRowFromTask(index0, task) {
@@ -106,11 +107,12 @@
         if (!Array.isArray(DATA_ROWS) || i < 0 || i >= DATA_ROWS.length) return false;
         const row = DATA_ROWS[i];
         const t = task || {};
-        row[2] = t.summary  != null ? t.summary  : row[2];
-        row[3] = t.assignee != null ? t.assignee : row[3];
-        row[4] = t.status   != null ? t.status   : row[4];
-        row[5] = t.priority != null ? t.priority : row[5];
-        row[6] = t.remarks  != null ? t.remarks  : row[6];
+        // Preserve id in row[1]; update other fields
+        row[3] = t.summary  != null ? t.summary  : row[3];
+        row[4] = t.assignee != null ? t.assignee : row[4];
+        row[5] = t.status   != null ? t.status   : row[5];
+        row[6] = t.priority != null ? t.priority : row[6];
+        row[7] = t.remarks  != null ? t.remarks  : row[7];
         return true;
       }
       function insertRowFromTask(index0, task) {
@@ -131,6 +133,14 @@
         DATA_ROWS.splice(i, 1);
         if (DATA_ROWS.length > 0) reindexFrom(i);
         return true;
+      }
+      function findRowIndexById(taskId) {
+        if (!Array.isArray(DATA_ROWS)) return -1;
+        const tid = Number(taskId);
+        for (let i = 0; i < DATA_ROWS.length; i++) {
+          if (Number(DATA_ROWS[i][1]) === tid) return i;
+        }
+        return -1;
       }
 
       // Markdown/HTML helpers
@@ -262,6 +272,7 @@
           const h = gridjs.h;
           // First hidden column is the 0-based index
           const idx0 = Number(row.cells[0].data);
+          const tid = row.cells[1].data != null ? Number(row.cells[1].data) : null;
           // For markdown cells, render markdown preview as the display value
           if (type === 'markdown') {
             const isEmpty = !cell || (typeof cell === 'string' && cell.trim() === '');
@@ -273,7 +284,7 @@
               className: 'editable',
               onMouseEnter: (ev) => ev.target.closest('td')?.classList.add('editable-cell'),
               onMouseLeave: (ev) => ev.target.closest('td')?.classList.remove('editable-cell'),
-              onClick: (ev) => startInlineEditor(ev.target, idx0, field, type, options, cell)
+              onClick: (ev) => startInlineEditor(ev.target, idx0, field, type, options, cell, tid)
             }, displayNode);
           }
           // Default single-line behavior
@@ -281,7 +292,7 @@
             className: 'editable',
             onMouseEnter: (ev) => ev.target.closest('td')?.classList.add('editable-cell'),
             onMouseLeave: (ev) => ev.target.closest('td')?.classList.remove('editable-cell'),
-            onClick: (ev) => startInlineEditor(ev.target, idx0, field, type, options, cell)
+            onClick: (ev) => startInlineEditor(ev.target, idx0, field, type, options, cell, tid)
           }, cell);
         };
       }
@@ -295,6 +306,8 @@
           GRID_COLUMNS = [
             // Hidden stable index column (0-based)
             { name: '_idx0', hidden: true },
+            // Hidden task id column
+            { name: '_id', hidden: true },
             { name: 'Index', sort: true },
             { name: 'Summary',  sort: true, formatter: editableFormatter('summary',  'text') },
             { name: 'Assignee', sort: true, formatter: editableFormatter('assignee', 'text') },
@@ -305,6 +318,7 @@
             { name: '', sort: false, formatter: (_, row) => {
                 const h = gridjs.h;
                 const idx0 = Number(row.cells[0].data);
+                const tid = row.cells[1].data != null ? Number(row.cells[1].data) : null;
                 const icon = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6a1 1 0 0 1 1 1v1h4v2H4V5h4V4a1 1 0 0 1 1-1zm1 6h2v9h-2V9zm4 0h2v9h-2V9zM7 9h2v9H7V9z" fill="currentColor"/></svg>';
                 const btn = h('button', {
                   className: 'btn btn-icon',
@@ -313,8 +327,9 @@
                   style: 'margin-left:0',
                   onClick: async () => {
                     try {
-                      await apiDeleteTask(CURRENT_PROJECT, idx0);
-                      if (deleteRowAt(idx0)) {
+                      const resp = await apiDeleteTask(CURRENT_PROJECT, tid);
+                      const remIdx = (resp && typeof resp.id === 'number') ? findRowIndexById(resp.id) : idx0;
+                      if (deleteRowAt(remIdx)) {
                         if (DATA_ROWS.length === 0) { GRID = null; }
                         renderWithGrid(DATA_ROWS);
                       }
@@ -399,10 +414,11 @@
               const status = t.status || '';
               const priority = t.priority || '';
               const src = t.remarks || '';
-              // For Grid.js, pass raw text; formatter will render markdown
-              // First column: hidden 0-based index; Second: visible Index; Last: actions placeholder
-              return [i, idx, summary, assignee, status, priority, src, null];
-            });
+          // For Grid.js, pass raw text; formatter will render markdown
+          // Columns: hidden idx0, hidden id, visible Index, fields..., actions placeholder
+          const id = (typeof t.id === 'number' ? t.id : (t.id != null ? Number(t.id) : null));
+          return [i, id, idx, summary, assignee, status, priority, src, null];
+        });
             // Keep rows cached for in-place updates
             DATA_ROWS = rows;
             renderWithGrid(DATA_ROWS);
@@ -415,20 +431,24 @@
       }
 
       // Inline editing
-      function startInlineEditor(target, index0, field, type, options, currentValue) {
+      function startInlineEditor(target, index0, field, type, options, currentValue, taskId) {
         const td = target.closest && target.closest('td') ? target.closest('td') : null;
         if (!td) return;
         // if an editor already present, skip
         if (td.querySelector('.inline-input')) return;
         const commit = async (value) => {
           try {
-            const resp = await apiUpdateTask(CURRENT_PROJECT, index0, { [field]: value });
+            const resp = await apiUpdateTask(CURRENT_PROJECT, taskId, { [field]: value });
             // Update in-memory row using server response (source of truth)
-            if (resp && resp.ok && typeof resp.index === 'number' && resp.task && updateRowFromTask(resp.index, resp.task)) {
-              renderWithGrid(DATA_ROWS);
+            if (resp && resp.ok && typeof resp.id === 'number') {
+              const idx = findRowIndexById(resp.id);
+              if (idx >= 0 && resp.task && updateRowFromTask(idx, resp.task)) {
+                renderWithGrid(DATA_ROWS);
+              } else {
+                await loadTasks(CURRENT_PROJECT);
+              }
             } else {
-              // Fallback: reload on unexpected or out-of-sync response
-              await loadTasks(CURRENT_PROJECT);
+              renderWithGrid(DATA_ROWS);
             }
           } catch (e) {
             td.textContent = currentValue || '';
@@ -535,10 +555,11 @@
                 const resp = await apiCreateTask(CURRENT_PROJECT, payload);
                 panel.style.display = 'none'; panel.setAttribute('data-open', '0'); panel.replaceChildren();
                 // Append to in-memory rows and re-render
-                if (resp && resp.ok && typeof resp.index === 'number' && resp.task && insertRowFromTask(resp.index, resp.task)) {
+                if (resp && resp.ok && resp.task) {
+                  // Append to end (new tasks are appended server-side)
+                  insertRowFromTask(DATA_ROWS.length, resp.task);
                   renderWithGrid(DATA_ROWS);
                 } else {
-                  // Fallback: reload on unexpected response
                   await loadTasks(CURRENT_PROJECT);
                 }
               } catch (e) {

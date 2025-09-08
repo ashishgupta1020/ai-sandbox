@@ -32,16 +32,24 @@ class ProjectAdapter:
     # ----- CLI-compatible methods -----
     def add_task(self, task: Task) -> None:
         self._client.create_task(self.name, task.to_dict())
-        self._refresh_cache()
 
     def edit_task(self, task_index: int, new_task: Task) -> None:
         # CLI passes 1-based index; API expects 0-based
         if task_index < 1:
             print("Invalid task index.")
             return
+        # Map index to ID using current cache snapshot (matches last list shown)
         index0 = task_index - 1
-        self._client.update_task(self.name, index0, new_task.to_dict())
-        self._refresh_cache()
+        if index0 < 0 or index0 >= len(self.tasks):
+            print("Invalid task index.")
+            return
+        task_id = getattr(self.tasks[index0], "id", None)
+        if task_id is None:
+            print("Invalid task index.")
+            return
+
+        # Perform update by ID
+        self._client.update_task(self.name, int(task_id), new_task.to_dict())
         print("Task updated successfully.")
 
     def list_tasks(self, sort_by: Optional[str] = None) -> None:
@@ -111,4 +119,3 @@ class ProjectAdapter:
         with open(md_path, "w") as md_file:
             md_file.write(md_output)
         print(f"\nTasks exported to Markdown file: '{md_path}'")
-

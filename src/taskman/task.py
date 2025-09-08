@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Optional
 
 class TaskStatus(Enum):
     NOT_STARTED = "Not Started"
@@ -15,7 +16,9 @@ class Task:
     Represents a single task with summary, assignee, remarks, status, and priority.
     """
 
-    def __init__(self, summary: str, assignee: str, remarks: str, status: str, priority: str) -> None:
+    def __init__(self, summary: str, assignee: str, remarks: str, status: str, priority: str, id: Optional[int] = None) -> None:
+        # Stable identifier for the task within a project. Assigned by Project.
+        self.id: Optional[int] = id
         self.summary = summary  # Short description of the task
         self.assignee = assignee  # Person responsible for the task
         self.remarks = remarks  # Additional notes or comments
@@ -28,6 +31,7 @@ class Task:
         Convert the Task object to a dictionary for serialization.
         """
         return {
+            "id": self.id,
             "summary": self.summary,
             "assignee": self.assignee,
             "remarks": self.remarks,
@@ -39,11 +43,15 @@ class Task:
     def from_dict(cls, data: dict) -> 'Task':
         """
         Create a Task object from a dictionary.
+        Expects an 'id' field to be present.
         """
+        raw_id = data["id"]  # may be None for freshly created, not yet assigned tasks
+        tid = int(raw_id) if raw_id is not None else None
         return cls(
             summary=data["summary"],
             assignee=data["assignee"],
             remarks=data["remarks"],
             status=data["status"],
             priority=data["priority"],
+            id=tid,
         )

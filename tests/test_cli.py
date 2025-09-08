@@ -242,7 +242,7 @@ class TestTaskManager(unittest.TestCase):
         finally:
             builtins.input = original_input
 
-    def test_project_menu_edit_invalid_index_numeric(self):
+    def test_project_menu_edit_invalid_id_numeric(self):
         # Open, add 1 task, then try editing index 2
         import builtins
         user_inputs = [
