@@ -43,13 +43,11 @@ class ProjectAdapter:
     def add_task(self, task: Task) -> None:
         self._client.create_task(self.name, task.to_dict())
 
-    def edit_task(self, task_index: int, new_task: Task) -> None:
-        # CLI passes 1-based index
-        tid = self.get_task_id_by_index(task_index)
-        if tid is None:
-            print("Invalid task index.")
+    def edit_task(self, task_id: int, new_task: Task) -> None:
+        if task_id is None or int(task_id) not in self.tasks:
+            print("Invalid task id.")
             return
-        self._client.update_task(self.name, int(tid), new_task.to_dict())
+        self._client.update_task(self.name, int(task_id), new_task.to_dict())
         print("Task updated successfully.")
 
     def list_tasks(self, sort_by: Optional[str] = None) -> None:
@@ -131,10 +129,3 @@ class ProjectAdapter:
     def get_task_by_index(self, task_index: int) -> Optional[Task]:
         tid = self.get_task_id_by_index(task_index)
         return self.tasks.get(tid) if tid is not None else None
-
-    def edit_task_by_id(self, task_id: int, new_task: Task) -> None:
-        if task_id is None or int(task_id) not in self.tasks:
-            print("Invalid task id.")
-            return
-        self._client.update_task(self.name, int(task_id), new_task.to_dict())
-        print("Task updated successfully.")

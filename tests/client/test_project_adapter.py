@@ -99,9 +99,10 @@ def test_project_adapter_list_edit_export():
     assert f"Tasks in project '{name}':" in output
     assert "S1" in output and "A1" in output
 
-    # Edit task
+    # Edit task by ID (resolve from index 1)
+    tid = proj.get_task_id_by_index(1)
     with StringIO() as buf, redirect_stdout(buf):
-        proj.edit_task(1, Task("S2", "A2", "R2", "Completed", "High"))
+        proj.edit_task(int(tid), Task("S2", "A2", "R2", "Completed", "High"))
         output2 = buf.getvalue()
     assert "Task updated successfully." in output2
 
