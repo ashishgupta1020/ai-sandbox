@@ -26,32 +26,24 @@ Usage:
 
 from __future__ import annotations
 
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
-from urllib.parse import urlparse, unquote
-import re
+import json
+import logging
 import mimetypes
 import os
-import json
+import re
 import threading
 import time
-from typing import Tuple, Optional
-import logging
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from typing import Optional, Tuple
+from urllib.parse import unquote, urlparse
 
-from .project_manager import ProjectManager
 from .project import Project
+from .project_manager import ProjectManager
 
-
+# Module-wide resources
 UI_DIR = (Path(__file__).parent / "ui").resolve()
-logger = logging.getLogger("taskman.tasker_server")
-# Configure a simple console handler if none are present so info logs show up
-if not logger.handlers:
-    handler = logging.StreamHandler()
-    # Let the logger's level control emission; don't filter here
-    handler.setLevel(logging.NOTSET)
-    handler.setFormatter(logging.Formatter("%(message)s"))
-    logger.addHandler(handler)
-logger.setLevel(logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class _UIRequestHandler(BaseHTTPRequestHandler):
@@ -306,19 +298,13 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
             message = (format % args) if args else str(format)
         except Exception:
             message = str(format)
-        suffix = f" - {message}" if message else ""
-        line = f"[UI] {self.address_string()} - {self.requestline}{suffix}"
+        line = f"[UI] {self.address_string()} - {self.requestline}"
+        if message:
+            line += f" - {message}"
         lvl = (level or "info").lower()
-        if lvl == "warning" or lvl == "warn":
-            logger.warning(line)
-        elif lvl == "error":
-            logger.error(line)
-        elif lvl == "exception":
-            logger.exception(line)
-        elif lvl == "debug":
-            logger.debug(line)
-        else:
-            logger.info(line)
+        if lvl == "warn":
+            lvl = "warning"
+        getattr(logger, lvl, logger.info)(line)
 
 
 def start_server(host: str = "127.0.0.1", port: int = 8765) -> None:
@@ -345,6 +331,15 @@ def start_server(host: str = "127.0.0.1", port: int = 8765) -> None:
 
 def main() -> None:
     """Console entry: start the server with defaults."""
+    # Configure a simple console handler if none are present so info logs show up
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        # Let the logger's level control emission; don't filter here
+        handler.setLevel(logging.NOTSET)
+        handler.setFormatter(logging.Formatter("%(message)s"))
+        logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+
     start_server()
 
 
