@@ -1,16 +1,19 @@
+import http.client
 import json
 import os
 import shutil
+import sqlite3
 import tempfile
 import threading
 import time
 import unittest
-import http.client
 from contextlib import closing
+from pathlib import Path
 
 from http.server import ThreadingHTTPServer
-from taskman.tasker_server import _UIRequestHandler
 from taskman.project_manager import ProjectManager
+from taskman.sqlite_storage import ProjectTaskSession
+from taskman.tasker_server import _UIRequestHandler
 
 
 class _ServerThread:
@@ -44,6 +47,7 @@ class TestTasksPageAPI(unittest.TestCase):
         self.orig_file = ProjectManager.PROJECTS_FILE
         ProjectManager.PROJECTS_DIR = self.tmpdir
         ProjectManager.PROJECTS_FILE = os.path.join(self.tmpdir, "projects.json")
+        self.db_path = Path(self.tmpdir) / "taskman.db"
 
         self.srv = _ServerThread()
         self.srv.start()
@@ -71,6 +75,10 @@ class TestTasksPageAPI(unittest.TestCase):
             body = resp.read()
             return resp, body
 
+    def _seed_tasks(self, project: str, tasks: list[dict]):
+        with ProjectTaskSession(project, db_path=self.db_path) as store:
+            store.bulk_replace(project, tasks)
+
     # ----- Tests for /api/projects/<name>/tasks -----
     def test_tasks_endpoint_empty(self):
         # No task file created yet
@@ -82,17 +90,13 @@ class TestTasksPageAPI(unittest.TestCase):
 
     def test_tasks_endpoint_with_tasks(self):
         # Create a valid tasks list
-        path = ProjectManager.get_task_file_path("Alpha")
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        tasks_obj = {
-            "last_id": 1,
-            "tasks": [
-                {"id": 0, "summary": "S1", "assignee": "A1", "remarks": "R1", "status": "Not Started", "priority": "Low"},
-                {"id": 1, "summary": "S2", "assignee": "A2", "remarks": "R2", "status": "Completed", "priority": "High"},
+        self._seed_tasks(
+            "Alpha",
+            [
+                {"task_id": 0, "summary": "S1", "assignee": "A1", "remarks": "R1", "status": "Not Started", "priority": "Low"},
+                {"task_id": 1, "summary": "S2", "assignee": "A2", "remarks": "R2", "status": "Completed", "priority": "High"},
             ],
-        }
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(tasks_obj, f)
+        )
         resp, body = self._get("/api/projects/Alpha/tasks")
         self.assertEqual(resp.status, 200)
         data = json.loads(body)
@@ -100,21 +104,23 @@ class TestTasksPageAPI(unittest.TestCase):
         self.assertEqual(data["tasks"][0]["summary"], "S1")
 
     def test_tasks_endpoint_non_list_json(self):
-        # Write a dict instead of list
-        path = ProjectManager.get_task_file_path("Bravo")
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump({"oops": True}, f)
+        # Corrupt the tasks schema to simulate unreadable storage
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("CREATE TABLE IF NOT EXISTS tasks_bravo (payload TEXT)")
+            conn.execute("INSERT INTO tasks_bravo (payload) VALUES ('oops')")
         resp, body = self._get("/api/projects/Bravo/tasks")
         self.assertEqual(resp.status, 200)
         data = json.loads(body)
         self.assertEqual(data["tasks"], [])
 
     def test_tasks_endpoint_malformed_json(self):
-        path = ProjectManager.get_task_file_path("Charlie")
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            f.write("{not valid json}")
+        # Seed a row with invalid enum values so loading fails gracefully
+        self._seed_tasks(
+            "Charlie",
+            [
+                {"task_id": 0, "summary": "Bad", "assignee": "A", "remarks": "", "status": "???", "priority": "Low"},
+            ],
+        )
         resp, body = self._get("/api/projects/Charlie/tasks")
         self.assertEqual(resp.status, 200)
         data = json.loads(body)
@@ -130,10 +136,7 @@ class TestTasksPageAPI(unittest.TestCase):
 
     def test_tasks_endpoint_url_decoding(self):
         name = "Alpha Beta"
-        path = ProjectManager.get_task_file_path(name)
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump([], f)
+        self._seed_tasks(name, [])
         resp, body = self._get("/api/projects/Alpha%20Beta/tasks")
         self.assertEqual(resp.status, 200)
         data = json.loads(body)
@@ -141,14 +144,12 @@ class TestTasksPageAPI(unittest.TestCase):
 
     def test_update_task_summary(self):
         name = "Delta"
-        path = ProjectManager.get_task_file_path(name)
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        tasks_obj = {
-            "last_id": 0,
-            "tasks": [{"id": 0, "summary": "Old", "assignee": "A", "remarks": "R", "status": "Not Started", "priority": "Low"}],
-        }
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(tasks_obj, f)
+        self._seed_tasks(
+            name,
+            [
+                {"task_id": 0, "summary": "Old", "assignee": "A", "remarks": "R", "status": "Not Started", "priority": "Low"},
+            ],
+        )
         resp, body = self._post(f"/api/projects/{name}/tasks/update", {"id": 0, "fields": {"summary": "New"}})
         self.assertEqual(resp.status, 200)
         obj = json.loads(body)
@@ -198,18 +199,14 @@ class TestTasksPageAPI(unittest.TestCase):
     # ----- Tests for /api/projects/<name>/tasks/delete -----
     def test_delete_task_success(self):
         name = "Kilo"
-        # Seed task file
-        path = ProjectManager.get_task_file_path(name)
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        tasks_obj = {
-            "last_id": 1,
-            "tasks": [
-                {"id": 0, "summary": "S1", "assignee": "A1", "remarks": "R1", "status": "Not Started", "priority": "Low"},
-                {"id": 1, "summary": "S2", "assignee": "A2", "remarks": "R2", "status": "Completed", "priority": "High"},
+        # Seed tasks in the SQLite backend
+        self._seed_tasks(
+            name,
+            [
+                {"task_id": 0, "summary": "S1", "assignee": "A1", "remarks": "R1", "status": "Not Started", "priority": "Low"},
+                {"task_id": 1, "summary": "S2", "assignee": "A2", "remarks": "R2", "status": "Completed", "priority": "High"},
             ],
-        }
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(tasks_obj, f)
+        )
         resp, body = self._post(f"/api/projects/{name}/tasks/delete", {"id": 0})
         self.assertEqual(resp.status, 200)
         obj = json.loads(body)

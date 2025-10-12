@@ -1,17 +1,20 @@
-import unittest
-import json
 import os
 import shutil
-from io import StringIO
+import unittest
 from contextlib import redirect_stdout
-from taskman.project_manager import ProjectManager
+from io import StringIO
+from pathlib import Path
+from unittest import mock
+
 from taskman.project import Project
-from taskman.task import Task, TaskStatus, TaskPriority
+from taskman.project_manager import ProjectManager
+from taskman.sqlite_storage import ProjectTaskSession
+from taskman.task import Task, TaskPriority, TaskStatus
 
 class TestProject(unittest.TestCase):
     TEST_PROJECT = "TestProject"
-    BASE_DATA_DIR = os.path.expanduser("~/sandbox/data/ai-sandbox")
-    TEST_DATA_DIR = os.path.join(BASE_DATA_DIR, "test")
+    BASE_DATA_DIR = os.path.join(os.path.dirname(__file__), "tmp_data")
+    TEST_DATA_DIR = os.path.join(BASE_DATA_DIR, "project")
 
     def setUp(self):
         # Clean and create test data directory
@@ -20,8 +23,10 @@ class TestProject(unittest.TestCase):
         os.makedirs(self.TEST_DATA_DIR, exist_ok=True)
         # Patch ProjectManager to use test directories
         self._orig_projects_dir = ProjectManager.PROJECTS_DIR
+        self._orig_projects_file = ProjectManager.PROJECTS_FILE
         ProjectManager.PROJECTS_DIR = self.TEST_DATA_DIR
-        self.task_file = ProjectManager.get_task_file_path(self.TEST_PROJECT)
+        ProjectManager.PROJECTS_FILE = os.path.join(self.TEST_DATA_DIR, "projects.json")
+        self.db_path = Path(self.TEST_DATA_DIR) / "taskman.db"
 
     def tearDown(self):
         # Clean up test data directory
@@ -29,10 +34,11 @@ class TestProject(unittest.TestCase):
             shutil.rmtree(self.TEST_DATA_DIR)
         # Restore original projects dir
         ProjectManager.PROJECTS_DIR = self._orig_projects_dir
+        ProjectManager.PROJECTS_FILE = self._orig_projects_file
 
 
     def test_edit_task(self):
-        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        project = Project(self.TEST_PROJECT)
         task = Task("Summary", "Assignee", "Remarks", "Not Started", "Low")
         tid = project.add_task(task)
         # Prepare simulated user input for editing the task
@@ -66,7 +72,7 @@ class TestProject(unittest.TestCase):
         self.assertEqual(updated_task.priority, TaskPriority.MEDIUM)
 
     def test_edit_task_invalid_id(self):
-        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        project = Project(self.TEST_PROJECT)
         # Add a task so index 2 is invalid
         tid = project.add_task(Task("Summary", "Assignee", "Remarks", "Not Started", "Low"))
         dummy_task = project._tasks_by_id[tid]
@@ -75,16 +81,15 @@ class TestProject(unittest.TestCase):
             output = buf.getvalue()
         self.assertIn("Invalid task id.", output)
 
-    def test_load_tasks_from_file_invalid_json(self):
-        # Write invalid JSON to the test task file
-        with open(self.task_file, "w") as f:
-            f.write("invalid json")
-        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+    def test_load_tasks_from_empty_database(self):
+        # No prior database should result in an empty project view
+        project = Project(self.TEST_PROJECT)
         self.assertEqual(project._tasks_by_id, {})
+        self.assertTrue(self.db_path.exists())
 
     # --- Tests for API helper methods and exports ---
     def test_update_task_from_payload_success(self):
-        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        project = Project(self.TEST_PROJECT)
         tid = project.add_task(Task("S", "A", "R", "Not Started", "Low"))
         first = project._tasks_by_id[tid]
         resp, status = project.update_task_from_payload({
@@ -100,29 +105,42 @@ class TestProject(unittest.TestCase):
         self.assertEqual(after.priority, TaskPriority.HIGH)
 
         # Verify persisted to disk (use original task id)
-        project2 = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        project2 = Project(self.TEST_PROJECT)
         self.assertEqual(project2._tasks_by_id[tid].summary, "New")
 
     def test_update_task_from_payload_invalid_id_type(self):
-        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        project = Project(self.TEST_PROJECT)
         tid = project.add_task(Task("S", "A", "R", "Not Started", "Low"))
         resp, status = project.update_task_from_payload({"id": "zero", "fields": {"summary": "X"}})
         self.assertEqual(status, 400)
         self.assertIn("id", resp.get("error", ""))
 
+    def test_update_task_from_payload_not_dict(self):
+        project = Project(self.TEST_PROJECT)
+        resp, status = project.update_task_from_payload("not dict")  # type: ignore[arg-type]
+        self.assertEqual(status, 400)
+        self.assertIn("Invalid payload", resp.get("error", ""))
+
+    def test_update_task_from_payload_empty_fields(self):
+        project = Project(self.TEST_PROJECT)
+        tid = project.add_task(Task("S", "A", "R", "Not Started", "Low"))
+        resp, status = project.update_task_from_payload({"id": tid, "fields": {}})
+        self.assertEqual(status, 400)
+        self.assertIn("non-empty", resp.get("error", ""))
+
     def test_update_task_from_payload_out_of_range(self):
-        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        project = Project(self.TEST_PROJECT)
         resp, status = project.update_task_from_payload({"id": 1, "fields": {"summary": "X"}})
         self.assertEqual(status, 400)
 
     def test_update_task_from_payload_unknown_field(self):
-        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        project = Project(self.TEST_PROJECT)
         tid = project.add_task(Task("S", "A", "R", "Not Started", "Low"))
         resp, status = project.update_task_from_payload({"id": 0, "fields": {"foo": "bar"}})
         self.assertEqual(status, 400)
 
     def test_update_task_from_payload_invalid_enums(self):
-        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        project = Project(self.TEST_PROJECT)
         tid = project.add_task(Task("S", "A", "R", "Not Started", "Low"))
         # Invalid status
         resp, status = project.update_task_from_payload({"id": 0, "fields": {"status": "Started"}})
@@ -131,8 +149,27 @@ class TestProject(unittest.TestCase):
         resp2, status2 = project.update_task_from_payload({"id": 0, "fields": {"priority": "Urgent"}})
         self.assertEqual(status2, 400)
 
+    def test_update_task_from_payload_updates_optional_fields(self):
+        project = Project(self.TEST_PROJECT)
+        tid = project.add_task(Task("S", "A", "R", "Not Started", "Low"))
+        resp, status = project.update_task_from_payload(
+            {"id": tid, "fields": {"assignee": None, "remarks": "Updated"}}
+        )
+        self.assertEqual(status, 200)
+        task = project._tasks_by_id[tid]
+        self.assertEqual(task.assignee, "")
+        self.assertEqual(task.remarks, "Updated")
+
+    def test_update_task_from_payload_persist_failure(self):
+        project = Project(self.TEST_PROJECT)
+        tid = project.add_task(Task("S", "A", "R", "Not Started", "Low"))
+        with mock.patch.object(project, "_persist_task", side_effect=RuntimeError("boom")):
+            resp, status = project.update_task_from_payload({"id": tid, "fields": {"summary": "New"}})
+        self.assertEqual(status, 500)
+        self.assertIn("Failed to save", resp.get("error", ""))
+
     def test_create_task_from_payload_defaults(self):
-        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        project = Project(self.TEST_PROJECT)
         resp, status = project.create_task_from_payload({})
         self.assertEqual(status, 200)
         self.assertTrue(resp.get("ok"))
@@ -148,7 +185,7 @@ class TestProject(unittest.TestCase):
         self.assertEqual(t.priority, TaskPriority.MEDIUM)
 
     def test_create_task_from_payload_overrides_and_persist(self):
-        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        project = Project(self.TEST_PROJECT)
         payload = {"summary": "S", "assignee": "A", "remarks": "R", "status": "Completed", "priority": "High"}
         resp, status = project.create_task_from_payload(payload)
         self.assertEqual(status, 200)
@@ -164,17 +201,41 @@ class TestProject(unittest.TestCase):
         self.assertEqual(t.status, TaskStatus.COMPLETED)
         self.assertEqual(t.priority, TaskPriority.HIGH)
         # Persist check
-        project2 = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        project2 = Project(self.TEST_PROJECT)
         self.assertEqual(len(project2._tasks_by_id), 1)
         self.assertEqual(project2._tasks_by_id[first.id].summary, "S")
 
     def test_create_task_from_payload_invalid_payload_type(self):
-        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        project = Project(self.TEST_PROJECT)
         resp, status = project.create_task_from_payload("not a dict")  # type: ignore[arg-type]
         self.assertEqual(status, 400)
 
+    def test_create_task_from_payload_none_defaults(self):
+        project = Project(self.TEST_PROJECT)
+        resp, status = project.create_task_from_payload(None)
+        self.assertEqual(status, 200)
+        self.assertTrue(resp.get("ok"))
+        created = project._tasks_by_id[resp["id"]]
+        self.assertEqual(created.status, TaskStatus.NOT_STARTED)
+        self.assertEqual(created.priority, TaskPriority.MEDIUM)
+
+    def test_create_task_from_payload_invalid_enums(self):
+        project = Project(self.TEST_PROJECT)
+        resp, status = project.create_task_from_payload({"status": "???", "priority": "!!!"})
+        self.assertEqual(status, 200)
+        created = project._tasks_by_id[resp["id"]]
+        self.assertEqual(created.status, TaskStatus.NOT_STARTED)
+        self.assertEqual(created.priority, TaskPriority.MEDIUM)
+
+    def test_create_task_from_payload_persist_failure(self):
+        project = Project(self.TEST_PROJECT)
+        with mock.patch.object(project, "add_task", side_effect=RuntimeError("boom")):
+            resp, status = project.create_task_from_payload({})
+        self.assertEqual(status, 500)
+        self.assertIn("Failed to save", resp.get("error", ""))
+
     def test_delete_task_from_payload_success(self):
-        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        project = Project(self.TEST_PROJECT)
         project.add_task(Task("S1", "A1", "R1", "Not Started", "Low"))
         project.add_task(Task("S2", "A2", "R2", "Completed", "High"))
         resp, status = project.delete_task_from_payload({"id": 0})
@@ -185,82 +246,97 @@ class TestProject(unittest.TestCase):
         self.assertEqual(len(project._tasks_by_id), 1)
         self.assertEqual(list(project._tasks_by_id.values())[0].summary, "S2")
         # Persist check
-        project2 = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        project2 = Project(self.TEST_PROJECT)
         self.assertEqual(len(project2._tasks_by_id), 1)
         self.assertEqual(list(project2._tasks_by_id.values())[0].summary, "S2")
 
     def test_delete_task_from_payload_invalid_id_type(self):
-        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        project = Project(self.TEST_PROJECT)
         tid = project.add_task(Task("S", "A", "R", "Not Started", "Low"))
         resp, status = project.delete_task_from_payload({"id": "zero"})  # type: ignore[arg-type]
         self.assertEqual(status, 400)
 
     def test_delete_task_from_payload_out_of_range(self):
-        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        project = Project(self.TEST_PROJECT)
         resp, status = project.delete_task_from_payload({"id": 0})
         self.assertEqual(status, 400)
 
+    def test_delete_task_from_payload_none_payload(self):
+        project = Project(self.TEST_PROJECT)
+        resp, status = project.delete_task_from_payload(None)
+        self.assertEqual(status, 400)
 
-    # --- Tests for file load/save behavior ---
+    def test_delete_task_from_payload_removed_none(self):
+        project = Project(self.TEST_PROJECT)
+        tid = project.add_task(Task("S", "A", "R", "Not Started", "Low"))
+        project._tasks_by_id[tid] = None  # type: ignore[assignment]
+        resp, status = project.delete_task_from_payload({"id": tid})
+        self.assertEqual(status, 400)
+        self.assertIn("Task not found", resp.get("error", ""))
+
+    def test_delete_task_from_payload_delete_failure(self):
+        project = Project(self.TEST_PROJECT)
+        tid = project.add_task(Task("S", "A", "R", "Not Started", "Low"))
+        with mock.patch.object(project, "_delete_task", side_effect=RuntimeError("boom")):
+            resp, status = project.delete_task_from_payload({"id": tid})
+        self.assertEqual(status, 500)
+        self.assertIn("Failed to save", resp.get("error", ""))
+
+
+    # --- Tests for persistence behavior ---
     def test_save_and_load_tasks_roundtrip(self):
-        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+        project = Project(self.TEST_PROJECT)
         # Add two tasks and persist
         project.add_task(Task("S1", "A1", "R1", "Not Started", "Low"))
         project.add_task(Task("S2", "A2", "R2", "Completed", "High"))
 
-        # Read raw file and verify structured format with ids
-        with open(self.task_file, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        self.assertIsInstance(data, dict)
-        self.assertIn("last_id", data)
-        self.assertIn("tasks", data)
-        self.assertEqual(len(data["tasks"]), 2)
-        ids = [t.get("id") for t in data["tasks"]]
-        self.assertEqual(ids, [0, 1])
-        self.assertEqual(data["last_id"], 1)
-
         # Load in a new Project instance and verify contents
-        project2 = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
-        self.assertEqual(len(project2._tasks_by_id), 2)
-        vals = list(project2._tasks_by_id.values())
-        self.assertEqual(vals[0].id, 0)
-        self.assertEqual(vals[1].id, 1)
+        project2 = Project(self.TEST_PROJECT)
+        vals = list(project2.iter_tasks())
+        self.assertEqual(len(vals), 2)
+        self.assertEqual([t.id for t in vals], [0, 1])
         self.assertEqual(vals[0].summary, "S1")
         self.assertEqual(vals[1].summary, "S2")
+        self.assertEqual(project2.last_id, 1)
 
     def test_load_recomputes_last_id_and_persists(self):
-        # Seed file with inconsistent last_id vs max task id
-        initial = {
-            "last_id": 0,
-            "tasks": [
-                {"id": 5, "summary": "A", "assignee": "a", "remarks": "", "status": "Not Started", "priority": "Low"},
-                {"id": 7, "summary": "B", "assignee": "b", "remarks": "", "status": "In Progress", "priority": "Medium"},
-            ],
-        }
-        with open(self.task_file, "w", encoding="utf-8") as f:
-            json.dump(initial, f)
+        # Seed the database with non-sequential IDs and ensure last_id reflects max id
+        Project(self.TEST_PROJECT)  # ensure table exists
+        with ProjectTaskSession(self.TEST_PROJECT, db_path=self.db_path) as store:
+            store.bulk_replace(
+                self.TEST_PROJECT,
+                [
+                    {
+                        "task_id": 5,
+                        "summary": "A",
+                        "assignee": "a",
+                        "remarks": "",
+                        "status": "Not Started",
+                        "priority": "Low",
+                    },
+                    {
+                        "task_id": 7,
+                        "summary": "B",
+                        "assignee": "b",
+                        "remarks": "",
+                        "status": "In Progress",
+                        "priority": "Medium",
+                    },
+                ],
+            )
 
-        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
-        # last_id should be recomputed to 7
+        project = Project(self.TEST_PROJECT)
         self.assertEqual(project.last_id, 7)
-        # File should be updated to persist corrected last_id
-        with open(self.task_file, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        self.assertEqual(data.get("last_id"), 7)
-        # Tasks loaded with same ids
-        self.assertEqual([t.id for t in project._tasks_by_id.values()], [5, 7])
+        self.assertEqual(sorted(project._tasks_by_id.keys()), [5, 7])
 
-    def test_save_tasks_to_file_overwrites_content(self):
-        project = Project(self.TEST_PROJECT, open(self.task_file, "a+"))
+    def test_edit_task_persists_to_database(self):
+        project = Project(self.TEST_PROJECT)
         tid = project.add_task(Task("S", "A", "R", "Not Started", "Low"))
-        # Edit in-memory and save
-        t = project._tasks_by_id[tid]
-        t.summary = "S-edit"
-        project.save_tasks_to_file()
-        # Verify file reflects changes
-        with open(self.task_file, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        self.assertEqual(data["tasks"][0]["summary"], "S-edit")
+        updated = Task("S-edit", "A", "R", "Not Started", "Low")
+        with StringIO() as buf, redirect_stdout(buf):
+            project.edit_task(tid, updated)
+        project_reloaded = Project(self.TEST_PROJECT)
+        self.assertEqual(project_reloaded._tasks_by_id[tid].summary, "S-edit")
 
 
 if __name__ == "__main__":

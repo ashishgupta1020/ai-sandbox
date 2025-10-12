@@ -1,6 +1,6 @@
 # Taskman (CLI + UI)
 
-Simple project and task manager with both a command‑line interface and a lightweight browser UI. Data persists to local JSON files per project.
+Simple project and task manager with both a command‑line interface and a lightweight browser UI. Task data is persisted in a lightweight SQLite database on disk.
 
 Hosting model: the UI server is intended to be centrally hosted in a shared environment. You can still run it locally for development and testing using the localhost instructions below. The CLI is a thin client for the server API and requires the server to be running and reachable.
 
@@ -10,7 +10,7 @@ Hosting model: the UI server is intended to be centrally hosted in a shared envi
 - Tasks with summary, assignee, remarks, status, priority
 - Task CRUD in the UI with inline editing and markdown preview for remarks
 - Markdown export per project
-- Local JSON storage under `~/sandbox/data/ai-sandbox`
+- Local SQLite storage under `~/sandbox/data/ai-sandbox`
 
 ## Components
 
@@ -43,8 +43,8 @@ See `QUICKSTART.md` for brief usage notes.
 
 ## Data Storage
 
-- Projects file: `~/sandbox/data/ai-sandbox/projects.json`
-- Tasks file per project: `~/sandbox/data/ai-sandbox/<project>_tasks.json`
+- Projects registry: `~/sandbox/data/ai-sandbox/projects.json`
+- Tasks database: `~/sandbox/data/ai-sandbox/taskman.db` (one table per project)
 - Markdown export: `~/sandbox/data/ai-sandbox/<project>_tasks_export.md`
 
 ## Tests

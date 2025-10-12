@@ -29,6 +29,6 @@ Hosting model
 
 ## Data Location
 
-- Projects: `~/sandbox/data/ai-sandbox/projects.json`
-- Tasks: `~/sandbox/data/ai-sandbox/<project>_tasks.json`
-- Export: `~/sandbox/data/ai-sandbox/<project>_tasks_export.md`
+- Projects registry: `~/sandbox/data/ai-sandbox/projects.json`
+- Tasks database: `~/sandbox/data/ai-sandbox/taskman.db` (one table per project)
+- Markdown export: `~/sandbox/data/ai-sandbox/<project>_tasks_export.md`
