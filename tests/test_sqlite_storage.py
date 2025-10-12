@@ -5,8 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from taskman.project_manager import ProjectManager
-from taskman.sqlite_storage import SQLiteTaskStore, _project_table_name
+from taskman.server.project_manager import ProjectManager
+from taskman.server.sqlite_storage import SQLiteTaskStore, _project_table_name
 
 
 class TestSQLiteStorage(unittest.TestCase):

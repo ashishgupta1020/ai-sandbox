@@ -1,5 +1,5 @@
 import unittest
-from taskman.task import Task
+from taskman.server.task import Task
 
 class TestTask(unittest.TestCase):
     def test_task_serialization(self):

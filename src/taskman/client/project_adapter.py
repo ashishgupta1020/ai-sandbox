@@ -5,8 +5,8 @@ from typing import Dict, List, Optional
 from prettytable import PrettyTable
 
 from taskman.client.api_client import TaskmanApiClient
-from taskman.project_manager import ProjectManager
-from taskman.task import Task, TaskStatus, TaskPriority
+from taskman.server.project_manager import ProjectManager
+from taskman.server.task import Task, TaskStatus, TaskPriority
 
 
 class ProjectAdapter:

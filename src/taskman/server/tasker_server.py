@@ -21,7 +21,7 @@ Currently supported routes:
 
 Usage:
   - Library: start_server(host, port)
-  - CLI:     python -m taskman.tasker_server
+  - CLI:     python -m taskman.server.tasker_server
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ from .project import Project
 from .project_manager import ProjectManager
 
 # Module-wide resources
-UI_DIR = (Path(__file__).parent / "ui").resolve()
+UI_DIR = (Path(__file__).resolve().parent.parent / "ui").resolve()
 logger = logging.getLogger(__name__)
 
 

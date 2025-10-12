@@ -3,12 +3,12 @@ import os
 import shutil
 from io import StringIO
 from contextlib import redirect_stdout
-from taskman.project_manager import ProjectManager
+from taskman.server.project_manager import ProjectManager
 
 class TestProjectManager(unittest.TestCase):
     TEST_PROJECT = "TestProject"
     PROJECT_A = "ProjectA"
-    BASE_DATA_DIR = os.path.expanduser("~/sandbox/data/ai-sandbox")
+    BASE_DATA_DIR = os.path.join(os.path.dirname(__file__), "tmp_data", "project_manager")
     TEST_DATA_DIR = os.path.join(BASE_DATA_DIR, "test")
     TEST_PROJECTS_FILE = os.path.join(TEST_DATA_DIR, "projects.json")
 

@@ -5,7 +5,7 @@ of a Taskman project. Tasks are persisted in a lightweight SQLite database
 (`taskman.db` under ``ProjectManager.PROJECTS_DIR``), enabling transactional
 updates and concurrent-safe reads with a simple file-based deployment.
 
-The class maintains an in-memory dict of :class:`taskman.task.Task` objects
+The class maintains an in-memory dict of :class:`taskman.server.task.Task` objects
 for fast lookups and defers actual storage to the helpers in
 ``taskman.sqlite_storage``.
 """
@@ -16,9 +16,9 @@ import os
 from pathlib import Path
 from typing import Dict, Iterator, Optional, Tuple
 
-from taskman.project_manager import ProjectManager
-from taskman.sqlite_storage import ProjectTaskSession
-from taskman.task import Task, TaskPriority, TaskStatus
+from .project_manager import ProjectManager
+from .sqlite_storage import ProjectTaskSession
+from .task import Task, TaskPriority, TaskStatus
 
 
 class Project:

@@ -3,13 +3,13 @@ import os
 import shutil
 from io import StringIO
 from contextlib import redirect_stdout
-from taskman.project_manager import ProjectManager
 import socket
 import threading
 import time
 import http.client
 from contextlib import closing
-from taskman.tasker_server import start_server
+from taskman.server.project_manager import ProjectManager
+from taskman.server.tasker_server import start_server
 
 
 class _ServerThread:
@@ -52,7 +52,7 @@ class TestTaskManager(unittest.TestCase):
     PROJECT_A = "ProjectA"
     PROJECT_B = "ProjectB"
     PROJECT_C = "ProjectC"
-    BASE_DATA_DIR = os.path.expanduser("~/sandbox/data/ai-sandbox")
+    BASE_DATA_DIR = os.path.join(os.path.dirname(__file__), "tmp_data", "cli")
     TEST_DATA_DIR = os.path.join(BASE_DATA_DIR, "test")
     TEST_PROJECTS_FILE = os.path.join(TEST_DATA_DIR, "projects.json")
 

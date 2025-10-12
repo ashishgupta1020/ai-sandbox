@@ -11,9 +11,9 @@ from contextlib import closing
 from pathlib import Path
 
 from http.server import ThreadingHTTPServer
-from taskman.project_manager import ProjectManager
-from taskman.sqlite_storage import ProjectTaskSession
-from taskman.tasker_server import _UIRequestHandler
+from taskman.server.project_manager import ProjectManager
+from taskman.server.sqlite_storage import ProjectTaskSession
+from taskman.server.tasker_server import _UIRequestHandler
 
 
 class _ServerThread:

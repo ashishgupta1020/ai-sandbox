@@ -7,8 +7,8 @@ import tempfile
 from contextlib import closing
 
 from taskman.client.api_client import TaskmanApiClient
-from taskman.project_manager import ProjectManager
-from taskman.tasker_server import start_server
+from taskman.server.project_manager import ProjectManager
+from taskman.server.tasker_server import start_server
 
 
 class _ServerThread:

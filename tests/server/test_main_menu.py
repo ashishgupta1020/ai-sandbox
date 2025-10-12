@@ -9,8 +9,8 @@ import http.client
 from contextlib import closing
 
 from http.server import ThreadingHTTPServer
-from taskman.tasker_server import _UIRequestHandler, UI_DIR
-from taskman.project_manager import ProjectManager
+from taskman.server.tasker_server import _UIRequestHandler, UI_DIR
+from taskman.server.project_manager import ProjectManager
 
 
 class _ServerThread:

@@ -14,7 +14,7 @@ Hosting model: the UI server is intended to be centrally hosted in a shared envi
 
 ## Components
 
-- UI server (centrally hosted; can run locally for dev): `python -m taskman.tasker_server` then open `http://127.0.0.1:8765`
+- UI server (centrally hosted; can run locally for dev): `python -m taskman.server.tasker_server` then open `http://127.0.0.1:8765`
   - Projects list with add/rename and per‑project tasks table
   - Inline edit for task fields, add/delete tasks, basic search/sort
 - CLI app (requires the server): `python -m taskman.cli.task_manager`
@@ -34,7 +34,7 @@ UI loads its JS libraries from CDNs; the Python server has no extra UI deps.
 
 - UI (central or local)
   - Central: open the shared UI URL provided by your team.
-  - Local dev: run `taskman-ui` (or `python -m taskman.tasker_server`) and visit `http://127.0.0.1:8765`.
+  - Local dev: run `taskman-ui` (or `python -m taskman.server.tasker_server`) and visit `http://127.0.0.1:8765`.
 - CLI (server required)
   - Run: `taskman-cli` (or `python -m taskman.cli.task_manager`).
   - Ensure the UI server is running and reachable; the CLI talks to the server API.

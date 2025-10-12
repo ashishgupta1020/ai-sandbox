@@ -1,10 +1,6 @@
 README.md
 pyproject.toml
 src/taskman/__init__.py
-src/taskman/project.py
-src/taskman/project_manager.py
-src/taskman/task.py
-src/taskman/tasker_server.py
 src/taskman.egg-info/PKG-INFO
 src/taskman.egg-info/SOURCES.txt
 src/taskman.egg-info/dependency_links.txt
@@ -17,6 +13,12 @@ src/taskman/cli/task_manager.py
 src/taskman/client/__init__.py
 src/taskman/client/api_client.py
 src/taskman/client/project_adapter.py
+src/taskman/server/__init__.py
+src/taskman/server/project.py
+src/taskman/server/project_manager.py
+src/taskman/server/sqlite_storage.py
+src/taskman/server/task.py
+src/taskman/server/tasker_server.py
 src/taskman/ui/index.html
 src/taskman/ui/project.html
 src/taskman/ui/styles.css
@@ -24,4 +26,9 @@ tests/test_cli.py
 tests/test_cli_no_server.py
 tests/test_project.py
 tests/test_project_manager.py
+tests/test_sqlite_storage.py
 tests/test_task.py
+tests/server/test_basic_server.py
+tests/server/test_main_menu.py
+tests/server/test_start_ui.py
+tests/server/test_tasks_page.py

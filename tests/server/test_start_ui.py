@@ -5,7 +5,7 @@ import time
 import unittest
 from contextlib import closing
 
-from taskman.tasker_server import start_server
+from taskman.server.tasker_server import start_server
 
 
 def _pick_free_port(host: str = "127.0.0.1") -> int:

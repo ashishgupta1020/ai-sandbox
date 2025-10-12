@@ -18,7 +18,7 @@ Hosting model
 ## UI
 
 - Central: open the shared URL for your hosted server.
-- Local (dev/testing): start with `taskman-ui` (or `python -m taskman.tasker_server`) and open `http://127.0.0.1:8765`.
+- Local (dev/testing): start with `taskman-ui` (or `python -m taskman.server.tasker_server`) and open `http://127.0.0.1:8765`.
 - Do: Add/rename projects, open a project, then add/edit/delete tasks inline. Remarks support markdown with preview.
 
 ## CLI

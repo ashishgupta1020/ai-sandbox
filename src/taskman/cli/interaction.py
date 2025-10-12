@@ -1,4 +1,4 @@
-from taskman.task import Task
+from taskman.server.task import Task
 
 
 class Interaction:
@@ -124,4 +124,3 @@ class Interaction:
                 new_priority = priority_options[num - 1]
         priority = new_priority if new_priority else task.priority.value
         return Task(summary, assignee, remarks, status, priority)
-

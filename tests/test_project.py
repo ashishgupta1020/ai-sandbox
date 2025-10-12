@@ -6,10 +6,10 @@ from io import StringIO
 from pathlib import Path
 from unittest import mock
 
-from taskman.project import Project
-from taskman.project_manager import ProjectManager
-from taskman.sqlite_storage import ProjectTaskSession
-from taskman.task import Task, TaskPriority, TaskStatus
+from taskman.server.project import Project
+from taskman.server.project_manager import ProjectManager
+from taskman.server.sqlite_storage import ProjectTaskSession
+from taskman.server.task import Task, TaskPriority, TaskStatus
 
 class TestProject(unittest.TestCase):
     TEST_PROJECT = "TestProject"

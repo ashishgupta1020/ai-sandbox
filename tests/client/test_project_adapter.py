@@ -9,9 +9,9 @@ from io import StringIO
 
 from taskman.client.api_client import TaskmanApiClient
 from taskman.client.project_adapter import ProjectAdapter
-from taskman.project_manager import ProjectManager
-from taskman.tasker_server import start_server
-from taskman.task import Task
+from taskman.server.project_manager import ProjectManager
+from taskman.server.tasker_server import start_server
+from taskman.server.task import Task
 
 
 class _ServerThread:

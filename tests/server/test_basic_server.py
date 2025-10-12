@@ -4,7 +4,7 @@ import unittest
 import http.client
 from contextlib import closing
 
-from taskman.tasker_server import _UIRequestHandler  # testing internal handler intentionally
+from taskman.server.tasker_server import _UIRequestHandler  # testing internal handler intentionally
 from http.server import ThreadingHTTPServer
 
 
