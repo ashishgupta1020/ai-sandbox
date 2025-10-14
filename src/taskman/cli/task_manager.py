@@ -20,12 +20,15 @@ def main_cli() -> None:
     while current_project is None:
         print("\nMain Menu:")
         print("=" * 30)
-        print("1. List all projects")
-        print("2. Open a project")
-        print("3. Edit a project name")
-        print("4. Exit")
         print("-" * 30)
-        choice = input("Enter your choice: ")
+        main_menu_options = [
+            "List all projects",
+            "Open a project",
+            "Edit a project name",
+            "Exit",
+        ]
+        choice_index = interaction.select_from_list(main_menu_options)
+        choice = str(choice_index + 1)
 
         if choice == "1":
             # List all projects
@@ -43,7 +46,22 @@ def main_cli() -> None:
             # Open or create a project
             print("\nOpen a project:")
             print("-" * 30)
-            project_name = interaction.get_project_name()
+            obj = api.list_projects()
+            projects = obj.get("projects", []) or []
+            if projects:
+                options = projects + ["Create a new project…"]
+                print("Select a project to open:")
+                selected_index = interaction.select_from_list(options)
+                if selected_index == len(projects):
+                    project_name = interaction.get_project_name(
+                        "Enter the name of the new project: "
+                    )
+                else:
+                    project_name = projects[selected_index]
+            else:
+                project_name = interaction.get_project_name(
+                    "No projects found. Enter a name to create one: "
+                )
             resp = api.open_project(project_name)
             # Use canonical name returned by server (handles case-insensitive open)
             canonical = resp.get("currentProject") or project_name
@@ -85,23 +103,34 @@ def main_cli() -> None:
         print("=" * 30)
         print(f"Current Project: {current_project.name}")
         print("-" * 30)
-        # Task Management
-        print("-- Task Management --")
-        print("1. Add a task")
-        print("2. List all tasks")
-        print("3. List tasks with custom sort")
-        print("4. Edit a task")
-        print("5. Export tasks to Markdown\n")
-        # Project Management
-        print("-- Project Management --")
-        print("6. Edit current project name")
-        print("7. List all projects")
-        print("8. Switch project\n")
-        # Application
-        print("-- Application --")
-        print("9. Exit")
-        print("-" * 30)
-        choice = input("Enter your choice: ")
+        grouped_menu_options = [
+            (
+                "-- Task Management --",
+                [
+                    "Add a task",
+                    "List all tasks",
+                    "List tasks with custom sort",
+                    "Edit a task",
+                    "Export tasks to Markdown",
+                ],
+            ),
+            (
+                "-- Project Management --",
+                [
+                    "Edit current project name",
+                    "List all projects",
+                    "Switch project",
+                ],
+            ),
+            (
+                "-- Application --",
+                [
+                    "Exit",
+                ],
+            ),
+        ]
+        choice_index = interaction.select_from_grouped_list(grouped_menu_options)
+        choice = str(choice_index + 1)
 
         if choice == "1":
             # Add a new task to the current project
@@ -120,9 +149,9 @@ def main_cli() -> None:
             print(f"\nCustom Sort - List tasks in project: '{current_project.name}'")
             print("-" * 30)
             print("Sort by:")
-            print("1. Status")
-            print("2. Priority")
-            sort_choice = input("Enter your choice (1 or 2): ")
+            sort_options = ["Status", "Priority"]
+            sort_choice_index = interaction.select_from_list(sort_options)
+            sort_choice = str(sort_choice_index + 1)
             if sort_choice == "1":
                 current_project.list_tasks(sort_by="status")
             elif sort_choice == "2":

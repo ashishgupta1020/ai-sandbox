@@ -184,6 +184,27 @@ class TestTaskManager(unittest.TestCase):
         finally:
             builtins.input = original_input
 
+    def test_main_cli_open_existing_project_from_list(self):
+        from taskman.client.api_client import TaskmanApiClient
+        api = TaskmanApiClient()
+        api.open_project(self.PROJECT_A)
+        api.open_project(self.PROJECT_B)
+        import builtins
+        user_inputs = ["2", "1", "9"]  # Open existing project via menu, then exit
+        def mock_input(prompt=None):
+            return user_inputs.pop(0)
+        original_input = builtins.input
+        builtins.input = mock_input
+        from taskman.cli import task_manager
+        try:
+            with StringIO() as buf, redirect_stdout(buf):
+                task_manager.main_cli()
+                output = buf.getvalue()
+            self.assertIn("Select a project to open:", output)
+            self.assertIn(f"Opened project: '{self.PROJECT_A}'", output)
+        finally:
+            builtins.input = original_input
+
     def test_main_cli_add_list_edit_switch_exit(self):
         from unittest.mock import patch
         # Simulate full CLI flow: open, add, list, edit, switch, exit
@@ -226,7 +247,7 @@ class TestTaskManager(unittest.TestCase):
         user_inputs = [
             "2", self.PROJECT_A,
             "1", "S", "A", "R", "", "2", "2",
-            "3", "99",  # invalid sort option
+            "3", "99", "1",  # invalid sort option, then pick Status
             "9"
         ]
         def mock_input(prompt=None):
@@ -238,7 +259,7 @@ class TestTaskManager(unittest.TestCase):
             with StringIO() as buf, redirect_stdout(buf):
                 task_manager.main_cli()
                 output = buf.getvalue()
-            self.assertIn("Invalid sort choice. Showing unsorted tasks.", output)
+            self.assertIn("Invalid choice. Please try again.", output)
         finally:
             builtins.input = original_input
 
@@ -272,7 +293,7 @@ class TestTaskManager(unittest.TestCase):
         api.open_project(self.PROJECT_B)
         import builtins
         user_inputs = [
-            "2", self.PROJECT_A,  # open A
+            "2", "1",  # open menu, select ProjectA from list
             "6", self.PROJECT_B,  # rename to existing B -> error
             "9"
         ]
