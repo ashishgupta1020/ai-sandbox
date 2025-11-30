@@ -16,7 +16,16 @@ class Task:
     Represents a single task with summary, assignee, remarks, status, and priority.
     """
 
-    def __init__(self, summary: str, assignee: str, remarks: str, status: str, priority: str, id: Optional[int] = None) -> None:
+    def __init__(
+        self,
+        summary: str,
+        assignee: str,
+        remarks: str,
+        status: str,
+        priority: str,
+        highlight: bool = False,
+        id: Optional[int] = None,
+    ) -> None:
         # Stable identifier for the task within a project. Assigned by Project.
         self.id: Optional[int] = id
         self.summary = summary  # Short description of the task
@@ -25,6 +34,7 @@ class Task:
         # Store status and priority as enums for type safety and consistency.
         self.status: TaskStatus = TaskStatus(status)  # Task status (e.g., Not Started, In Progress, Completed)
         self.priority: TaskPriority = TaskPriority(priority)  # Task priority (Low, Medium, High)
+        self.highlight: bool = bool(highlight)
 
     def to_dict(self) -> dict:
         """
@@ -37,6 +47,7 @@ class Task:
             "remarks": self.remarks,
             "status": self.status.value,
             "priority": self.priority.value,
+            "highlight": bool(self.highlight),
         }
 
     @classmethod
@@ -53,5 +64,6 @@ class Task:
             remarks=data["remarks"],
             status=data["status"],
             priority=data["priority"],
+            highlight=bool(data.get("highlight")),
             id=tid,
         )

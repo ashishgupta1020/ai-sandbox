@@ -75,26 +75,32 @@ class SQLiteTaskStore:
                     assignee  TEXT,
                     remarks   TEXT,
                     status    TEXT NOT NULL,
-                    priority  TEXT NOT NULL
+                    priority  TEXT NOT NULL,
+                    highlight INTEGER NOT NULL DEFAULT 0
                 )
                 """
             )
         return table
 
-    def fetch_all(self, project_name: str) -> List[Dict[str, Optional[str]]]:
+    def fetch_all(self, project_name: str) -> List[Dict[str, object]]:
         """Return all tasks for the project ordered by task_id."""
         if self._conn is None:
             raise RuntimeError("Database connection is not open")
         table = self._ensure_table(project_name)
         with self._lock:
             cursor = self._conn.execute(
-                f"SELECT task_id, summary, assignee, remarks, status, priority "
+                f"SELECT task_id, summary, assignee, remarks, status, priority, highlight "
                 f"FROM {table} ORDER BY task_id ASC"
             )
             rows = cursor.fetchall()
-        return [dict(row) for row in rows]
+        result: List[Dict[str, object]] = []
+        for row in rows:
+            as_dict = dict(row)
+            as_dict["highlight"] = bool(as_dict.get("highlight"))
+            result.append(as_dict)
+        return result
 
-    def upsert_task(self, project_name: str, task: Dict[str, Optional[str]]) -> None:
+    def upsert_task(self, project_name: str, task: Dict[str, object]) -> None:
         """Insert or update a single task row."""
         if self._conn is None:
             raise RuntimeError("Database connection is not open")
@@ -110,23 +116,25 @@ class SQLiteTaskStore:
             "remarks": task.get("remarks") or "",
             "status": task.get("status") or "",
             "priority": task.get("priority") or "",
+            "highlight": 1 if task.get("highlight") else 0,
         }
         with self._lock:
             self._conn.execute(
                 f"""
-                INSERT INTO {table} (task_id, summary, assignee, remarks, status, priority)
-                VALUES (:task_id, :summary, :assignee, :remarks, :status, :priority)
+                INSERT INTO {table} (task_id, summary, assignee, remarks, status, priority, highlight)
+                VALUES (:task_id, :summary, :assignee, :remarks, :status, :priority, :highlight)
                 ON CONFLICT(task_id) DO UPDATE SET
                     summary  = excluded.summary,
                     assignee = excluded.assignee,
                     remarks  = excluded.remarks,
                     status   = excluded.status,
-                    priority = excluded.priority
+                    priority = excluded.priority,
+                    highlight = excluded.highlight
                 """,
                 payload,
             )
 
-    def bulk_replace(self, project_name: str, tasks: Iterable[Dict[str, Optional[str]]]) -> None:
+    def bulk_replace(self, project_name: str, tasks: Iterable[Dict[str, object]]) -> None:
         """Replace all task rows for the project with the provided iterable."""
         if self._conn is None:
             raise RuntimeError("Database connection is not open")
@@ -143,6 +151,7 @@ class SQLiteTaskStore:
                     "remarks": task.get("remarks") or "",
                     "status": task.get("status") or "",
                     "priority": task.get("priority") or "",
+                    "highlight": 1 if task.get("highlight") else 0,
                 }
             )
 
@@ -152,8 +161,8 @@ class SQLiteTaskStore:
                 self._conn.execute(f"DELETE FROM {table}")
                 self._conn.executemany(
                     f"""
-                    INSERT INTO {table} (task_id, summary, assignee, remarks, status, priority)
-                    VALUES (:task_id, :summary, :assignee, :remarks, :status, :priority)
+                    INSERT INTO {table} (task_id, summary, assignee, remarks, status, priority, highlight)
+                    VALUES (:task_id, :summary, :assignee, :remarks, :status, :priority, :highlight)
                     """,
                     normalized,
                 )

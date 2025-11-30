@@ -24,6 +24,7 @@ src/taskman/ui/project.html
 src/taskman/ui/styles.css
 tests/test_cli.py
 tests/test_cli_no_server.py
+tests/test_interaction.py
 tests/test_project.py
 tests/test_project_manager.py
 tests/test_sqlite_storage.py

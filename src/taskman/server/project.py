@@ -47,6 +47,7 @@ class Project:
                 row.get("remarks") or "",
                 row["status"] or TaskStatus.NOT_STARTED.value,
                 row["priority"] or TaskPriority.MEDIUM.value,
+                bool(row.get("highlight")),
             )
             task.id = int(row["task_id"])
             tasks[task.id] = task
@@ -66,6 +67,7 @@ class Project:
                     "remarks": task.remarks,
                     "status": task.status.value if isinstance(task.status, TaskStatus) else str(task.status),
                     "priority": task.priority.value if isinstance(task.priority, TaskPriority) else str(task.priority),
+                    "highlight": bool(getattr(task, "highlight", False)),
                 },
             )
 
@@ -109,7 +111,7 @@ class Project:
         if not isinstance(fields, dict) or not fields:
             return {"error": "'fields' must be a non-empty object"}, 400
 
-        allowed = {"id", "summary", "assignee", "remarks", "status", "priority"}
+        allowed = {"id", "summary", "assignee", "remarks", "status", "priority", "highlight"}
         if any(k not in allowed for k in fields.keys()):
             return {"error": "Unknown fields present"}, 400
 
@@ -127,6 +129,8 @@ class Project:
                 TaskPriority(fields["priority"])  # type: ignore[arg-type]
             except Exception:
                 return {"error": "Invalid priority"}, 400
+        if "highlight" in fields and not isinstance(fields["highlight"], bool):
+            return {"error": "Invalid highlight"}, 400
 
         if "summary" in fields:
             task.summary = str(fields["summary"]) if fields["summary"] is not None else ""
@@ -138,6 +142,8 @@ class Project:
             task.status = TaskStatus(fields["status"])
         if "priority" in fields:
             task.priority = TaskPriority(fields["priority"])
+        if "highlight" in fields:
+            task.highlight = bool(fields["highlight"])
 
         try:
             self._persist_task(task)
@@ -158,6 +164,8 @@ class Project:
         remarks = str(payload.get("remarks", ""))
         status_val = payload.get("status", TaskStatus.NOT_STARTED.value)
         priority_val = payload.get("priority", TaskPriority.MEDIUM.value)
+        highlight_raw = payload.get("highlight", False)
+        highlight_val = highlight_raw if isinstance(highlight_raw, bool) else False
 
         try:
             TaskStatus(status_val)  # type: ignore[arg-type]
@@ -168,7 +176,7 @@ class Project:
         except Exception:
             priority_val = TaskPriority.MEDIUM.value
 
-        new_task = Task(summary, assignee, remarks, status_val, priority_val)
+        new_task = Task(summary, assignee, remarks, status_val, priority_val, highlight_val)
         try:
             self.add_task(new_task)
         except Exception as exc:

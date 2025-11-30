@@ -94,7 +94,7 @@ class TestProject(unittest.TestCase):
         first = project._tasks_by_id[tid]
         resp, status = project.update_task_from_payload({
             "id": first.id,
-            "fields": {"summary": "New", "status": "Completed", "priority": "High"}
+            "fields": {"summary": "New", "status": "Completed", "priority": "High", "highlight": True}
         })
         self.assertEqual(status, 200)
         self.assertTrue(resp.get("ok"))
@@ -103,10 +103,12 @@ class TestProject(unittest.TestCase):
         self.assertEqual(after.summary, "New")
         self.assertEqual(after.status, TaskStatus.COMPLETED)
         self.assertEqual(after.priority, TaskPriority.HIGH)
+        self.assertTrue(after.highlight)
 
         # Verify persisted to disk (use original task id)
         project2 = Project(self.TEST_PROJECT)
         self.assertEqual(project2._tasks_by_id[tid].summary, "New")
+        self.assertTrue(project2._tasks_by_id[tid].highlight)
 
     def test_update_task_from_payload_invalid_id_type(self):
         project = Project(self.TEST_PROJECT)
@@ -183,10 +185,11 @@ class TestProject(unittest.TestCase):
         self.assertEqual(t.remarks, "")
         self.assertEqual(t.status, TaskStatus.NOT_STARTED)
         self.assertEqual(t.priority, TaskPriority.MEDIUM)
+        self.assertFalse(t.highlight)
 
     def test_create_task_from_payload_overrides_and_persist(self):
         project = Project(self.TEST_PROJECT)
-        payload = {"summary": "S", "assignee": "A", "remarks": "R", "status": "Completed", "priority": "High"}
+        payload = {"summary": "S", "assignee": "A", "remarks": "R", "status": "Completed", "priority": "High", "highlight": True}
         resp, status = project.create_task_from_payload(payload)
         self.assertEqual(status, 200)
         self.assertTrue(resp.get("ok"))
@@ -200,10 +203,12 @@ class TestProject(unittest.TestCase):
         self.assertEqual(t.remarks, "R")
         self.assertEqual(t.status, TaskStatus.COMPLETED)
         self.assertEqual(t.priority, TaskPriority.HIGH)
+        self.assertTrue(t.highlight)
         # Persist check
         project2 = Project(self.TEST_PROJECT)
         self.assertEqual(len(project2._tasks_by_id), 1)
         self.assertEqual(project2._tasks_by_id[first.id].summary, "S")
+        self.assertTrue(project2._tasks_by_id[first.id].highlight)
 
     def test_create_task_from_payload_invalid_payload_type(self):
         project = Project(self.TEST_PROJECT)
