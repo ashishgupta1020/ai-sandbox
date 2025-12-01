@@ -37,7 +37,6 @@ const apiRemoveProjectTag = (name, tag) => api(`/api/projects/${encodeURICompone
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ tag })
 });
-const apiExit = () => api('/api/exit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
 
 const tagColorMap = new Map();
 const tagPalette = ['#c7d2fe', '#bbf7d0', '#fde68a', '#fbcfe8', '#bae6fd', '#fecdd3', '#a7f3d0', '#fef9c3', '#ddd6fe'];
@@ -342,12 +341,4 @@ async function refreshHighlights() {
       alert(e.message);
     }
   });
-  document.getElementById('btn-exit').addEventListener('click', async () => {
-    try {
-      await apiExit();
-      alert('Server is shutting down. You may need to close this tab.');
-    } catch (e) {
-      alert(e.message);
-    }
-  });
-})();
+      })();
