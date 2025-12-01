@@ -25,6 +25,10 @@ async function api(path, opts = {}) {
 const apiCreateTask = (name, fields = {}) => api(`/api/projects/${encodeURIComponent(name)}/tasks/create`, { method: 'POST', body: fields || {} });
 const apiUpdateTask = (name, taskId, fields) => api(`/api/projects/${encodeURIComponent(name)}/tasks/update`, { method: 'POST', body: { id: taskId, fields } });
 const apiDeleteTask = (name, taskId) => api(`/api/projects/${encodeURIComponent(name)}/tasks/delete`, { method: 'POST', body: { id: taskId } });
+const apiHighlightTask = (name, taskId, highlight) => api(
+  `/api/projects/${encodeURIComponent(name)}/tasks/highlight`,
+  { method: 'POST', body: { id: taskId, highlight: !!highlight } }
+);
 
 // Safe Markdown -> HTML using marked + DOMPurify.
 function getRemarksHTML(src) {
@@ -194,8 +198,75 @@ function buildRowFromTask(index0, task) {
     t.status || '',
     t.priority || '',
     t.remarks || '',
-    null
+    !!t.highlight
   ];
+}
+
+// Action cell formatter: highlight toggle + delete button.
+function actionsFormatter() {
+  return (_, row) => {
+    const h = gridjs.h;
+    const idx0 = Number(row.cells[0].data);
+    const tid = row.cells[1].data != null ? Number(row.cells[1].data) : null;
+    const isHighlighted = !!row.cells[8].data;
+
+    const starIcon = isHighlighted
+      ? '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" fill="gold"/></svg>'
+      : '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 9.24 14.81 8.63 12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.64-7.03L22 9.24zm-10 6.11-3.76 2.27 1-4.28L5.5 10.5l4.38-.38L12 6.1l2.12 4.01 4.38.38-3.73 3.84 1 4.28L12 15.35z" fill="currentColor"/></svg>';
+    const deleteIcon = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6a1 1 0 0 1 1 1v1h4v2H4V5h4V4a1 1 0 0 1 1-1zm1 6h2v9h-2V9zm4 0h2v9h-2V9zM7 9h2v9H7V9z" fill="currentColor"/></svg>';
+
+    const toggleHighlight = async () => {
+      try {
+        const resp = await apiHighlightTask(CURRENT_PROJECT, tid, !isHighlighted);
+        if (resp && resp.ok && typeof resp.id === 'number') {
+          const idx = findRowIndexById(resp.id);
+          if (idx >= 0 && resp.task && updateRowFromTask(idx, resp.task)) {
+            renderWithGrid(DATA_ROWS);
+          } else {
+            await loadTasks(CURRENT_PROJECT);
+          }
+        }
+      } catch (e) {
+        alert(e && e.message ? e.message : String(e));
+      }
+    };
+
+    const deleteTask = async () => {
+      const confirmed = window.confirm(`Delete task #${idx0 + 1}?`);
+      if (!confirmed) return;
+      try {
+        const resp = await apiDeleteTask(CURRENT_PROJECT, tid);
+        const remIdx = (resp && typeof resp.id === 'number') ? findRowIndexById(resp.id) : idx0;
+        if (deleteRowAt(remIdx)) {
+          if (DATA_ROWS.length === 0) { GRID = null; }
+          renderWithGrid(DATA_ROWS);
+        }
+      } catch (e) {
+        alert(e && e.message ? e.message : String(e));
+      }
+    };
+
+    const starBtn = h('button', {
+      className: 'btn btn-icon',
+      title: isHighlighted ? `Remove highlight from task #${idx0 + 1}` : `Highlight task #${idx0 + 1}`,
+      'aria-label': isHighlighted ? `Remove highlight from task ${idx0 + 1}` : `Highlight task ${idx0 + 1}`,
+      style: 'margin-left:0',
+      onClick: toggleHighlight
+    }, gridjs.html(starIcon));
+
+    const deleteBtn = h('button', {
+      className: 'btn btn-icon',
+      title: `Delete task #${idx0 + 1}`,
+      'aria-label': `Delete task ${idx0 + 1}`,
+      style: 'margin-left:8px',
+      onClick: deleteTask
+    }, gridjs.html(deleteIcon));
+
+    return h('div', { style: 'display:flex;align-items:center;justify-content:center;' }, [
+      starBtn,
+      deleteBtn
+    ]);
+  };
 }
 
 function reindexFrom(start) {
@@ -290,33 +361,7 @@ function renderWithGrid(rows) {
       { name: 'Status',   sort: true, formatter: editableFormatter('status',   'select', STATUS_OPTS) },
       { name: 'Priority', sort: true, formatter: editableFormatter('priority', 'select', PRIORITY_OPTS) },
       { name: 'Remarks', sort: false, formatter: editableFormatter('remarks', 'markdown') },
-      { name: '', sort: false, formatter: (_, row) => {
-        const h = gridjs.h;
-        const idx0 = Number(row.cells[0].data);
-        const tid = row.cells[1].data != null ? Number(row.cells[1].data) : null;
-        // Inline delete action: delegates to server, then updates local cache.
-        const icon = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6a1 1 0 0 1 1 1v1h4v2H4V5h4V4a1 1 0 0 1 1-1zm1 6h2v9h-2V9zm4 0h2v9h-2V9zM7 9h2v9H7V9z" fill="currentColor"/></svg>';
-        const btn = h('button', {
-          className: 'btn btn-icon',
-          title: `Delete task #${idx0 + 1}`,
-          'aria-label': `Delete task ${idx0 + 1}`,
-          style: 'margin-left:0',
-          onClick: async () => {
-            try {
-              const resp = await apiDeleteTask(CURRENT_PROJECT, tid);
-              const remIdx = (resp && typeof resp.id === 'number') ? findRowIndexById(resp.id) : idx0;
-              if (deleteRowAt(remIdx)) {
-                if (DATA_ROWS.length === 0) { GRID = null; }
-                renderWithGrid(DATA_ROWS);
-              }
-            } catch (e) {
-              alert(e && e.message ? e.message : String(e));
-            }
-          }
-        }, gridjs.html(icon));
-        return h('div', { style: 'display:flex;align-items:center;justify-content:center;' }, btn);
-      }
-    }
+      { name: '', sort: false, formatter: actionsFormatter() }
     ];
   }
 
@@ -391,7 +436,8 @@ async function loadTasks(name) {
         const priority = t.priority || '';
         const src = t.remarks || '';
         const id = (typeof t.id === 'number' ? t.id : (t.id != null ? Number(t.id) : null));
-        return [i, id, idx, summary, assignee, status, priority, src, null];
+        const highlight = !!t.highlight;
+        return [i, id, idx, summary, assignee, status, priority, src, highlight];
       });
       // Cache data for in-place edits/deletes without a full reload.
       DATA_ROWS = rows;

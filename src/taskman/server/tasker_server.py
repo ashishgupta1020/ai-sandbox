@@ -236,6 +236,29 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
             resp, status = proj.update_task_from_payload(body)
             return self._json(resp, status)
 
+        # Highlight or un-highlight a task: POST /api/projects/<name>/tasks/highlight
+        m_highlight = re.match(r"^/api/projects/(.+)/tasks/highlight$", path)
+        if m_highlight:
+            name = unquote(m_highlight.group(1))
+            if not name or ".." in name or name.startswith(".") or "/" in name:
+                _ = self._read_json()
+                return self._json({"error": "Invalid project name"}, 400)
+            body = self._read_json()
+            if body is None or not isinstance(body, dict):
+                return self._json({"error": "Invalid payload"}, 400)
+            highlight_val = body.get("highlight")
+            if not isinstance(highlight_val, bool):
+                return self._json({"error": "Invalid highlight"}, 400)
+            try:
+                cur_obj = getattr(self.server, "current_project", None)
+                proj = cur_obj if (isinstance(cur_obj, Project) and cur_obj.name.lower() == name.lower()) else Project(name)
+                resp, status = proj.update_task_from_payload(
+                    {"id": body.get("id"), "fields": {"highlight": highlight_val}}
+                )
+                return self._json(resp, status)
+            except Exception as e:
+                return self._json({"error": f"Failed to update highlight: {e}"}, 500)
+
         # Create a new task in a project: POST /api/projects/<name>/tasks/create
         m_create = re.match(r"^/api/projects/(.+)/tasks/create$", path)
         if m_create:

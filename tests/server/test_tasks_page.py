@@ -162,6 +162,25 @@ class TestTasksPageAPI(unittest.TestCase):
         data = json.loads(body2)
         self.assertEqual(data["tasks"][0]["summary"], "New")
 
+    def test_update_task_highlight(self):
+        name = "Echo"
+        self._seed_tasks(
+            name,
+            [
+                {"task_id": 0, "summary": "Old", "assignee": "A", "remarks": "R", "status": "Not Started", "priority": "Low", "highlight": False},
+            ],
+        )
+        resp, body = self._post(f"/api/projects/{name}/tasks/highlight", {"id": 0, "highlight": True})
+        self.assertEqual(resp.status, 200)
+        obj = json.loads(body)
+        self.assertTrue(obj.get("ok"))
+        self.assertTrue(obj["task"]["highlight"])
+        # Verify persisted
+        resp2, body2 = self._get(f"/api/projects/{name}/tasks")
+        self.assertEqual(resp2.status, 200)
+        data = json.loads(body2)
+        self.assertTrue(data["tasks"][0]["highlight"])
+
     def test_update_task_invalid_name(self):
         resp, _ = self._post("/api/projects/../etc/tasks/update", {"id": 0, "fields": {"summary": "X"}})
         self.assertEqual(resp.status, 400)
