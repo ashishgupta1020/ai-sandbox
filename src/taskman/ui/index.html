@@ -73,22 +73,20 @@
           if (!p.projects || p.projects.length === 0) {
             box.textContent = 'No projects found.';
           } else {
-            const ul = el('ul', { class: 'list' });
+            const list = el('div', { class: 'project-list' });
             for (const name of p.projects) {
-              const li = el('li');
-              const row = el('div', { class: 'project-row' });
-              const link = el('a', { href: `/project.html?name=${encodeURIComponent(name)}` }, name);
+              const card = el('a', { href: `/project.html?name=${encodeURIComponent(name)}`, class: 'project-card', 'data-name': name });
+              const title = el('div', { class: 'project-name' }, name);
               const editBtn = el('button', { type: 'button', class: 'btn btn-icon btn-icon-sm edit-btn', title: `Rename ${name}`, 'aria-label': `Rename ${name}`, 'data-name': name });
               // Append icon from template to avoid setting innerHTML in script
               const tpl = document.getElementById('tpl-icon-pencil');
               if (tpl && 'content' in tpl) {
                 editBtn.appendChild(tpl.content.firstElementChild.cloneNode(true));
               }
-              row.append(link, editBtn);
-              li.append(row);
-              ul.appendChild(li);
+              card.append(title, editBtn);
+              list.appendChild(card);
             }
-            box.replaceChildren(ul);
+            box.replaceChildren(list);
           }
         } catch (e) {
           document.getElementById('projects').textContent = `Error: ${e.message}`;

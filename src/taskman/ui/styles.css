@@ -119,9 +119,43 @@ code {
 .list { padding-left: 1.25rem; margin: 0.5rem 0 0 0; }
 .list a { text-decoration: none; color: var(--link); }
 .list a:hover { text-decoration: underline; }
-.project-row { display: flex; align-items: center; gap: 0.2rem; }
 .btn-icon-sm { width: 1.3rem; height: 1.3rem; }
 .btn-icon-sm .icon { width: 0.85rem; height: 0.85rem; }
+
+.project-list {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.75rem;
+}
+
+.project-card {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: var(--text);
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: linear-gradient(180deg, #fdfdfd, #f8fafc);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.project-card:visited {
+  color: var(--text);
+}
+
+.project-card:hover,
+.project-card:focus-visible {
+  border-color: #9ca3af;
+  background: #f1f5f9;
+}
+
+.project-card .edit-btn {
+  margin-left: auto;
+}
+
+.project-name { font-weight: 600; }
 
 /* Keep icons visible inside task tables at all times */
 table.gridjs-table .btn-icon { vertical-align: middle; }

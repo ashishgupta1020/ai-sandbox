@@ -201,7 +201,6 @@ def main_cli() -> None:
                     print("Error: Failed to rename project.")
             except Exception:
                 print("Error: Failed to rename project.")
-        # TODO: Replace choice 7 and 8 with going back to main menu to do the same operations
         elif choice == "7":
             # List all available projects
             print("\nListing all projects:")
