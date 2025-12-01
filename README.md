@@ -7,8 +7,8 @@ Hosting model: the UI server is intended to be centrally hosted in a shared envi
 ## Features
 
 - Project lists, open/create, and rename
-- Tasks with summary, assignee, remarks, status, priority
-- Task CRUD in the UI with inline editing and markdown preview for remarks
+- Tasks with summary, assignee, remarks, status, priority, highlight
+- Task CRUD in the UI with inline editing, highlight toggle, and markdown preview for remarks
 - Markdown export per project
 - Local SQLite storage under `~/sandbox/data/ai-sandbox`
 
