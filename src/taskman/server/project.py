@@ -116,7 +116,7 @@ class Project:
         if task is None:
             return {"error": "Task not found"}, 400
 
-        allowed = {"summary", "assignee", "remarks", "status", "priority", "highlight"}
+        allowed = {"id", "summary", "assignee", "remarks", "status", "priority", "highlight"}
         extra = set(fields) - allowed
         if extra:
             return {"error": "Unknown fields present"}, 400
