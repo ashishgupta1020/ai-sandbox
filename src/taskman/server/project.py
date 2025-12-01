@@ -107,43 +107,42 @@ class Project:
             tid = int(payload.get("id", -1))
         except (TypeError, ValueError):
             return {"error": "'id' must be an integer"}, 400
+
         fields = payload.get("fields")
         if not isinstance(fields, dict) or not fields:
             return {"error": "'fields' must be a non-empty object"}, 400
-
-        allowed = {"id", "summary", "assignee", "remarks", "status", "priority", "highlight"}
-        if any(k not in allowed for k in fields.keys()):
-            return {"error": "Unknown fields present"}, 400
 
         task = self._tasks_by_id.get(tid)
         if task is None:
             return {"error": "Task not found"}, 400
 
-        if "status" in fields:
-            try:
-                TaskStatus(fields["status"])  # type: ignore[arg-type]
-            except Exception:
-                return {"error": "Invalid status"}, 400
-        if "priority" in fields:
-            try:
-                TaskPriority(fields["priority"])  # type: ignore[arg-type]
-            except Exception:
-                return {"error": "Invalid priority"}, 400
+        allowed = {"summary", "assignee", "remarks", "status", "priority", "highlight"}
+        extra = set(fields) - allowed
+        if extra:
+            return {"error": "Unknown fields present"}, 400
+
+        # Validate enum fields early so we fail fast without partial updates
+        enum_fields = {"status": TaskStatus, "priority": TaskPriority}
+        for key, enum_cls in enum_fields.items():
+            if key in fields:
+                try:
+                    fields[key] = enum_cls(fields[key])  # type: ignore[arg-type]
+                except Exception:
+                    return {"error": f"Invalid {key}"}, 400
+
         if "highlight" in fields and not isinstance(fields["highlight"], bool):
             return {"error": "Invalid highlight"}, 400
 
-        if "summary" in fields:
-            task.summary = str(fields["summary"]) if fields["summary"] is not None else ""
-        if "assignee" in fields:
-            task.assignee = str(fields["assignee"]) if fields["assignee"] is not None else ""
-        if "remarks" in fields:
-            task.remarks = str(fields["remarks"]) if fields["remarks"] is not None else ""
+        for attr in ("summary", "assignee", "remarks"):
+            if attr in fields:
+                value = fields[attr]
+                setattr(task, attr, str(value) if value is not None else "")
         if "status" in fields:
-            task.status = TaskStatus(fields["status"])
+            task.status = fields["status"]
         if "priority" in fields:
-            task.priority = TaskPriority(fields["priority"])
+            task.priority = fields["priority"]
         if "highlight" in fields:
-            task.highlight = bool(fields["highlight"])
+            task.highlight = fields["highlight"]
 
         try:
             self._persist_task(task)

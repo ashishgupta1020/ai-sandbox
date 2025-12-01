@@ -28,10 +28,11 @@ Usage:
 
 from __future__ import annotations
 
+import atexit
+import contextlib
 import json
 import logging
 import mimetypes
-import os
 import re
 import threading
 import time
@@ -39,12 +40,21 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Optional, Tuple
 from urllib.parse import unquote, urlparse
+import importlib.resources as resources
 
 from .project import Project
 from .project_manager import ProjectManager
 
 # Module-wide resources
-UI_DIR = (Path(__file__).resolve().parent.parent / "ui").resolve()
+# Keep a context open so importlib.resources can extract packaged assets if needed
+_ui_stack = contextlib.ExitStack()
+try:
+    _ui_resources = resources.files("taskman") / "ui"
+    UI_DIR = _ui_stack.enter_context(resources.as_file(_ui_resources))
+except Exception:
+    # Fallback for editable installs or unusual environments
+    UI_DIR = (Path(__file__).resolve().parent.parent / "ui").resolve()
+atexit.register(_ui_stack.close)
 logger = logging.getLogger(__name__)
 
 
