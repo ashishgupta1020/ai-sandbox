@@ -1,7 +1,10 @@
+"""Lightweight registry for Taskman projects and their backing files."""
+
 import json
 import os
 
 class ProjectManager:
+    """Helper for tracking project names and related filesystem paths."""
     PROJECTS_DIR = os.path.expanduser("~/taskman/data")
     PROJECTS_FILE = os.path.join(PROJECTS_DIR, "projects.json")  # File to store project names
 

@@ -12,9 +12,7 @@ class TaskPriority(Enum):
     HIGH = "High"
 
 class Task:
-    """
-    Represents a single task with summary, assignee, remarks, status, and priority.
-    """
+    """Represents a single task with core metadata and highlight flag."""
 
     def __init__(
         self,
@@ -26,14 +24,20 @@ class Task:
         highlight: bool = False,
         id: Optional[int] = None,
     ) -> None:
-        # Stable identifier for the task within a project. Assigned by Project.
+        """
+        Initialize a task.
+
+        ``status`` and ``priority`` accept :class:`TaskStatus` / :class:`TaskPriority`
+        values or their string representations. ``id`` is assigned by :class:`Project`
+        when the task is persisted.
+        """
+        # Stable identifier for the task within a project; assigned during persistence.
         self.id: Optional[int] = id
-        self.summary = summary  # Short description of the task
-        self.assignee = assignee  # Person responsible for the task
-        self.remarks = remarks  # Additional notes or comments
-        # Store status and priority as enums for type safety and consistency.
-        self.status: TaskStatus = TaskStatus(status)  # Task status (e.g., Not Started, In Progress, Completed)
-        self.priority: TaskPriority = TaskPriority(priority)  # Task priority (Low, Medium, High)
+        self.summary = summary
+        self.assignee = assignee
+        self.remarks = remarks
+        self.status: TaskStatus = TaskStatus(status)
+        self.priority: TaskPriority = TaskPriority(priority)
         self.highlight: bool = bool(highlight)
 
     def to_dict(self) -> dict:
@@ -53,8 +57,8 @@ class Task:
     @classmethod
     def from_dict(cls, data: dict) -> 'Task':
         """
-        Create a Task object from a dictionary.
-        Expects an 'id' field to be present.
+        Create a Task object from a dictionary payload (API or DB row).
+        Expects an 'id' field to be present and coerces highlight to bool.
         """
         raw_id = data["id"]  # may be None for freshly created, not yet assigned tasks
         tid = int(raw_id) if raw_id is not None else None

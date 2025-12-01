@@ -7,7 +7,7 @@ updates and concurrent-safe reads with a simple file-based deployment.
 
 The class maintains an in-memory dict of :class:`taskman.server.task.Task` objects
 for fast lookups and defers actual storage to the helpers in
-``taskman.sqlite_storage``.
+``taskman.server.sqlite_storage``.
 """
 
 from __future__ import annotations

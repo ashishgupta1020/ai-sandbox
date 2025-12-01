@@ -2,7 +2,8 @@
 
 This module encapsulates the low-level operations required to persist tasks
 in an SQLite database. Each project is stored in its own table whose name is
-derived from the project's lowercase identifier.
+derived from the project's lowercase identifier. Highlight flags are stored
+as INTEGER columns for simple boolean mapping.
 """
 
 from __future__ import annotations

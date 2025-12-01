@@ -12,9 +12,11 @@ Currently supported routes:
   - GET  /api/projects                           -> list saved project names + current
   - GET  /api/state                              -> current project name
   - GET  /api/projects/<name>/tasks              -> list tasks JSON for a project
+  - GET  /api/highlights                       -> aggregate highlighted tasks across projects
   - POST /api/projects/<name>/tasks/update       -> update a single task { index, fields }
   - POST /api/projects/<name>/tasks/create       -> create a new task { optional fields }
   - POST /api/projects/<name>/tasks/delete       -> delete a task { index }
+  - POST /api/projects/<name>/tasks/highlight    -> toggle highlight { id, highlight }
   - POST /api/projects/open                      -> open/create a project { name }
   - POST /api/projects/edit-name                 -> rename project { old_name, new_name }
   - POST /api/exit                               -> graceful shutdown
@@ -51,7 +53,8 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
 
     - Serves static assets from ``UI_DIR`` (``/`` and other files).
     - Exposes a JSON health check at ``/health``.
-    - Implements project/task API endpoints under ``/api/...`` (GET/POST).
+    - Implements project/task API endpoints under ``/api/...`` (GET/POST), including
+      cross-project highlight aggregation.
     - Validates paths to prevent traversal and dotfile access.
     - Overrides ``log_request`` to emit debug-level access logs via ``log_message``.
     - Uses the module logger for output instead of default stderr logging.
