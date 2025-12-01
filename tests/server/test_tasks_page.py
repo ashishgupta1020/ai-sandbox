@@ -11,6 +11,7 @@ from contextlib import closing
 from pathlib import Path
 
 from http.server import ThreadingHTTPServer
+from taskman.server import tasker_server
 from taskman.server.project_manager import ProjectManager
 from taskman.server.sqlite_storage import ProjectTaskSession
 from taskman.server.tasker_server import _UIRequestHandler
@@ -45,6 +46,7 @@ class TestTasksPageAPI(unittest.TestCase):
         self.tmpdir = tempfile.mkdtemp(prefix="taskman-ui-test-")
         self.orig_dir = ProjectManager.PROJECTS_DIR
         self.orig_file = ProjectManager.PROJECTS_FILE
+        self.orig_project_cls = tasker_server.Project
         ProjectManager.PROJECTS_DIR = self.tmpdir
         ProjectManager.PROJECTS_FILE = os.path.join(self.tmpdir, "projects.json")
         self.db_path = Path(self.tmpdir) / "taskman.db"
@@ -55,6 +57,7 @@ class TestTasksPageAPI(unittest.TestCase):
 
     def tearDown(self):
         self.srv.stop()
+        tasker_server.Project = self.orig_project_cls
         ProjectManager.PROJECTS_DIR = self.orig_dir
         ProjectManager.PROJECTS_FILE = self.orig_file
         shutil.rmtree(self.tmpdir, ignore_errors=True)
@@ -80,6 +83,14 @@ class TestTasksPageAPI(unittest.TestCase):
             store.bulk_replace(project, tasks)
         # Also ensure the project is recorded for load_project_names()
         ProjectManager.save_project_name(project)
+
+    def _restart_with_project_stub(self, project_cls):
+        """Restart the server using a patched Project class."""
+        self.srv.stop()
+        tasker_server.Project = project_cls
+        self.srv = _ServerThread()
+        self.srv.start()
+        (self.host, self.port) = self.srv.address
 
     # ----- Tests for /api/projects/<name>/tasks -----
     def test_tasks_endpoint_empty(self):
@@ -183,6 +194,20 @@ class TestTasksPageAPI(unittest.TestCase):
         data = json.loads(body2)
         self.assertTrue(data["tasks"][0]["highlight"])
 
+    def test_update_task_highlight_exception_returns_500(self):
+        class ExplodingProject(self.orig_project_cls):
+            def __init__(self, name: str):
+                self.name = name
+
+            def update_task_from_payload(self, payload):
+                raise RuntimeError("boom highlight")
+
+        self._restart_with_project_stub(ExplodingProject)
+        resp, body = self._post("/api/projects/demo/tasks/highlight", {"id": 1, "highlight": True})
+        self.assertEqual(resp.status, 500)
+        data = json.loads(body)
+        self.assertIn("Failed to update highlight", data.get("error", ""))
+
     def test_highlights_endpoint(self):
         alpha = "Alpha"
         bravo = "Bravo"
@@ -249,6 +274,20 @@ class TestTasksPageAPI(unittest.TestCase):
         resp2, _ = self._post("/api/projects/../etc/tasks/create", {})
         self.assertEqual(resp2.status, 400)
 
+    def test_create_task_exception_returns_500(self):
+        class ExplodingProject(self.orig_project_cls):
+            def __init__(self, name: str):
+                self.name = name
+
+            def create_task_from_payload(self, payload):
+                raise RuntimeError("boom create")
+
+        self._restart_with_project_stub(ExplodingProject)
+        resp, body = self._post("/api/projects/demo/tasks/create", {"summary": "X"})
+        self.assertEqual(resp.status, 500)
+        data = json.loads(body)
+        self.assertIn("Failed to create task", data.get("error", ""))
+
     # ----- Tests for /api/projects/<name>/tasks/delete -----
     def test_delete_task_success(self):
         name = "Kilo"
@@ -277,3 +316,17 @@ class TestTasksPageAPI(unittest.TestCase):
         self.assertEqual(resp.status, 400)
         resp2, _ = self._post("/api/projects/../etc/tasks/delete", {"id": 0})
         self.assertEqual(resp2.status, 400)
+
+    def test_delete_task_exception_returns_500(self):
+        class ExplodingProject(self.orig_project_cls):
+            def __init__(self, name: str):
+                self.name = name
+
+            def delete_task_from_payload(self, payload):
+                raise RuntimeError("boom delete")
+
+        self._restart_with_project_stub(ExplodingProject)
+        resp, body = self._post("/api/projects/demo/tasks/delete", {"id": 1})
+        self.assertEqual(resp.status, 500)
+        data = json.loads(body)
+        self.assertIn("Failed to delete task", data.get("error", ""))
