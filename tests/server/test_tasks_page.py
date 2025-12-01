@@ -147,6 +147,33 @@ class TestTasksPageAPI(unittest.TestCase):
         resp, _ = self._get("/api/projects/.hidden/tasks")
         self.assertEqual(resp.status, 400)
 
+    def test_project_tags_roundtrip(self):
+        name = "Taggy"
+        resp, body = self._get(f"/api/projects/{name}/tags")
+        self.assertEqual(resp.status, 200)
+        data = json.loads(body)
+        self.assertEqual(data["tags"], [])
+
+        resp, body = self._post(f"/api/projects/{name}/tags/add", {"tags": ["alpha"]})
+        self.assertEqual(resp.status, 200)
+        data = json.loads(body)
+        self.assertEqual(data["tags"], ["alpha"])
+
+        resp, body = self._post(f"/api/projects/{name}/tags/add", {"tags": ["beta", "gamma"]})
+        self.assertEqual(resp.status, 200)
+        data = json.loads(body)
+        self.assertEqual(data["tags"], ["alpha", "beta", "gamma"])
+
+        resp, body = self._post(f"/api/projects/{name}/tags/remove", {"tag": "beta"})
+        self.assertEqual(resp.status, 200)
+        data = json.loads(body)
+        self.assertEqual(data["tags"], ["alpha", "gamma"])
+
+        resp, body = self._get(f"/api/projects/{name}/tags")
+        self.assertEqual(resp.status, 200)
+        data = json.loads(body)
+        self.assertEqual(data["tags"], ["alpha", "gamma"])
+
     def test_tasks_endpoint_url_decoding(self):
         name = "Alpha Beta"
         self._seed_tasks(name, [])

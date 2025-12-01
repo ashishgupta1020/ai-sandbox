@@ -130,15 +130,16 @@ code {
 
 .project-card {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 0.5rem;
   text-decoration: none;
   color: var(--text);
-  padding: 0.8rem 0.9rem;
+  padding: 0.9rem 1rem;
   border: 1px solid var(--border);
   border-radius: 9px;
   background: linear-gradient(180deg, #fdfdfd, #f8fafc);
   transition: border-color 0.15s ease, background 0.15s ease;
+  cursor: pointer;
 }
 
 .project-card:visited {
@@ -156,6 +157,105 @@ code {
 }
 
 .project-name { font-weight: 600; }
+
+.project-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.project-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.project-card-right {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.project-editor {
+  border-top: 1px dashed var(--border);
+  padding-top: 0.65rem;
+}
+
+.project-editor-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.project-editor-row {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.project-editor-label {
+  color: var(--muted);
+  font-size: 0.9rem;
+  padding-top: 0.35rem;
+}
+
+.tag-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: #e5e7eb;
+  color: #111827;
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.9rem;
+}
+
+.tag-pill.tag-pill-small {
+  padding: 0.12rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+.tag-remove {
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0 0.15rem;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.tag-remove:hover { color: #111827; }
+
+.tag-note { font-size: 0.85rem; }
+.tag-placeholder { font-size: 0.95rem; }
+.tag-input { max-width: 340px; }
+
+.project-editor-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: var(--border);
+}
 
 /* Keep icons visible inside task tables at all times */
 table.gridjs-table .btn-icon { vertical-align: middle; }

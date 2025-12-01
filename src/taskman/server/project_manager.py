@@ -9,6 +9,11 @@ class ProjectManager:
     PROJECTS_FILE = os.path.join(PROJECTS_DIR, "projects.json")  # File to store project names
 
     @staticmethod
+    def _tags_file_path() -> str:
+        """Return the path to the tags file (follows PROJECTS_DIR)."""
+        return os.path.join(ProjectManager.PROJECTS_DIR, "project_tags.json")
+
+    @staticmethod
     def get_task_file_path(project_name: str) -> str:
         """Returns the path to the task file for a given project."""
         return os.path.join(ProjectManager.PROJECTS_DIR, f"{project_name.lower()}_tasks.json")
@@ -78,6 +83,14 @@ class ProjectManager:
         if os.path.exists(old_md_file):
             os.rename(old_md_file, new_md_file)
 
+        # Move tags (if any) to the new name
+        tags_by_project = ProjectManager.load_project_tags()
+        old_key = old_name.lower()
+        new_key = new_name.lower()
+        if old_key in tags_by_project:
+            tags_by_project[new_key] = tags_by_project.pop(old_key)
+            ProjectManager._save_project_tags(tags_by_project)
+
         print(f"Project '{old_name}' has been renamed to '{new_name}'.")
         return True
 
@@ -114,3 +127,76 @@ class ProjectManager:
             if p.lower() == nl:
                 return p
         return name
+
+    # ----- Tags helpers -----
+    @staticmethod
+    def load_project_tags() -> dict[str, list[str]]:
+        """Load project tags mapping from disk. Returns {} on missing/invalid."""
+        path = ProjectManager._tags_file_path()
+        if not os.path.exists(path):
+            return {}
+        try:
+            with open(path, "r") as file:
+                data = json.load(file)
+        except Exception:
+            return {}
+        if not isinstance(data, dict):
+            return {}
+        cleaned: dict[str, list[str]] = {}
+        for key, value in data.items():
+            if not isinstance(key, str):
+                continue
+            key_l = key.lower()
+            if isinstance(value, list):
+                existing = cleaned.get(key_l, [])
+                merged = existing + [str(v) for v in value if isinstance(v, (str, int, float))]
+                # keep order, drop duplicates
+                cleaned[key_l] = list(dict.fromkeys(merged))
+        return cleaned
+
+    @staticmethod
+    def _save_project_tags(mapping: dict[str, list[str]]) -> None:
+        """Persist the given project->tags mapping to disk using lowercase keys."""
+        os.makedirs(ProjectManager.PROJECTS_DIR, exist_ok=True)
+        normalized: dict[str, list[str]] = {}
+        for key, tags in mapping.items():
+            key_l = key.lower() if isinstance(key, str) else str(key)
+            normalized[key_l] = [str(t) for t in tags]
+        with open(ProjectManager._tags_file_path(), "w") as file:
+            json.dump(normalized, file, indent=2)
+
+    @staticmethod
+    def get_tags_for_project(project_name: str) -> list[str]:
+        """Return tags for a project (case-insensitive lookup, keys stored lowercase)."""
+        tags = ProjectManager.load_project_tags()
+        return tags.get(project_name.lower(), [])
+
+    @staticmethod
+    def add_tags_for_project(project_name: str, tags: list[str]) -> list[str]:
+        """Add tags to a project, returning the updated list."""
+        mapping = ProjectManager.load_project_tags()
+        key = project_name.lower()
+        existing = mapping.get(key, [])
+        current = list(dict.fromkeys(existing))  # preserve order, remove dupes
+        for tag in tags:
+            if not isinstance(tag, str):
+                continue
+            val = tag.strip()
+            if not val:
+                continue
+            if val not in current:
+                current.append(val)
+        mapping[key] = current
+        ProjectManager._save_project_tags(mapping)
+        return current
+
+    @staticmethod
+    def remove_tag_for_project(project_name: str, tag: str) -> list[str]:
+        """Remove a single tag from a project, returning the updated list."""
+        mapping = ProjectManager.load_project_tags()
+        key = project_name.lower()
+        existing = mapping.get(key, [])
+        cleaned = [t for t in existing if t != tag]
+        mapping[key] = cleaned
+        ProjectManager._save_project_tags(mapping)
+        return cleaned

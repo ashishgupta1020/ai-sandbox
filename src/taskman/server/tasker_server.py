@@ -12,11 +12,14 @@ Currently supported routes:
   - GET  /api/projects                           -> list saved project names + current
   - GET  /api/state                              -> current project name
   - GET  /api/projects/<name>/tasks              -> list tasks JSON for a project
+  - GET  /api/projects/<name>/tags               -> list tags for a project
   - GET  /api/highlights                       -> aggregate highlighted tasks across projects
   - POST /api/projects/<name>/tasks/update       -> update a single task { index, fields }
   - POST /api/projects/<name>/tasks/create       -> create a new task { optional fields }
   - POST /api/projects/<name>/tasks/delete       -> delete a task { index }
   - POST /api/projects/<name>/tasks/highlight    -> toggle highlight { id, highlight }
+  - POST /api/projects/<name>/tags/add           -> add one or more tags to a project
+  - POST /api/projects/<name>/tags/remove        -> remove a tag from a project
   - POST /api/projects/open                      -> open/create a project { name }
   - POST /api/projects/edit-name                 -> rename project { old_name, new_name }
   - POST /api/exit                               -> graceful shutdown
@@ -184,6 +187,15 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
                 tasks = []
             return self._json({"project": name, "tasks": tasks})
 
+        # Project tags
+        m_tags = re.match(r"^/api/projects/([^/]+)/tags$", req_path)
+        if m_tags:
+            name = unquote(m_tags.group(1))
+            if not name or ".." in name or name.startswith("."):
+                return self._json({"error": "Invalid project name"}, 400)
+            tags = ProjectManager.get_tags_for_project(name)
+            return self._json({"project": name, "tags": tags})
+
         # Default document
         if req_path in ("", "/"):
             target = UI_DIR / "index.html"
@@ -268,6 +280,41 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
             proj = cur_obj if (isinstance(cur_obj, Project) and cur_obj.name.lower() == name.lower()) else Project(name)
             resp, status = proj.update_task_from_payload(body)
             return self._json(resp, status)
+
+        # Add tags to a project: POST /api/projects/<name>/tags/add
+        m_tags_add = re.match(r"^/api/projects/(.+)/tags/add$", path)
+        if m_tags_add:
+            name = unquote(m_tags_add.group(1))
+            if not name or ".." in name or name.startswith(".") or "/" in name:
+                _ = self._read_json()  # drain
+                return self._json({"error": "Invalid project name"}, 400)
+            body = self._read_json()
+            if body is None or not isinstance(body, dict):
+                return self._json({"error": "Invalid payload"}, 400)
+            tags_val = body.get("tags")
+            tags: list[str] = []
+            if isinstance(tags_val, list):
+                tags = [str(t) for t in tags_val]
+            if not tags:
+                return self._json({"error": "No tags provided"}, 400)
+            updated = ProjectManager.add_tags_for_project(name, tags)
+            return self._json({"project": name, "tags": updated})
+
+        # Remove a single tag: POST /api/projects/<name>/tags/remove
+        m_tags_remove = re.match(r"^/api/projects/(.+)/tags/remove$", path)
+        if m_tags_remove:
+            name = unquote(m_tags_remove.group(1))
+            if not name or ".." in name or name.startswith(".") or "/" in name:
+                _ = self._read_json()
+                return self._json({"error": "Invalid project name"}, 400)
+            body = self._read_json()
+            if body is None or not isinstance(body, dict):
+                return self._json({"error": "Invalid payload"}, 400)
+            tag_val = body.get("tag")
+            if not isinstance(tag_val, str) or not tag_val.strip():
+                return self._json({"error": "No tag provided"}, 400)
+            updated = ProjectManager.remove_tag_for_project(name, tag_val.strip())
+            return self._json({"project": name, "tags": updated})
 
         # Highlight or un-highlight a task: POST /api/projects/<name>/tasks/highlight
         m_highlight = re.match(r"^/api/projects/(.+)/tasks/highlight$", path)
