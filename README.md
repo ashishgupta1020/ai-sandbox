@@ -45,9 +45,9 @@ See `QUICKSTART.md` for brief usage notes.
 
 ## Data Storage
 
-- Projects registry: `~/sandbox/data/ai-sandbox/projects.json`
-- Tasks database: `~/sandbox/data/ai-sandbox/taskman.db` (one table per project)
-- Markdown export: `~/sandbox/data/ai-sandbox/<project>_tasks_export.md`
+- Projects registry: `~/taskman/data/projects.json`
+- Tasks database: `~/taskman/data/taskman.db` (one table per project)
+- Markdown export: `~/taskman/data/<project>_tasks_export.md`
 
 ## Tests
 
