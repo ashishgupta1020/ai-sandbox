@@ -6,19 +6,21 @@ Hosting model: the UI server is intended to be centrally hosted in a shared envi
 
 ## Features
 
-- Project lists, open/create, and rename
-- Tasks with summary, assignee, remarks, status, priority, highlight
-- Task CRUD in the UI with inline editing, highlight toggle, and markdown preview for remarks
-- Markdown export per project
-- Local SQLite storage under `~/sandbox/data/ai-sandbox`
+- Keep projects organized: browse projects, open or create new ones, and rename them when they change
+- Track tasks quickly: add tasks with summary, assignee, status, priority, and rich-text/Markdown remarks
+- Highlight milestones: star important tasks so they appear on the shared Highlights board
+- Edit in place: update any task field right inside the table, including Markdown preview for remarks
+- Export anytime: save a project’s tasks to a Markdown file for sharing
+- Choose your interface: use the browser UI or the guided CLI menus—the same data is shared either way
 
 ## Components
 
-- UI server (centrally hosted; can run locally for dev): `python -m taskman.server.tasker_server` then open `http://127.0.0.1:8765`
-  - Projects list with add/rename and per‑project tasks table
-  - Inline edit for task fields, add/delete tasks, basic search/sort
-- CLI app (requires the server): `python -m taskman.cli.task_manager`
-  - Menu‑driven flow to add/list/edit/sort/export tasks and rename/switch projects
+- Browser UI (central by default; optional local run)
+  - Open the hosted URL from your team, or run locally with `taskman-ui` (or `python -m taskman.server.tasker_server`) and visit `http://127.0.0.1:8765`.
+  - From the landing page you can add/rename projects, jump into a project, and see starred tasks across projects. Inside a project you get a sortable/searchable table, inline edits, highlights, delete, and a quick add-task panel.
+- CLI (uses the same server)
+  - Run `taskman-cli` (or `python -m taskman.cli.task_manager`).
+  - Menus guide you to list/open/create/rename projects, add or edit tasks by index, sort task listings by status or priority, export to Markdown, and switch projects.
 
 ## Install
 
