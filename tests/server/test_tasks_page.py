@@ -78,6 +78,8 @@ class TestTasksPageAPI(unittest.TestCase):
     def _seed_tasks(self, project: str, tasks: list[dict]):
         with ProjectTaskSession(project, db_path=self.db_path) as store:
             store.bulk_replace(project, tasks)
+        # Also ensure the project is recorded for load_project_names()
+        ProjectManager.save_project_name(project)
 
     # ----- Tests for /api/projects/<name>/tasks -----
     def test_tasks_endpoint_empty(self):
@@ -180,6 +182,38 @@ class TestTasksPageAPI(unittest.TestCase):
         self.assertEqual(resp2.status, 200)
         data = json.loads(body2)
         self.assertTrue(data["tasks"][0]["highlight"])
+
+    def test_highlights_endpoint(self):
+        alpha = "Alpha"
+        bravo = "Bravo"
+        self._seed_tasks(
+            alpha,
+            [
+                {"task_id": 0, "summary": "S1", "assignee": "A1", "remarks": "", "status": "Not Started", "priority": "Low", "highlight": True},
+                {"task_id": 1, "summary": "S2", "assignee": "A2", "remarks": "", "status": "Completed", "priority": "High", "highlight": False},
+            ],
+        )
+        self._seed_tasks(
+            bravo,
+            [
+                {"task_id": 0, "summary": "B1", "assignee": "B1", "remarks": "", "status": "In Progress", "priority": "Medium", "highlight": True},
+            ],
+        )
+        resp, body = self._get("/api/highlights")
+        self.assertEqual(resp.status, 200)
+        data = json.loads(body)
+        highlights = data.get("highlights") or []
+        self.assertEqual(len(highlights), 2)
+        projects = {h["project"] for h in highlights}
+        self.assertEqual(projects, {alpha, bravo})
+        summary_set = {h["summary"] for h in highlights}
+        self.assertIn("S1", summary_set)
+        self.assertIn("B1", summary_set)
+        # Verify fields are present
+        for h in highlights:
+            self.assertIn("assignee", h)
+            self.assertIn("status", h)
+            self.assertIn("priority", h)
 
     def test_update_task_invalid_name(self):
         resp, _ = self._post("/api/projects/../etc/tasks/update", {"id": 0, "fields": {"summary": "X"}})

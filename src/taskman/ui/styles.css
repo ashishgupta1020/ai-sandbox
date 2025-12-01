@@ -167,11 +167,11 @@ table.gridjs-table .btn-icon { vertical-align: middle; }
 table.gridjs-table th.gridjs-th,
 table.gridjs-table td.gridjs-td { padding: 12px; }
 
-/* Hide the trailing actions column header cell entirely */
-.gridjs thead tr th:last-child { display: none !important; }
+/* Hide the trailing actions column header cell entirely for tasks grid */
+.tasks-grid-container .gridjs thead tr th:last-child { display: none !important; }
 
-/* Make trailing actions column fit icon width tightly */
-table.gridjs-table td.gridjs-td:last-child {
+/* Make trailing actions column fit icon width tightly for tasks grid */
+.tasks-grid-container table.gridjs-table td.gridjs-td:last-child {
   width: 1%;
   white-space: nowrap;
   padding-left: 6px;

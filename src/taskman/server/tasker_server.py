@@ -124,6 +124,26 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
             cur_obj = getattr(self.server, "current_project", None)
             current = cur_obj.name if isinstance(cur_obj, Project) else None
             return self._json({"projects": projects, "currentProject": current})
+        if req_path == "/api/highlights":
+            highlights = []
+            try:
+                projects = ProjectManager.load_project_names()
+                for name in projects:
+                    proj = Project(name)
+                    for t in proj.iter_tasks():
+                        if getattr(t, "highlight", False):
+                            highlights.append(
+                                {
+                                    "project": name,
+                                    "summary": t.summary,
+                                    "assignee": getattr(t, "assignee", "") or "",
+                                    "status": getattr(t, "status", None).value if hasattr(t, "status") else "",
+                                    "priority": getattr(t, "priority", None).value if hasattr(t, "priority") else "",
+                                }
+                            )
+            except Exception as e:
+                return self._json({"error": f"Failed to fetch highlights: {e}"}, 500)
+            return self._json({"highlights": highlights})
         if req_path == "/api/state":
             cur_obj = getattr(self.server, "current_project", None)
             current = cur_obj.name if isinstance(cur_obj, Project) else None
