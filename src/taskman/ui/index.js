@@ -1,4 +1,8 @@
-const projectTags = new Map(); // current known state per project
+// Client-side tag cache keyed by project name.
+const projectTags = new Map(); // current known state per project (client cache)
+let allProjects = [];
+let selectedFilterTags = []; // active tag filters for project list (OR logic)
+let tagFilterControl = null;
 
 async function api(path, opts = {}) {
   const res = await fetch(path, opts);
@@ -61,6 +65,21 @@ function setProjectTags(name, tags) {
   projectTags.set(name, arr);
 }
 
+function normalizeTagValue(tag) {
+  return String(tag || '').trim().toLowerCase();
+}
+
+function getAllKnownTags() {
+  const seen = new Map();
+  for (const tags of projectTags.values()) {
+    for (const t of tags) {
+      const norm = normalizeTagValue(t);
+      if (norm && !seen.has(norm)) seen.set(norm, t);
+    }
+  }
+  return Array.from(seen.values()).sort((a, b) => a.localeCompare(b));
+}
+
 function renderTagList(container, name, opts = {}) {
   if (opts.loading) {
     container.replaceChildren(el('span', { class: 'muted tag-placeholder' }, 'Loading tags…'));
@@ -107,6 +126,7 @@ function renderCardTags(container, name) {
   }
 }
 
+// Build the inline project editor (rename + tags) for a project card.
 function buildProjectEditor(name, refreshFn) {
   const editor = el('div', { class: 'project-editor', hidden: true });
   const form = el('form', { class: 'project-editor-form' });
@@ -207,62 +227,152 @@ function buildProjectEditor(name, refreshFn) {
   return editor;
 }
 
+// Render a project card with click-to-open navigation, inline edit toggle, and tag pills.
+function buildProjectCard(name) {
+  // Card acts as a link; clicking edit toggles inline editor without navigation.
+  const card = el('div', { class: 'project-card', tabindex: 0, role: 'link', 'data-href': `/project.html?name=${encodeURIComponent(name)}`, 'data-name': name });
+  const header = el('div', { class: 'project-card-header' });
+  const title = el('div', { class: 'project-name' }, name);
+  const tagRow = el('div', { class: 'project-card-tags' });
+  const rightCluster = el('div', { class: 'project-card-right' });
+  const editBtn = el('button', { type: 'button', class: 'btn btn-icon btn-icon-sm edit-btn', title: `Edit ${name}`, 'aria-label': `Edit ${name}`, 'data-name': name });
+  const tpl = document.getElementById('tpl-icon-pencil');
+  if (tpl && 'content' in tpl) {
+    editBtn.appendChild(tpl.content.firstElementChild.cloneNode(true));
+  }
+  rightCluster.append(tagRow, editBtn);
+  header.append(title, rightCluster);
+  const editor = buildProjectEditor(name, refreshProjects);
+
+  card.addEventListener('click', (evt) => {
+    if (evt.target.closest('.edit-btn') || evt.target.closest('.project-editor')) return;
+    window.location.href = card.getAttribute('data-href');
+  });
+  card.addEventListener('keydown', (evt) => {
+    if (evt.target.closest('.project-editor')) return;
+    if (evt.key === 'Enter' || evt.key === ' ') {
+      evt.preventDefault();
+      window.location.href = card.getAttribute('data-href');
+    }
+  });
+
+  editBtn.addEventListener('click', (evt) => {
+    evt.preventDefault();
+    evt.stopPropagation();
+    editor.hidden = !editor.hidden;
+    if (!editor.hidden && editor.focusEditor) editor.focusEditor();
+  });
+
+  card.append(header, editor);
+  if (editor.renderTags) editor.renderTags();
+  renderCardTags(tagRow, name);
+  return card;
+}
+
+function renderProjectsList(projectNames) {
+  const box = document.getElementById('projects');
+  const names = Array.isArray(projectNames) ? projectNames : [];
+  if (names.length === 0) {
+    box.textContent = selectedFilterTags.length ? 'No projects match selected tags.' : 'No projects found.';
+    return;
+  }
+  const list = el('div', { class: 'project-list' });
+  for (const name of names) {
+    list.appendChild(buildProjectCard(name));
+  }
+  box.replaceChildren(list);
+}
+
+function renderFilterChips() {
+  const box = document.getElementById('tag-filter-chips');
+  if (!box) return;
+  box.replaceChildren();
+  if (!selectedFilterTags.length) {
+    // Empty state so the filter area doesn't collapse.
+    box.append(el('span', { class: 'muted small' }, 'Showing all projects.'));
+    return;
+  }
+  for (const tag of selectedFilterTags) {
+    const removeBtn = el('button', { type: 'button', 'aria-label': `Remove filter tag ${tag}` }, '×');
+    removeBtn.addEventListener('click', () => removeFilterTag(tag));
+    const pill = el('span', { class: 'filter-chip' }, tag);
+    pill.append(removeBtn);
+    box.append(pill);
+  }
+}
+
+function projectMatchesFilters(name) {
+  if (!selectedFilterTags.length) return true;
+  const tags = getProjectTags(name);
+  if (!tags || !tags.length) return false;
+  const tagSet = new Set(tags.map(normalizeTagValue));
+  return selectedFilterTags.some((t) => tagSet.has(normalizeTagValue(t)));
+}
+
+function renderFilteredProjects() {
+  const names = allProjects.filter((n) => projectMatchesFilters(n));
+  renderProjectsList(names);
+}
+
+function addFilterTag(tagValue) {
+  const raw = (tagValue || '').trim();
+  if (!raw) return;
+  const norm = normalizeTagValue(raw);
+  if (selectedFilterTags.some((t) => normalizeTagValue(t) === norm)) return;
+  selectedFilterTags = [...selectedFilterTags, raw];
+  renderFilterChips();
+  renderFilteredProjects();
+}
+
+function removeFilterTag(tagValue) {
+  const norm = normalizeTagValue(tagValue);
+  selectedFilterTags = selectedFilterTags.filter((t) => normalizeTagValue(t) !== norm);
+  renderFilterChips();
+  renderFilteredProjects();
+}
+
+function clearFilterTags() {
+  if (!selectedFilterTags.length) return;
+  selectedFilterTags = [];
+  renderFilterChips();
+  renderFilteredProjects();
+}
+
+// Mount the reusable free-text filter control for project tags and wire callbacks.
+function wireFilterControls() {
+  const host = document.getElementById('tag-filter-control');
+  if (!host || typeof window.createFreeTextFilter !== 'function') return;
+
+  const getSuggestions = (val) => {
+    const q = normalizeTagValue(val);
+    const tags = getAllKnownTags();
+    if (!q) return tags;
+    const starts = tags.filter((t) => normalizeTagValue(t).startsWith(q));
+    if (starts.length) return starts;
+    return tags.filter((t) => normalizeTagValue(t).includes(q));
+  };
+
+  const control = window.createFreeTextFilter({
+    placeholder: 'Filter by tag...',
+    getSuggestions,
+    onAdd: (value) => addFilterTag(value),
+    onClear: () => clearFilterTags()
+  });
+  tagFilterControl = control;
+  host.replaceChildren(control.root); // mount the reusable filter UI
+}
+
 async function refreshProjects() {
   try {
     const p = await apiProjects();
-    const box = document.getElementById('projects');
-    if (!p.projects || p.projects.length === 0) {
-      box.textContent = 'No projects found.';
-    } else {
-      const list = el('div', { class: 'project-list' });
-      for (const name of p.projects) {
-        const card = el('div', { class: 'project-card', tabindex: 0, role: 'link', 'data-href': `/project.html?name=${encodeURIComponent(name)}`, 'data-name': name });
-        const header = el('div', { class: 'project-card-header' });
-        const title = el('div', { class: 'project-name' }, name);
-        const tagRow = el('div', { class: 'project-card-tags' });
-        const rightCluster = el('div', { class: 'project-card-right' });
-        const editBtn = el('button', { type: 'button', class: 'btn btn-icon btn-icon-sm edit-btn', title: `Edit ${name}`, 'aria-label': `Edit ${name}`, 'data-name': name });
-        // Append icon from template to avoid setting innerHTML in script
-        const tpl = document.getElementById('tpl-icon-pencil');
-        if (tpl && 'content' in tpl) {
-          editBtn.appendChild(tpl.content.firstElementChild.cloneNode(true));
-        }
-        rightCluster.append(tagRow, editBtn);
-        header.append(title, rightCluster);
-        const editor = buildProjectEditor(name, refreshProjects);
-
-        card.addEventListener('click', (evt) => {
-          if (evt.target.closest('.edit-btn') || evt.target.closest('.project-editor')) return;
-          window.location.href = card.getAttribute('data-href');
-        });
-        card.addEventListener('keydown', (evt) => {
-          if (evt.target.closest('.project-editor')) return;
-          if (evt.key === 'Enter' || evt.key === ' ') {
-            evt.preventDefault();
-            window.location.href = card.getAttribute('data-href');
-          }
-        });
-
-        editBtn.addEventListener('click', (evt) => {
-          evt.preventDefault();
-          evt.stopPropagation();
-          editor.hidden = !editor.hidden;
-          if (!editor.hidden && editor.focusEditor) editor.focusEditor();
-        });
-
-        card.append(header, editor);
-        list.appendChild(card);
-        // Load tags for this project and refresh the tag list once available
-        fetchProjectTags(name).then(() => {
-          if (editor.renderTags) editor.renderTags();
-          renderCardTags(tagRow, name);
-        }).catch(() => {
-          if (editor.renderTags) editor.renderTags();
-          renderCardTags(tagRow, name);
-        });
-      }
-      box.replaceChildren(list);
+    allProjects = Array.isArray(p.projects) ? p.projects : [];
+    if (allProjects.length === 0) {
+      renderProjectsList([]);
+      return;
     }
+    await Promise.all(allProjects.map((name) => fetchProjectTags(name).catch(() => { setProjectTags(name, []); })));
+    renderFilterChips();
+    renderFilteredProjects();
   } catch (e) {
     document.getElementById('projects').textContent = `Error: ${e.message}`;
   }
@@ -329,6 +439,8 @@ async function refreshHighlights() {
 
 // Initial load
 (async function init() {
+  wireFilterControls();
+  renderFilterChips();
   await Promise.all([refreshProjects(), refreshHighlights()]);
   // Wire up actions
   document.getElementById('btn-add').addEventListener('click', async () => {
@@ -341,4 +453,4 @@ async function refreshHighlights() {
       alert(e.message);
     }
   });
-      })();
+})();

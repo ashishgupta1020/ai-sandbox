@@ -24,6 +24,10 @@
           </svg>
         </button>
       </h2>
+      <div class="filter-controls" aria-label="Filter projects by tag">
+        <div id="tag-filter-control"></div>
+        <div id="tag-filter-chips" class="filter-chips" aria-live="polite"></div>
+      </div>
       <div id="projects" class="muted" aria-live="polite">Loading…</div>
     </section>
 
@@ -41,6 +45,7 @@
       </svg>
     </template>
 
+        <script src="/filter.js"></script>
         <script src="/index.js"></script>
     </div>
   </body>

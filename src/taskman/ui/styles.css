@@ -214,33 +214,36 @@ code {
   gap: 0.35rem;
 }
 
-.tag-pill {
+.tag-pill, .filter-chip {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.3rem;
   background: #e5e7eb;
   color: #111827;
   border-radius: 999px;
-  padding: 0.2rem 0.6rem;
+  padding: 0.18rem 0.55rem;
   font-size: 0.9rem;
 }
-
+.tag-pill { padding: 0.2rem 0.6rem; }
 .tag-pill.tag-pill-small {
   padding: 0.12rem 0.5rem;
   font-size: 0.85rem;
 }
+.filter-chip { padding: 0.15rem 0.55rem; }
 
-.tag-remove {
+.tag-remove,
+.filter-chip button {
   border: none;
   background: transparent;
   color: #6b7280;
   cursor: pointer;
   padding: 0 0.15rem;
-  font-size: 1rem;
+  font-size: 0.95rem;
   line-height: 1;
 }
 
-.tag-remove:hover { color: #111827; }
+.tag-remove:hover,
+.filter-chip button:hover { color: #111827; }
 
 .tag-note { font-size: 0.85rem; }
 .tag-placeholder { font-size: 0.95rem; }
@@ -371,6 +374,59 @@ td.gridjs-td.editable-cell:hover { background: #f8fafc; }
 
 /* Add Task panel */
 .add-task-panel { margin-top: 0.5rem; padding-top: 0.5rem; }
+
+/* Project tag filter */
+.filter-controls {
+  margin: 0.5rem 0 0.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.filter-row {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.filter-row .btn { margin-right: 0; }
+.filter-input-wrapper {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+}
+.filter-input {
+  max-width: 280px;
+}
+.filter-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-top: 0.15rem;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.filter-suggestion {
+  padding: 0.35rem 0.5rem;
+  cursor: pointer;
+}
+.filter-suggestion:hover,
+.filter-suggestion.active {
+  background: #f1f5f9;
+}
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  min-height: 1.4rem;
+}
+.filter-chips .small {
+  font-size: 0.9rem;
+}
 .form-grid {
   display: grid;
   grid-template-columns: 140px 1fr;
