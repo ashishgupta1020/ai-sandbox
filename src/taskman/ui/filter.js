@@ -133,6 +133,13 @@
         evt.preventDefault();
         commit();
       }
+      if (evt.key === 'Escape') {
+        evt.preventDefault();
+        input.value = '';
+        suggestions = [];
+        highlightedIndex = -1;
+        suggestionBox.hidden = true;
+      }
     });
 
     input.addEventListener('blur', () => {
