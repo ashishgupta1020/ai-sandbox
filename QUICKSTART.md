@@ -29,6 +29,5 @@ Hosting model
 
 ## Data Location
 
-- Projects registry: `~/taskman/data/projects.json`
-- Tasks database: `~/taskman/data/taskman.db` (one table per project)
+- Projects registry and tasks database: `~/taskman/data/taskman.db`
 - Markdown export: `~/taskman/data/<project>_tasks_export.md`

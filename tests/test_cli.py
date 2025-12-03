@@ -8,7 +8,9 @@ import threading
 import time
 import http.client
 from contextlib import closing
+from pathlib import Path
 from taskman.server.project_manager import ProjectManager
+from taskman.server import sqlite_storage
 from taskman.server.tasker_server import start_server
 
 
@@ -54,7 +56,6 @@ class TestTaskManager(unittest.TestCase):
     PROJECT_C = "ProjectC"
     BASE_DATA_DIR = os.path.join(os.path.dirname(__file__), "tmp_data", "cli")
     TEST_DATA_DIR = os.path.join(BASE_DATA_DIR, "test")
-    TEST_PROJECTS_FILE = os.path.join(TEST_DATA_DIR, "projects.json")
 
     def setUp(self):
         # Clean and create test data directory
@@ -62,10 +63,10 @@ class TestTaskManager(unittest.TestCase):
             shutil.rmtree(self.TEST_DATA_DIR)
         os.makedirs(self.TEST_DATA_DIR, exist_ok=True)
         # Patch ProjectManager to use test directories and files
-        self._orig_projects_file = ProjectManager.PROJECTS_FILE
-        ProjectManager.PROJECTS_FILE = self.TEST_PROJECTS_FILE
         self._orig_projects_dir = ProjectManager.PROJECTS_DIR
         ProjectManager.PROJECTS_DIR = self.TEST_DATA_DIR
+        self._orig_default_dir = sqlite_storage._DEFAULT_DB_DIR
+        sqlite_storage._DEFAULT_DB_DIR = Path(self.TEST_DATA_DIR)
         # Ensure any previous server on default port is stopped
         try:
             with closing(http.client.HTTPConnection("127.0.0.1", 8765, timeout=0.5)) as conn:
@@ -83,8 +84,8 @@ class TestTaskManager(unittest.TestCase):
         if os.path.exists(self.TEST_DATA_DIR):
             shutil.rmtree(self.TEST_DATA_DIR)
         # Restore original ProjectManager settings
-        ProjectManager.PROJECTS_FILE = self._orig_projects_file
         ProjectManager.PROJECTS_DIR = self._orig_projects_dir
+        sqlite_storage._DEFAULT_DB_DIR = self._orig_default_dir
         # Stop server
         if hasattr(self, "_server"):
             self._server.stop()
@@ -455,9 +456,6 @@ class TestTaskManager(unittest.TestCase):
         import builtins
         # First, create a project "manually"
         ProjectManager.save_project_name(self.PROJECT_A)
-        task_file_A = ProjectManager.get_task_file_path(self.PROJECT_A)
-        with open(task_file_A, 'w') as f:
-            f.write('[]')
         # Simulate editing a project name from the main menu, then exiting
         user_inputs = [
             "3",  # Edit project name
@@ -476,11 +474,6 @@ class TestTaskManager(unittest.TestCase):
                 output = buf.getvalue()
             self.assertIn(f"Project '{self.PROJECT_A}' has been renamed to '{self.PROJECT_B}'.", output)
             self.assertIn("Exiting Task Manager. Goodbye!", output)
-            # Check if file was renamed
-            task_file_B = ProjectManager.get_task_file_path(self.PROJECT_B)
-            self.assertFalse(os.path.exists(task_file_A))
-            self.assertTrue(os.path.exists(task_file_B))
-            # Check projects.json
             projects = ProjectManager.load_project_names()
             self.assertNotIn(self.PROJECT_A, projects)
             self.assertIn(self.PROJECT_B, projects)

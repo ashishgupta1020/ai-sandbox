@@ -29,14 +29,12 @@ class Project:
         self.name = name
         self._tasks_by_id: Dict[int, Task] = {}
         self.last_id: int = -1
-        os.makedirs(ProjectManager.PROJECTS_DIR, exist_ok=True)
-        self.db_path = Path(ProjectManager.PROJECTS_DIR) / "taskman.db"
         self.markdown_file_path = ProjectManager.get_markdown_file_path(self.name)
         self._load_from_db()
 
     def _load_from_db(self) -> None:
         """Hydrate in-memory task cache from the database."""
-        with ProjectTaskSession(self.name, db_path=self.db_path) as store:
+        with ProjectTaskSession(self.name) as store:
             rows = store.fetch_all(self.name)
         tasks: Dict[int, Task] = {}
         max_id = -1
@@ -57,7 +55,7 @@ class Project:
 
     def _persist_task(self, task: Task) -> None:
         """Write the provided task to SQLite (insert or update)."""
-        with ProjectTaskSession(self.name, db_path=self.db_path) as store:
+        with ProjectTaskSession(self.name) as store:
             store.upsert_task(
                 self.name,
                 {
@@ -73,7 +71,7 @@ class Project:
 
     def _delete_task(self, task_id: int) -> None:
         """Remove the task row identified by ``task_id`` from SQLite."""
-        with ProjectTaskSession(self.name, db_path=self.db_path) as store:
+        with ProjectTaskSession(self.name) as store:
             store.delete_task(self.name, int(task_id))
 
     def iter_tasks(self) -> Iterator[Task]:

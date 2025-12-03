@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Tuple
 
 try:
     from taskman.server.project_manager import ProjectManager
-    from taskman.server.sqlite_storage import SQLiteTaskStore
+    from taskman.server.sqlite_storage import SQLiteTaskStore, _DEFAULT_DB_DIR
 except ImportError:  # pragma: no cover
     import sys
 
@@ -18,12 +18,12 @@ except ImportError:  # pragma: no cover
     if str(ROOT) not in sys.path:
         sys.path.insert(0, str(ROOT))
     from taskman.server.project_manager import ProjectManager
-    from taskman.server.sqlite_storage import SQLiteTaskStore
+    from taskman.server.sqlite_storage import SQLiteTaskStore, _DEFAULT_DB_DIR
 
 
 def _load_json_tasks(project_name: str) -> Tuple[int, List[Dict[str, Any]]]:
     """Load tasks from the existing JSON file for a project."""
-    path = Path(ProjectManager.get_task_file_path(project_name))
+    path = Path(_DEFAULT_DB_DIR) / f"{project_name.lower()}_tasks.json"
     if not path.exists():
         return -1, []
     try:

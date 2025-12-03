@@ -2,7 +2,7 @@ Metadata-Version: 2.4
 Name: taskman
 Version: 0.1.0
 Summary: Simple project and task manager with CLI and UI.
-Author: Taskman Authors
+Author: Ashish Gupta
 Requires-Python: >=3.8
 Description-Content-Type: text/markdown
 Requires-Dist: prettytable>=3.0
@@ -57,8 +57,7 @@ See `QUICKSTART.md` for brief usage notes.
 
 ## Data Storage
 
-- Projects registry: `~/taskman/data/projects.json`
-- Tasks database: `~/taskman/data/taskman.db` (one table per project)
+- Projects registry and tasks database: `~/taskman/data/taskman.db`
 - Markdown export: `~/taskman/data/<project>_tasks_export.md`
 
 ## Tests

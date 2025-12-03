@@ -12,6 +12,7 @@ from pathlib import Path
 
 from http.server import ThreadingHTTPServer
 from taskman.server import tasker_server
+from taskman.server import sqlite_storage
 from taskman.server.project_manager import ProjectManager
 from taskman.server.sqlite_storage import ProjectTaskSession
 from taskman.server.tasker_server import _UIRequestHandler
@@ -44,11 +45,9 @@ class TestTasksPageAPI(unittest.TestCase):
     def setUp(self):
         # Patch ProjectManager storage to temp dir
         self.tmpdir = tempfile.mkdtemp(prefix="taskman-ui-test-")
-        self.orig_dir = ProjectManager.PROJECTS_DIR
-        self.orig_file = ProjectManager.PROJECTS_FILE
+        self.orig_default_dir = sqlite_storage._DEFAULT_DB_DIR
         self.orig_project_cls = tasker_server.Project
-        ProjectManager.PROJECTS_DIR = self.tmpdir
-        ProjectManager.PROJECTS_FILE = os.path.join(self.tmpdir, "projects.json")
+        sqlite_storage._DEFAULT_DB_DIR = Path(self.tmpdir)
         self.db_path = Path(self.tmpdir) / "taskman.db"
 
         self.srv = _ServerThread()
@@ -58,8 +57,7 @@ class TestTasksPageAPI(unittest.TestCase):
     def tearDown(self):
         self.srv.stop()
         tasker_server.Project = self.orig_project_cls
-        ProjectManager.PROJECTS_DIR = self.orig_dir
-        ProjectManager.PROJECTS_FILE = self.orig_file
+        sqlite_storage._DEFAULT_DB_DIR = self.orig_default_dir
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
     def _get(self, path: str):

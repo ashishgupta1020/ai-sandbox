@@ -8,15 +8,17 @@ as INTEGER columns for simple boolean mapping.
 
 from __future__ import annotations
 
+import os
 import re
 import sqlite3
 import threading
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional
 
-from .project_manager import ProjectManager
-
 _TABLE_PREFIX = "tasks_"
+_PROJECTS_TABLE = "projects"
+_PROJECT_TAGS_TABLE = "project_tags"
+_DEFAULT_DB_DIR = Path(os.path.expanduser("~/taskman/data"))
 
 
 def _project_table_name(project_name: str) -> str:
@@ -29,12 +31,16 @@ def _project_table_name(project_name: str) -> str:
 
 
 class SQLiteTaskStore:
-    """Encapsulates CRUD helpers for per-project task tables."""
+    """Encapsulates CRUD helpers for per-project task tables and project registry."""
 
     def __init__(self, db_path: Optional[Path] = None) -> None:
-        root = Path(ProjectManager.PROJECTS_DIR)
+        if db_path is not None:
+            root = Path(db_path).expanduser().resolve().parent
+            self.db_path = Path(db_path)
+        else:
+            root = _DEFAULT_DB_DIR
+            self.db_path = root / "taskman.db"
         root.mkdir(parents=True, exist_ok=True)
-        self.db_path = Path(db_path) if db_path is not None else root / "taskman.db"
         self._conn: Optional[sqlite3.Connection] = None
         self._lock = threading.RLock()
 
@@ -80,8 +86,32 @@ class SQLiteTaskStore:
                     highlight INTEGER NOT NULL DEFAULT 0
                 )
                 """
-            )
+                )
         return table
+
+    def _ensure_registry_tables(self) -> None:
+        """Ensure the projects and project_tags registry tables exist."""
+        if self._conn is None:
+            raise RuntimeError("Database connection is not open")
+        with self._lock:
+            self._conn.execute(
+                f"""
+                CREATE TABLE IF NOT EXISTS {_PROJECTS_TABLE} (
+                    name        TEXT NOT NULL,
+                    name_lower  TEXT NOT NULL UNIQUE,
+                    PRIMARY KEY (name)
+                )
+                """
+            )
+            self._conn.execute(
+                f"""
+                CREATE TABLE IF NOT EXISTS {_PROJECT_TAGS_TABLE} (
+                    project_lower TEXT NOT NULL,
+                    tag           TEXT NOT NULL,
+                    PRIMARY KEY (project_lower, tag)
+                )
+                """
+            )
 
     def fetch_all(self, project_name: str) -> List[Dict[str, object]]:
         """Return all tasks for the project ordered by task_id."""
@@ -182,6 +212,140 @@ class SQLiteTaskStore:
                 f"DELETE FROM {table} WHERE task_id = ?",
                 (int(task_id),),
             )
+
+    # ----- Project registry helpers -----
+    def list_projects(self) -> List[str]:
+        """Return project names in insertion order."""
+        if self._conn is None:
+            raise RuntimeError("Database connection is not open")
+        self._ensure_registry_tables()
+        with self._lock:
+            cur = self._conn.execute(
+                f"SELECT name FROM {_PROJECTS_TABLE} ORDER BY rowid ASC"
+            )
+            rows = cur.fetchall()
+        return [str(row[0]) for row in rows]
+
+    def upsert_project_name(self, project_name: str) -> str:
+        """Insert a project if missing, returning the canonical stored name."""
+        if self._conn is None:
+            raise RuntimeError("Database connection is not open")
+        self._ensure_registry_tables()
+        name = project_name.strip()
+        if not name:
+            raise ValueError("Project name must be non-empty")
+        name_lower = name.lower()
+        with self._lock:
+            cur = self._conn.execute(
+                f"SELECT name FROM {_PROJECTS_TABLE} WHERE name_lower = ?",
+                (name_lower,),
+            )
+            row = cur.fetchone()
+            if row:
+                return str(row[0])
+            self._conn.execute(
+                f"INSERT INTO {_PROJECTS_TABLE} (name, name_lower) VALUES (?, ?)",
+                (name, name_lower),
+            )
+        return name
+
+    def rename_project(self, old_name: str, new_name: str) -> None:
+        """Rename a project, update registry/tags, and rename the tasks table."""
+        if self._conn is None:
+            raise RuntimeError("Database connection is not open")
+        self._ensure_registry_tables()
+        old_lower = old_name.strip().lower()
+        new_lower = new_name.strip().lower()
+        if not old_lower or not new_lower:
+            raise ValueError("Project names must be non-empty")
+        with self._lock:
+            cur = self._conn.execute(
+                f"SELECT name FROM {_PROJECTS_TABLE} WHERE name_lower = ?",
+                (old_lower,),
+            )
+            row = cur.fetchone()
+            if not row:
+                raise ValueError(f"Project '{old_name}' not found.")
+
+            cur = self._conn.execute(
+                f"SELECT name FROM {_PROJECTS_TABLE} WHERE name_lower = ?",
+                (new_lower,),
+            )
+            existing = cur.fetchone()
+            if existing and existing[0].lower() != old_lower:
+                raise ValueError(f"Project name '{new_name}' already exists.")
+
+            # Update registry
+            self._conn.execute(
+                f"UPDATE {_PROJECTS_TABLE} SET name = ?, name_lower = ? WHERE name_lower = ?",
+                (new_name, new_lower, old_lower),
+            )
+            # Rename tasks table if it exists
+            old_table = _project_table_name(old_name)
+            new_table = _project_table_name(new_name)
+            cur = self._conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name = ?",
+                (old_table,),
+            )
+            if cur.fetchone():
+                if old_table != new_table:
+                    self._conn.execute(f"ALTER TABLE {old_table} RENAME TO {new_table}")
+            # Migrate tags
+            self._conn.execute(
+                f"UPDATE {_PROJECT_TAGS_TABLE} SET project_lower = ? WHERE project_lower = ?",
+                (new_lower, old_lower),
+            )
+
+    def get_tags_for_project(self, project_name: str) -> List[str]:
+        """Return tags for a project (case-insensitive)."""
+        if self._conn is None:
+            raise RuntimeError("Database connection is not open")
+        self._ensure_registry_tables()
+        key = project_name.strip().lower()
+        with self._lock:
+            cur = self._conn.execute(
+                f"SELECT tag FROM {_PROJECT_TAGS_TABLE} WHERE project_lower = ? ORDER BY rowid ASC",
+                (key,),
+            )
+            rows = cur.fetchall()
+        return [str(row[0]) for row in rows]
+
+    def add_tags(self, project_name: str, tags: Iterable[str]) -> List[str]:
+        """Add tags to a project, returning updated list."""
+        if self._conn is None:
+            raise RuntimeError("Database connection is not open")
+        self._ensure_registry_tables()
+        # Ensure the project is present in the registry when tagging
+        self.upsert_project_name(project_name)
+        key = project_name.strip().lower()
+        to_insert: List[str] = []
+        for tag in tags:
+            if not isinstance(tag, str):
+                continue
+            val = tag.strip()
+            if not val:
+                continue
+            to_insert.append(val)
+        with self._lock:
+            for tag in to_insert:
+                self._conn.execute(
+                    f"INSERT OR IGNORE INTO {_PROJECT_TAGS_TABLE} (project_lower, tag) VALUES (?, ?)",
+                    (key, tag),
+                )
+        return self.get_tags_for_project(project_name)
+
+    def remove_tag(self, project_name: str, tag: str) -> List[str]:
+        """Remove a tag from a project, returning updated list."""
+        if self._conn is None:
+            raise RuntimeError("Database connection is not open")
+        self._ensure_registry_tables()
+        key = project_name.strip().lower()
+        with self._lock:
+            self._conn.execute(
+                f"DELETE FROM {_PROJECT_TAGS_TABLE} WHERE project_lower = ? AND tag = ?",
+                (key, tag),
+            )
+        return self.get_tags_for_project(project_name)
 
 
 class ProjectTaskSession:

@@ -12,12 +12,9 @@ from taskman.server.sqlite_storage import SQLiteTaskStore, _project_table_name
 class TestSQLiteStorage(unittest.TestCase):
     def setUp(self):
         self.tmpdir = Path(tempfile.mkdtemp(prefix="taskman-sqlite-tests-"))
-        self.orig_dir = ProjectManager.PROJECTS_DIR
-        ProjectManager.PROJECTS_DIR = str(self.tmpdir)
         self.db_path = self.tmpdir / "custom.db"
 
     def tearDown(self):
-        ProjectManager.PROJECTS_DIR = self.orig_dir
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
     def test_project_table_name_invalid_inputs(self):

@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest import mock
 
 from taskman.server.project import Project
+from taskman.server import sqlite_storage
 from taskman.server.project_manager import ProjectManager
 from taskman.server.sqlite_storage import ProjectTaskSession
 from taskman.server.task import Task, TaskPriority, TaskStatus
@@ -22,19 +23,15 @@ class TestProject(unittest.TestCase):
             shutil.rmtree(self.TEST_DATA_DIR)
         os.makedirs(self.TEST_DATA_DIR, exist_ok=True)
         # Patch ProjectManager to use test directories
-        self._orig_projects_dir = ProjectManager.PROJECTS_DIR
-        self._orig_projects_file = ProjectManager.PROJECTS_FILE
-        ProjectManager.PROJECTS_DIR = self.TEST_DATA_DIR
-        ProjectManager.PROJECTS_FILE = os.path.join(self.TEST_DATA_DIR, "projects.json")
         self.db_path = Path(self.TEST_DATA_DIR) / "taskman.db"
+        self._orig_default_dir = sqlite_storage._DEFAULT_DB_DIR
+        sqlite_storage._DEFAULT_DB_DIR = Path(self.TEST_DATA_DIR)
 
     def tearDown(self):
         # Clean up test data directory
         if os.path.exists(self.TEST_DATA_DIR):
             shutil.rmtree(self.TEST_DATA_DIR)
-        # Restore original projects dir
-        ProjectManager.PROJECTS_DIR = self._orig_projects_dir
-        ProjectManager.PROJECTS_FILE = self._orig_projects_file
+        sqlite_storage._DEFAULT_DB_DIR = self._orig_default_dir
 
 
     def test_edit_task(self):

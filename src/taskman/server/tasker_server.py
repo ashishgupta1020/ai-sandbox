@@ -419,6 +419,7 @@ def start_server(host: str = "127.0.0.1", port: int = 8765) -> None:
         port: TCP port to listen on. Defaults to 8765.
     """
     server_address: Tuple[str, int] = (host, port)
+    ThreadingHTTPServer.allow_reuse_address = True
     httpd = ThreadingHTTPServer(server_address, _UIRequestHandler)
     # Track current project object across requests (in-memory)
     httpd.current_project = None  # type: ignore[attr-defined]

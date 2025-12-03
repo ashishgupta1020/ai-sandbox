@@ -7,9 +7,11 @@ import time
 import unittest
 import http.client
 from contextlib import closing
+from pathlib import Path
 
 from http.server import ThreadingHTTPServer
 from taskman.server.tasker_server import _UIRequestHandler, UI_DIR
+from taskman.server import sqlite_storage
 from taskman.server.project_manager import ProjectManager
 
 
@@ -40,10 +42,8 @@ class TestMainMenuAPI(unittest.TestCase):
     def setUp(self):
         # Patch ProjectManager storage to temp dir
         self.tmpdir = tempfile.mkdtemp(prefix="taskman-ui-test-")
-        self.orig_dir = ProjectManager.PROJECTS_DIR
-        self.orig_file = ProjectManager.PROJECTS_FILE
-        ProjectManager.PROJECTS_DIR = self.tmpdir
-        ProjectManager.PROJECTS_FILE = os.path.join(self.tmpdir, "projects.json")
+        self.orig_default_dir = sqlite_storage._DEFAULT_DB_DIR
+        sqlite_storage._DEFAULT_DB_DIR = Path(self.tmpdir)
 
         self.srv = _ServerThread()
         self.srv.start()
@@ -51,8 +51,7 @@ class TestMainMenuAPI(unittest.TestCase):
 
     def tearDown(self):
         self.srv.stop()
-        ProjectManager.PROJECTS_DIR = self.orig_dir
-        ProjectManager.PROJECTS_FILE = self.orig_file
+        sqlite_storage._DEFAULT_DB_DIR = self.orig_default_dir
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
     def _get(self, path: str):
