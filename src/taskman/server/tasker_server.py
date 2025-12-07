@@ -13,7 +13,7 @@ Currently supported routes:
   - GET  /api/state                              -> current project name
   - GET  /api/projects/<name>/tasks              -> list tasks JSON for a project
   - GET  /api/projects/<name>/tags               -> list tags for a project
-  - GET  /api/highlights                       -> aggregate highlighted tasks across projects
+  - GET  /api/highlights                         -> aggregate highlighted tasks across projects
   - POST /api/projects/<name>/tasks/update       -> update a single task { index, fields }
   - POST /api/projects/<name>/tasks/create       -> create a new task { optional fields }
   - POST /api/projects/<name>/tasks/delete       -> delete a task { index }
@@ -23,6 +23,11 @@ Currently supported routes:
   - POST /api/projects/open                      -> open/create a project { name }
   - POST /api/projects/edit-name                 -> rename project { old_name, new_name }
   - POST /api/exit                               -> graceful shutdown
+
+  TODO APIs:
+  - GET  /api/todo                               -> list todo items
+  - POST /api/todo/add                           -> create a todo item
+  - POST /api/todo/mark                          -> mark todo done/undone
 
 Usage:
   - Library: start_server(host, port)
@@ -47,6 +52,7 @@ import importlib.resources as resources
 
 from .project import Project
 from .project_manager import ProjectManager
+from .todo import TodoAPI
 
 # Module-wide resources
 # Keep a context open so importlib.resources can extract packaged assets if needed
@@ -59,6 +65,7 @@ except Exception:
     UI_DIR = (Path(__file__).resolve().parent.parent / "ui").resolve()
 atexit.register(_ui_stack.close)
 logger = logging.getLogger(__name__)
+_todo_api = TodoAPI()
 
 
 class _UIRequestHandler(BaseHTTPRequestHandler):
@@ -164,6 +171,11 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
             cur_obj = getattr(self.server, "current_project", None)
             current = cur_obj.name if isinstance(cur_obj, Project) else None
             return self._json({"currentProject": current})
+        
+        # TODO APIs
+        if req_path == "/api/todo":
+            resp, status = _todo_api.list_todos()
+            return self._json(resp, status)
 
         # Project tasks for a given project name
         m_tasks = re.match(r"^/api/projects/([^/]+)/tasks$", req_path)
@@ -373,6 +385,16 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
                 return self._json(resp, status)
             except Exception as e:
                 return self._json({"error": f"Failed to delete task: {e}"}, 500)
+
+        # Todo APIs
+        if path == "/api/todo/add":
+            body = self._read_json()
+            resp, status = _todo_api.add_todo(body if body is not None else {})
+            return self._json(resp, status)
+        if path == "/api/todo/mark":
+            body = self._read_json()
+            resp, status = _todo_api.mark_done(body if body is not None else {})
+            return self._json(resp, status)
 
         if path == "/api/exit":
             # Respond then shutdown the server gracefully
