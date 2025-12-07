@@ -20,6 +20,11 @@
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload || {})
   });
+  const apiEditTodo = (payload) => api('/api/todo/edit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload || {})
+  });
   const apiMarkTodo = (payload) => api('/api/todo/mark', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -86,21 +91,7 @@
     return span;
   };
 
-  const buildAddNew = (onAdd) => {
-    const li = document.createElement('li');
-    li.className = 'checklist-add';
-
-    const collapsed = document.createElement('div');
-    collapsed.className = 'checklist-item';
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.disabled = true;
-    checkbox.className = 'muted';
-    const text = document.createElement('div');
-    text.className = 'checklist-title muted';
-    text.textContent = 'Add new…';
-    collapsed.append(checkbox, text);
-
+  const createTodoForm = ({ submitLabel = 'Save', onSubmit, onCancel } = {}) => {
     const form = document.createElement('div');
     form.className = 'todo-add-form';
     form.style.display = 'none';
@@ -151,21 +142,41 @@
 
     form.append(titleInput, noteInput, row, peopleInput, actions);
 
-    const hideForm = () => {
-      form.style.display = 'none';
+    const baseSubmitLabel = submitLabel;
+    const setSubmitLabel = (label) => {
+      saveBtn.textContent = label || baseSubmitLabel;
     };
-    const showForm = () => {
-      form.style.display = '';
-      titleInput.focus();
-    };
-
-    const resetForm = () => {
-      hideForm();
+    const resetFields = () => {
+      setSubmitLabel(baseSubmitLabel);
       titleInput.value = '';
       noteInput.value = '';
       dueInput.value = '';
       prioSelect.value = 'medium';
       peopleInput.value = '';
+    };
+
+    const hide = () => {
+      form.style.display = 'none';
+    };
+
+    const show = () => {
+      form.style.display = '';
+      titleInput.focus();
+    };
+
+    const setValues = (todo, labelOverride) => {
+      setSubmitLabel(labelOverride || baseSubmitLabel);
+      titleInput.value = todo.title || '';
+      noteInput.value = todo.note || '';
+      dueInput.value = todo.due_date || '';
+      prioSelect.value = (todo.priority || 'medium').toLowerCase();
+      peopleInput.value = (todo.people || []).join(', ');
+    };
+
+    const close = () => {
+      hide();
+      resetFields();
+      if (typeof onCancel === 'function') onCancel();
     };
 
     const handleSave = async () => {
@@ -181,83 +192,53 @@
         priority: prioSelect.value,
         people: peopleInput.value.trim(),
       };
-      if (typeof onAdd === 'function') {
-        await onAdd(payload);
+      if (typeof onSubmit === 'function') {
+        try {
+          await onSubmit(payload);
+          close();
+        } catch (err) {
+          alert(err && err.message ? err.message : 'Failed to save todo.');
+        }
       }
-      resetForm();
     };
 
-    collapsed.addEventListener('click', (e) => { e.preventDefault(); showForm(); });
     saveBtn.addEventListener('click', handleSave);
-    cancelBtn.addEventListener('click', (e) => { e.preventDefault(); resetForm(); });
+    cancelBtn.addEventListener('click', (e) => { e.preventDefault(); close(); });
     [titleInput, noteInput, dueInput, prioSelect, peopleInput].forEach((el) => {
       el.addEventListener('keydown', (evt) => {
         if (evt.key === 'Escape') {
           evt.preventDefault();
-          resetForm();
+          close();
         }
       });
     });
 
-    li.append(collapsed, form);
-    return li;
-  };
-
-  const buildItem = (todo) => {
-    const li = document.createElement('li');
-    li.className = 'todo-item';
-    const label = document.createElement('div');
-    label.className = 'checklist-item';
-
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.checked = !!todo.done;
-
-    const textWrap = document.createElement('div');
-    textWrap.className = 'checklist-text';
-
-    const title = document.createElement('div');
-    title.className = 'checklist-title';
-    title.textContent = todo.title || '';
-
-    const note = document.createElement('div');
-    note.className = 'checklist-note muted';
-    note.textContent = todo.note || '';
-
-    const meta = document.createElement('div');
-    meta.className = 'checklist-meta';
-    const dueIso = todo.due_date || '';
-    const dueDisplay = formatDueDisplay(dueIso);
-    if (dueDisplay) meta.appendChild(buildPill(`Due ${dueDisplay}`, 'due'));
-    const prio = (todo.priority || 'medium').toLowerCase();
-    meta.appendChild(buildPill(prio.charAt(0).toUpperCase() + prio.slice(1), `priority priority-${prio}`));
-    (todo.people || []).forEach((p) => {
-      if (!p) return;
-      meta.appendChild(buildPill(p, 'people'));
-    });
-
-    textWrap.append(title, note, meta);
-    label.append(checkbox, textWrap);
-    li.append(label);
-
-    li.dataset.dueValue = String(dueNumeric(dueIso));
-    li.dataset.done = checkbox.checked ? '1' : '0';
-    li.classList.toggle('done', checkbox.checked);
-
-    attachCheckboxHandler(checkbox, todo.id);
-    return li;
+    return { element: form, show, hide, reset: resetFields, setValues, setSubmitLabel, close };
   };
 
   const renderList = (items) => {
     list.replaceChildren();
-    const addRow = buildAddNew(async (payload) => {
-      try {
+    const addRow = document.createElement('li');
+    addRow.className = 'checklist-add';
+    const collapsed = document.createElement('div');
+    collapsed.className = 'checklist-item';
+    const addCheckbox = document.createElement('input');
+    addCheckbox.type = 'checkbox';
+    addCheckbox.disabled = true;
+    addCheckbox.className = 'muted';
+    const addText = document.createElement('div');
+    addText.className = 'checklist-title muted todo-add-label';
+    addText.textContent = 'Add new…';
+    collapsed.append(addCheckbox, addText);
+    const addForm = createTodoForm({
+      submitLabel: 'Save',
+      onSubmit: async (payload) => {
         await apiAddTodo(payload);
         await loadTodos();
-      } catch (err) {
-        alert(err && err.message ? err.message : 'Failed to add todo.');
-      }
+      },
     });
+    addRow.append(collapsed, addForm.element);
+    collapsed.addEventListener('click', (e) => { e.preventDefault(); addForm.reset(); addForm.show(); });
     list.appendChild(addRow);
     if (!items || !items.length) {
       const li = document.createElement('li');
@@ -266,7 +247,61 @@
       list.appendChild(li);
       return;
     }
-    items.forEach((item) => list.appendChild(buildItem(item)));
+    items.forEach((item) => {
+      const li = document.createElement('li');
+      li.className = 'todo-item';
+
+      const label = document.createElement('div');
+      label.className = 'checklist-item';
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = !!item.done;
+      const textWrap = document.createElement('div');
+      textWrap.className = 'checklist-text';
+      const title = document.createElement('div');
+      title.className = 'checklist-title';
+      title.textContent = item.title || '';
+      const note = document.createElement('div');
+      note.className = 'checklist-note muted';
+      note.textContent = item.note || '';
+      const meta = document.createElement('div');
+      meta.className = 'checklist-meta';
+      const dueIso = item.due_date || '';
+      const dueDisplay = formatDueDisplay(dueIso);
+      if (dueDisplay) meta.appendChild(buildPill(`Due ${dueDisplay}`, 'due'));
+      const prio = (item.priority || 'medium').toLowerCase();
+      meta.appendChild(buildPill(prio.charAt(0).toUpperCase() + prio.slice(1), `priority priority-${prio}`));
+      (item.people || []).forEach((p) => {
+        if (!p) return;
+        meta.appendChild(buildPill(p, 'people'));
+      });
+      textWrap.append(title, note, meta);
+      label.append(checkbox, textWrap);
+
+      const editForm = createTodoForm({
+        submitLabel: 'Update',
+        onSubmit: async (payload) => {
+          await apiEditTodo({ id: item.id, ...payload });
+          await loadTodos();
+        },
+        onCancel: () => { li.classList.remove('editing'); },
+      });
+      editForm.hide();
+
+      textWrap.addEventListener('click', (evt) => {
+        evt.preventDefault();
+        editForm.setValues(item, 'Update');
+        li.classList.add('editing');
+        editForm.show();
+      });
+
+      li.append(label, editForm.element);
+      li.dataset.dueValue = String(dueNumeric(dueIso));
+      li.dataset.done = checkbox.checked ? '1' : '0';
+      li.classList.toggle('done', checkbox.checked);
+      attachCheckboxHandler(checkbox, item.id);
+      list.appendChild(li);
+    });
     sortList();
   };
 

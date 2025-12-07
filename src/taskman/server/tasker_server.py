@@ -28,6 +28,7 @@ Currently supported routes:
   - GET  /api/todo                               -> list todo items
   - POST /api/todo/add                           -> create a todo item
   - POST /api/todo/mark                          -> mark todo done/undone
+  - POST /api/todo/edit                          -> edit a todo item
 
 Usage:
   - Library: start_server(host, port)
@@ -394,6 +395,10 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
         if path == "/api/todo/mark":
             body = self._read_json()
             resp, status = _todo_api.mark_done(body if body is not None else {})
+            return self._json(resp, status)
+        if path == "/api/todo/edit":
+            body = self._read_json()
+            resp, status = _todo_api.edit_todo(body if body is not None else {})
             return self._json(resp, status)
 
         if path == "/api/exit":

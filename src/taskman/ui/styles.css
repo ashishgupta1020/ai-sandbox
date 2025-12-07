@@ -75,7 +75,6 @@ h1 {
   display: flex;
   gap: 0.6rem;
   align-items: flex-start;
-  cursor: pointer;
 }
 .checklist input[type="checkbox"] {
   appearance: none;
@@ -129,11 +128,13 @@ h1 {
 }
 .checklist-text { display: flex; flex-direction: column; gap: 0.15rem; }
 .checklist-title { font-weight: 600; margin-top: 0.1rem; }
+.todo-add-label { font-style: italic; }
 .checklist-note { font-size: 0.95rem; }
 .checklist li.done .checklist-title,
 .checklist li.done .checklist-note,
 .checklist li.done .checklist-meta { color: var(--muted); }
 .checklist li.done { opacity: 0.8; }
+.todo-item.editing .checklist-item { display: none; }
 .checklist-meta {
   display: flex;
   flex-wrap: wrap;

@@ -67,52 +67,44 @@ class TestTodoServerEndpoints(unittest.TestCase):
             resp = conn.getresponse()
             return resp.status, resp.read()
 
+    def _get_json(self, path: str):
+        status, body = self._get(path)
+        return status, json.loads(body)
+
+    def _post_json(self, path: str, payload: dict):
+        status, body = self._post(path, payload)
+        return status, json.loads(body)
+
     def test_get_empty_list(self):
         status, body = self._get("/api/todo")
         self.assertEqual(status, 200)
         data = json.loads(body)
         self.assertEqual(data.get("items"), [])
 
-    def test_add_and_fetch(self):
-        status, body = self._post(
-            "/api/todo/add",
-            {"title": "Write tests", "due_date": "2024-10-10", "priority": "high", "people": ["Alex"]},
-        )
+    def test_todo_flow_endpoints(self):
+        # add
+        status, data = self._post_json("/api/todo/add", {"title": "Write tests", "priority": "low"})
         self.assertEqual(status, 200)
-        data = json.loads(body)
-        self.assertTrue(data.get("ok"))
-        self.assertEqual(data.get("item", {}).get("title"), "Write tests")
-
-        status2, body2 = self._get("/api/todo")
+        todo_id = data["item"]["id"]
+        # list
+        status2, data2 = self._get_json("/api/todo")
         self.assertEqual(status2, 200)
-        items = json.loads(body2).get("items") or []
-        self.assertEqual(len(items), 1)
-        self.assertEqual(items[0].get("due_date"), "2024-10-10")
-
-    def test_add_requires_title(self):
-        status, body = self._post("/api/todo/add", {"note": "missing"})
-        self.assertEqual(status, 400)
-        data = json.loads(body)
-        self.assertIn("error", data)
-
-    def test_mark_done_endpoint(self):
-        # create item
-        status, body = self._post("/api/todo/add", {"title": "Finish", "done": False})
-        self.assertEqual(status, 200)
-        todo_id = json.loads(body)["item"]["id"]
-
+        self.assertEqual(len(data2.get("items") or []), 1)
+        self.assertFalse(data2["items"][0].get("done"))
         # mark done
-        status2, body2 = self._post("/api/todo/mark", {"id": todo_id, "done": True})
-        self.assertEqual(status2, 200)
-        data2 = json.loads(body2)
-        self.assertTrue(data2.get("ok"))
-        self.assertTrue(data2.get("done"))
-
-        # verify via GET
-        status3, body3 = self._get("/api/todo")
+        status3, data3 = self._post_json("/api/todo/mark", {"id": todo_id, "done": True})
         self.assertEqual(status3, 200)
-        items = json.loads(body3).get("items") or []
-        self.assertTrue(items[0].get("done"))
+        self.assertTrue(data3.get("done"))
+        # edit
+        status4, data4 = self._post_json("/api/todo/edit", {"id": todo_id, "title": "After", "priority": "high"})
+        self.assertEqual(status4, 200)
+        self.assertEqual(data4["item"]["priority"], "high")
+        # final list
+        status5, data5 = self._get_json("/api/todo")
+        self.assertEqual(status5, 200)
+        items = data5.get("items") or []
+        self.assertEqual(items[0]["title"], "After")
+        self.assertTrue(items[0]["done"])
 
 
 if __name__ == "__main__":

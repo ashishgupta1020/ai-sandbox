@@ -45,6 +45,41 @@ class TestTodoStore(unittest.TestCase):
             items = store.list_items()
         self.assertTrue(items[0].done)
 
+    def test_update_item_changes_fields(self):
+        with TodoStore(db_path=self.db_path) as store:
+            todo = store.add_item(Todo(title="Old", note="n1", priority=TodoPriority.LOW, due_date="2024-01-01", people=["A"]))
+            updated = store.update_item(todo.id, Todo(title="New", note="n2", priority=TodoPriority.HIGH, due_date="2024-02-02", people=["B", "C"]))
+            self.assertTrue(updated)
+        with TodoStore(db_path=self.db_path) as store:
+            items = store.list_items()
+        self.assertEqual(items[0].title, "New")
+        self.assertEqual(items[0].note, "n2")
+        self.assertEqual(items[0].priority, TodoPriority.HIGH)
+        self.assertEqual(items[0].due_date, "2024-02-02")
+        self.assertEqual(items[0].people, ["B", "C"])
+
+    def test_requires_open_connection(self):
+        store = TodoStore(db_path=self.db_path)
+        with self.assertRaises(RuntimeError):
+            store.add_item(Todo(title="No open"))
+        with self.assertRaises(RuntimeError):
+            store.list_items()
+        with self.assertRaises(RuntimeError):
+            store.set_done(1, True)
+        with self.assertRaises(RuntimeError):
+            store.update_item(1, Todo(title="X"))
+
+    def test_malformed_people_json_defaults_empty(self):
+        with TodoStore(db_path=self.db_path) as store:
+            store._ensure_table()
+            # Insert malformed people JSON directly
+            store._conn.execute(
+                "INSERT INTO todos (title, note, due_date, people, priority, done) VALUES (:title, '', '', 'not-json', 'low', 0)",
+                {"title": "Bad people"},
+            )
+            items = store.list_items()
+        self.assertEqual(items[0].people, [])
+
 
 if __name__ == "__main__":
     unittest.main()

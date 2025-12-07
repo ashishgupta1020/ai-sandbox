@@ -83,6 +83,75 @@ class TestTodoAPI(unittest.TestCase):
         self.assertEqual(status, 400)
         self.assertIn("error", resp)
 
+    def test_mark_done_invalid_id(self):
+        resp, status = self.api.mark_done({"id": "not-int"})
+        self.assertEqual(status, 400)
+        self.assertIn("error", resp)
+
+    def test_mark_done_invalid_payload_type(self):
+        resp, status = self.api.mark_done("bad")  # type: ignore[arg-type]
+        self.assertEqual(status, 400)
+        self.assertIn("error", resp)
+
+    def test_mark_done_not_found(self):
+        resp, status = self.api.mark_done({"id": 999, "done": True})
+        self.assertEqual(status, 404)
+        self.assertIn("error", resp)
+
+    def test_edit_todo_success(self):
+        # Seed item
+        resp, status = self.api.add_todo({"title": "Original", "note": "first"})
+        self.assertEqual(status, 200)
+        todo_id = resp["item"]["id"]
+
+        payload = {"id": todo_id, "title": "Updated", "note": "changed", "priority": "high", "due_date": "2024-12-31"}
+        resp2, status2 = self.api.edit_todo(payload)
+        self.assertEqual(status2, 200)
+        self.assertTrue(resp2.get("ok"))
+        self.assertEqual(resp2["item"]["title"], "Updated")
+        self.assertEqual(resp2["item"]["priority"], "high")
+
+        resp3, status3 = self.api.list_todos()
+        self.assertEqual(status3, 200)
+        items = resp3.get("items") or []
+        self.assertEqual(items[0]["title"], "Updated")
+        self.assertEqual(items[0]["note"], "changed")
+
+    def test_edit_requires_id(self):
+        resp, status = self.api.edit_todo({"title": "No id"})
+        self.assertEqual(status, 400)
+        self.assertIn("error", resp)
+
+    def test_edit_requires_title(self):
+        resp, status = self.api.add_todo({"title": "Seed"})
+        self.assertEqual(status, 200)
+        todo_id = resp["item"]["id"]
+        resp2, status2 = self.api.edit_todo({"id": todo_id, "title": ""})
+        self.assertEqual(status2, 400)
+        self.assertIn("error", resp2)
+
+    def test_edit_invalid_id(self):
+        resp, status = self.api.edit_todo({"id": "bad", "title": "X"})
+        self.assertEqual(status, 400)
+        self.assertIn("error", resp)
+
+    def test_edit_invalid_payload_type(self):
+        resp, status = self.api.edit_todo(["bad"])  # type: ignore[arg-type]
+        self.assertEqual(status, 400)
+        self.assertIn("error", resp)
+
+    def test_edit_not_found(self):
+        resp, status = self.api.edit_todo({"id": 999, "title": "Missing"})
+        self.assertEqual(status, 404)
+        self.assertIn("error", resp)
+
+    def test_add_normalizes_whitespace_and_people_type(self):
+        resp, status = self.api.add_todo({"title": "Spaces", "due_date": "   ", "people": 123})
+        self.assertEqual(status, 200)
+        item = resp["item"]
+        self.assertEqual(item["due_date"], "")
+        self.assertEqual(item["people"], [])
+
 
 if __name__ == "__main__":
     unittest.main()

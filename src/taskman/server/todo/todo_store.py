@@ -128,3 +128,30 @@ class TodoStore:
                 {"done": 1 if done else 0, "id": int(todo_id)},
             )
             return cur.rowcount > 0
+
+    def update_item(self, todo_id: int, updated: Todo) -> bool:
+        if self._conn is None:
+            raise RuntimeError("Database connection is not open")
+        self._ensure_table()
+        payload = {
+            "id": int(todo_id),
+            "title": updated.title,
+            "note": updated.note,
+            "due_date": updated.due_date,
+            "people": json.dumps(list(updated.people)),
+            "priority": updated.priority.value,
+        }
+        with self._lock:
+            cur = self._conn.execute(
+                """
+                UPDATE todos
+                SET title = :title,
+                    note = :note,
+                    due_date = :due_date,
+                    people = :people,
+                    priority = :priority
+                WHERE id = :id
+                """,
+                payload,
+            )
+            return cur.rowcount > 0
