@@ -12,12 +12,13 @@ Hosting model: the UI server is intended to be centrally hosted in a shared envi
 - Edit in place: update any task field right inside the table, including Markdown preview for remarks
 - Export anytime: save a project’s tasks to a Markdown file for sharing
 - Choose your interface: use the browser UI or the guided CLI menus—the same data is shared either way
+- Capture quick todos: lightweight checklist with due dates, people, priorities, add/edit inline, and mark done
 
 ## Components
 
 - Browser UI (central by default; optional local run)
   - Open the hosted URL from your team, or run locally with `taskman-ui` (or `python -m taskman.server.tasker_server`) and visit `http://127.0.0.1:8765`.
-  - From the landing page you can add/rename projects, jump into a project, and see starred tasks across projects. Inside a project you get a sortable/searchable table, inline edits, highlights, delete, and a quick add-task panel.
+  - From the landing page you can add/rename projects, jump into a project, and see starred tasks across projects. Inside a project you get a sortable/searchable table, inline edits, highlights, delete, and a quick add-task panel. A Todo tab gives you a checklist view with add/edit inline forms and checkbox completion.
 - CLI (uses the same server)
   - Run `taskman-cli` (or `python -m taskman.cli.task_manager`).
   - Menus guide you to list/open/create/rename projects, add or edit tasks by index, sort task listings by status or priority, export to Markdown, and switch projects.
@@ -46,6 +47,7 @@ See `QUICKSTART.md` for brief usage notes.
 ## Data Storage
 
 - Projects registry and tasks database: `~/taskman/data/taskman.db`
+- Todo database: `~/taskman/data/taskman_todo.db`
 - Markdown export: `~/taskman/data/<project>_tasks_export.md`
 
 ## Tests
