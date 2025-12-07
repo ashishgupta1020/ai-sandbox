@@ -152,6 +152,7 @@ h1 {
   border: 1px solid #e5e7eb;
 }
 .pill.due { background: #ecfeff; border-color: #bae6fd; color: #0f172a; }
+.pill.due.due-over { background: #fef2f2; border-color: #fecdd3; color: #7f1d1d; }
 .pill.people { background: #f8fafc; border-color: #e2e8f0; }
 .pill.priority { font-weight: 600; }
 .pill.priority-low { background: #ecfdf3; border-color: #bbf7d0; color: #0f5132; }

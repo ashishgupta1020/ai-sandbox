@@ -45,6 +45,17 @@
     return Number(`${m[1]}${m[2]}${m[3]}`);
   };
 
+  const isOverdue = (isoDate) => {
+    const m = String(isoDate || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return false;
+    const today = new Date();
+    const todayNum = Number(
+      `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`,
+    );
+    const dateNum = Number(`${m[1]}${m[2]}${m[3]}`);
+    return dateNum < todayNum;
+  };
+
   const syncState = (input) => {
     const li = input.closest('li');
     if (!li) return;
@@ -268,7 +279,10 @@
       meta.className = 'checklist-meta';
       const dueIso = item.due_date || '';
       const dueDisplay = formatDueDisplay(dueIso);
-      if (dueDisplay) meta.appendChild(buildPill(`Due ${dueDisplay}`, 'due'));
+    if (dueDisplay) {
+      const overdueClass = isOverdue(dueIso) ? 'due-over' : '';
+      meta.appendChild(buildPill(`Due ${dueDisplay}`, `due ${overdueClass}`));
+    }
       const prio = (item.priority || 'medium').toLowerCase();
       meta.appendChild(buildPill(prio.charAt(0).toUpperCase() + prio.slice(1), `priority priority-${prio}`));
       (item.people || []).forEach((p) => {
