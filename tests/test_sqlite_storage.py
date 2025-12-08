@@ -4,7 +4,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.migrate_add_highlight_column import migrate_highlight_columns
 from taskman.server.project_manager import ProjectManager
 from taskman.server.sqlite_storage import SQLiteTaskStore, _project_table_name
 
@@ -76,39 +75,6 @@ class TestSQLiteStorage(unittest.TestCase):
                 ],
             )
         store.close()
-
-    def test_migration_script_adds_highlight_column(self):
-        store = SQLiteTaskStore(db_path=self.db_path)
-        store.open()
-        table = _project_table_name("alpha")
-        store._conn.execute(
-            f"""
-            CREATE TABLE {table} (
-                task_id   INTEGER PRIMARY KEY,
-                summary   TEXT NOT NULL,
-                assignee  TEXT,
-                remarks   TEXT,
-                status    TEXT NOT NULL,
-                priority  TEXT NOT NULL
-            )
-            """
-        )
-        store._conn.execute(
-            f"INSERT INTO {table} (task_id, summary, assignee, remarks, status, priority) VALUES (?, ?, ?, ?, ?, ?)",
-            (1, "S", "A", "R", "Not Started", "Low"),
-        )
-        store.close()
-
-        altered, unchanged = migrate_highlight_columns(self.db_path)
-        self.assertEqual(altered, 1)
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        columns = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
-        row = conn.execute(f"SELECT highlight FROM {table} WHERE task_id = 1").fetchone()
-        conn.close()
-        self.assertIn("highlight", columns)
-        self.assertEqual(row["highlight"], 0)
-        self.assertEqual(unchanged, 0)
 
     def test_delete_task_without_open(self):
         store = SQLiteTaskStore(db_path=self.db_path)

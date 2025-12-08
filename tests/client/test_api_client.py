@@ -4,6 +4,7 @@ import threading
 import time
 import http.client
 import tempfile
+import socket
 from pathlib import Path
 from contextlib import closing
 
@@ -49,10 +50,17 @@ class _ServerThread:
 _TMPDIR = None
 _ORIG_DATA_DIR = None
 _SERVER = None
+_PORT = None
+
+
+def _free_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
 
 
 def setup_module():
-    global _TMPDIR, _ORIG_DATA_DIR, _SERVER
+    global _TMPDIR, _ORIG_DATA_DIR, _SERVER, _PORT
     # ensure any existing server is stopped
     try:
         with closing(http.client.HTTPConnection("127.0.0.1", 8765, timeout=0.5)) as conn:
@@ -64,15 +72,17 @@ def setup_module():
     _TMPDIR = tempfile.mkdtemp(prefix="taskman-client-api-")
     _ORIG_DATA_DIR = get_data_store_dir()
     set_data_store_dir(Path(_TMPDIR))
-    _SERVER = _ServerThread("127.0.0.1", 8765)
+    _PORT = _free_port()
+    _SERVER = _ServerThread("127.0.0.1", _PORT)
     _SERVER.start()
 
 
 def teardown_module():
-    global _TMPDIR, _ORIG_DATA_DIR, _SERVER
+    global _TMPDIR, _ORIG_DATA_DIR, _SERVER, _PORT
     if _SERVER:
         _SERVER.stop()
         _SERVER = None
+    _PORT = None
     if _ORIG_DATA_DIR is not None:
         set_data_store_dir(_ORIG_DATA_DIR)
     if _TMPDIR and os.path.exists(_TMPDIR):
@@ -81,7 +91,7 @@ def teardown_module():
 
 
 def test_api_client_basic_crud():
-    api = TaskmanApiClient()
+    api = TaskmanApiClient(port=_PORT)
     assert api.is_available()
 
     # Initially empty
@@ -123,7 +133,7 @@ def test_api_client_error_paths_and_state():
     dead = TaskmanApiClient(host="127.0.0.1", port=6553, timeout=0.1)
     assert dead.is_available() is False
 
-    api = TaskmanApiClient()
+    api = TaskmanApiClient(port=_PORT)
     # state endpoint
     st = api.get_state()
     assert "currentProject" in st
