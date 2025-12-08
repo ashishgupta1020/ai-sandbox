@@ -31,12 +31,13 @@ Currently supported routes:
   - POST /api/todo/edit                          -> edit a todo item
 
 Usage:
-  - Library: start_server(host, port)
-  - CLI:     python -m taskman.server.tasker_server
+  - Library: start_server(host, port) (call load_config() first)
+  - CLI:     python -m taskman.server.tasker_server --config /path/config.json
 """
 
 from __future__ import annotations
 
+import argparse
 import atexit
 import contextlib
 import json
@@ -51,6 +52,7 @@ from typing import Optional, Tuple
 from urllib.parse import unquote, urlparse
 import importlib.resources as resources
 
+from taskman.config import load_config
 from .project import Project
 from .project_manager import ProjectManager
 from .todo import TodoAPI
@@ -462,6 +464,14 @@ def start_server(host: str = "0.0.0.0", port: int = 8765) -> None:
 
 def main() -> None:
     """Console entry: start the server with defaults."""
+    parser = argparse.ArgumentParser(description="Run the Taskman UI server.")
+    parser.add_argument(
+        "--config",
+        required=True,
+        help="Path to JSON config containing DATA_STORE_PATH",
+    )
+    args = parser.parse_args()
+
     # Configure a simple console handler if none are present so info logs show up
     if not logger.handlers:
         handler = logging.StreamHandler()
@@ -471,7 +481,13 @@ def main() -> None:
         logger.addHandler(handler)
     logger.setLevel(logging.INFO)
 
-    start_server()
+    try:
+        load_config(args.config)
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Failed to load config: %s", exc)
+        return
+
+    start_server(host=args.host, port=args.port)
 
 
 if __name__ == "__main__":

@@ -1,18 +1,24 @@
 """Lightweight registry for Taskman projects and their backing files."""
 
 import os
-from pathlib import Path
 
+from taskman.config import get_data_store_dir
 from .sqlite_storage import SQLiteTaskStore
 
 class ProjectManager:
     """Helper for tracking project names and related filesystem paths."""
-    PROJECTS_DIR = os.path.expanduser("~/taskman/data")
+
+    @staticmethod
+    def _projects_dir() -> str:
+        """Resolve and ensure the projects directory exists."""
+        base = get_data_store_dir()
+        base.mkdir(parents=True, exist_ok=True)
+        return str(base)
 
     @staticmethod
     def get_markdown_file_path(project_name: str) -> str:
         """Returns the path to the markdown export file for a given project."""
-        return os.path.join(ProjectManager.PROJECTS_DIR, f"{project_name.lower()}_tasks_export.md")
+        return os.path.join(ProjectManager._projects_dir(), f"{project_name.lower()}_tasks_export.md")
 
     @staticmethod
     def save_project_name(project_name: str) -> str:

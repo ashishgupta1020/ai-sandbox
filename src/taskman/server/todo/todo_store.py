@@ -8,7 +8,7 @@ import threading
 from pathlib import Path
 from typing import Optional
 
-from ..sqlite_storage import _DEFAULT_DB_DIR
+from taskman.config import get_data_store_dir
 from .todo import Todo, TodoPriority
 
 
@@ -16,7 +16,9 @@ class TodoStore:
     """Lightweight store for todo items."""
 
     def __init__(self, db_path: Optional[Path] = None) -> None:
-        self.db_path = Path(db_path).expanduser().resolve() if db_path else (_DEFAULT_DB_DIR / "taskman_todo.db")
+        base_dir = get_data_store_dir()
+        self.db_path = Path(db_path).expanduser().resolve() if db_path else (base_dir / "taskman_todo.db")
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn: Optional[sqlite3.Connection] = None
         self._lock = threading.RLock()
 

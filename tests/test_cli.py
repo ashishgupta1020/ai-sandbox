@@ -1,3 +1,4 @@
+import json
 import unittest
 import os
 import shutil
@@ -9,8 +10,9 @@ import time
 import http.client
 from contextlib import closing
 from pathlib import Path
+
+from taskman.config import get_data_store_dir, set_data_store_dir
 from taskman.server.project_manager import ProjectManager
-from taskman.server import sqlite_storage
 from taskman.server.tasker_server import start_server
 
 
@@ -62,11 +64,11 @@ class TestTaskManager(unittest.TestCase):
         if os.path.exists(self.TEST_DATA_DIR):
             shutil.rmtree(self.TEST_DATA_DIR)
         os.makedirs(self.TEST_DATA_DIR, exist_ok=True)
-        # Patch ProjectManager to use test directories and files
-        self._orig_projects_dir = ProjectManager.PROJECTS_DIR
-        ProjectManager.PROJECTS_DIR = self.TEST_DATA_DIR
-        self._orig_default_dir = sqlite_storage._DEFAULT_DB_DIR
-        sqlite_storage._DEFAULT_DB_DIR = Path(self.TEST_DATA_DIR)
+        # Patch data store path and config file for tests
+        self._orig_data_dir = get_data_store_dir()
+        self.config_path = Path(self.TEST_DATA_DIR) / "config.json"
+        self.config_path.write_text(json.dumps({"DATA_STORE_PATH": str(Path(self.TEST_DATA_DIR).resolve())}))
+        set_data_store_dir(Path(self.TEST_DATA_DIR))
         # Ensure any previous server on default port is stopped
         try:
             with closing(http.client.HTTPConnection("127.0.0.1", 8765, timeout=0.5)) as conn:
@@ -83,9 +85,8 @@ class TestTaskManager(unittest.TestCase):
         # Clean up test data directory
         if os.path.exists(self.TEST_DATA_DIR):
             shutil.rmtree(self.TEST_DATA_DIR)
-        # Restore original ProjectManager settings
-        ProjectManager.PROJECTS_DIR = self._orig_projects_dir
-        sqlite_storage._DEFAULT_DB_DIR = self._orig_default_dir
+        # Restore original data store path
+        set_data_store_dir(self._orig_data_dir)
         # Stop server
         if hasattr(self, "_server"):
             self._server.stop()
@@ -102,7 +103,7 @@ class TestTaskManager(unittest.TestCase):
         from taskman.cli import task_manager
         try:
             with StringIO() as buf, redirect_stdout(buf):
-                task_manager.main_cli()
+                task_manager.main_cli(["--config", str(self.config_path)])
                 output = buf.getvalue()
             self.assertIn("Exiting Task Manager. Goodbye!", output)
         finally:
@@ -120,7 +121,7 @@ class TestTaskManager(unittest.TestCase):
         from taskman.cli import task_manager
         try:
             with StringIO() as buf, redirect_stdout(buf):
-                task_manager.main_cli()
+                task_manager.main_cli(["--config", str(self.config_path)])
                 output = buf.getvalue()
             self.assertIn("Invalid choice. Please try again.", output)
             self.assertIn("Exiting Task Manager. Goodbye!", output)
@@ -138,7 +139,7 @@ class TestTaskManager(unittest.TestCase):
         from taskman.cli import task_manager
         try:
             with StringIO() as buf, redirect_stdout(buf):
-                task_manager.main_cli()
+                task_manager.main_cli(["--config", str(self.config_path)])
                 output = buf.getvalue()
             self.assertIn("No projects found.", output)
             self.assertIn("Exiting Task Manager. Goodbye!", output)
@@ -159,7 +160,7 @@ class TestTaskManager(unittest.TestCase):
         from taskman.cli import task_manager
         try:
             with StringIO() as buf, redirect_stdout(buf):
-                task_manager.main_cli()
+                task_manager.main_cli(["--config", str(self.config_path)])
                 output = buf.getvalue()
             self.assertIn("Projects:", output)
             self.assertIn(self.PROJECT_A, output)
@@ -178,7 +179,7 @@ class TestTaskManager(unittest.TestCase):
         from taskman.cli import task_manager
         try:
             with StringIO() as buf, redirect_stdout(buf):
-                task_manager.main_cli()
+                task_manager.main_cli(["--config", str(self.config_path)])
                 output = buf.getvalue()
             self.assertIn(f"Opened project: '{self.CLI_PROJECT}'", output)
             self.assertIn("Exiting Task Manager. Goodbye!", output)
@@ -199,7 +200,7 @@ class TestTaskManager(unittest.TestCase):
         from taskman.cli import task_manager
         try:
             with StringIO() as buf, redirect_stdout(buf):
-                task_manager.main_cli()
+                task_manager.main_cli(["--config", str(self.config_path)])
                 output = buf.getvalue()
             self.assertIn("Select a project to open:", output)
             self.assertIn(f"Opened project: '{self.PROJECT_A}'", output)
@@ -227,7 +228,7 @@ class TestTaskManager(unittest.TestCase):
         from taskman.cli import task_manager
         try:
             with StringIO() as buf, redirect_stdout(buf):
-                task_manager.main_cli()
+                task_manager.main_cli(["--config", str(self.config_path)])
                 output = buf.getvalue()
             self.assertIn(f"Opened project: '{self.PROJECT_A}'", output)
             self.assertIn(f"Task added successfully to project: '{self.PROJECT_A}'", output)
@@ -258,7 +259,7 @@ class TestTaskManager(unittest.TestCase):
         from taskman.cli import task_manager
         try:
             with StringIO() as buf, redirect_stdout(buf):
-                task_manager.main_cli()
+                task_manager.main_cli(["--config", str(self.config_path)])
                 output = buf.getvalue()
             self.assertIn("Invalid choice. Please try again.", output)
         finally:
@@ -280,7 +281,7 @@ class TestTaskManager(unittest.TestCase):
         from taskman.cli import task_manager
         try:
             with StringIO() as buf, redirect_stdout(buf):
-                task_manager.main_cli()
+                task_manager.main_cli(["--config", str(self.config_path)])
                 output = buf.getvalue()
             self.assertIn("Invalid task index.", output)
         finally:
@@ -305,7 +306,7 @@ class TestTaskManager(unittest.TestCase):
         from taskman.cli import task_manager
         try:
             with StringIO() as buf, redirect_stdout(buf):
-                task_manager.main_cli()
+                task_manager.main_cli(["--config", str(self.config_path)])
                 output = buf.getvalue()
             self.assertIn("Error: Failed to rename project.", output)
         finally:
@@ -326,7 +327,7 @@ class TestTaskManager(unittest.TestCase):
         from taskman.cli import task_manager
         try:
             with StringIO() as buf, redirect_stdout(buf):
-                task_manager.main_cli()
+                task_manager.main_cli(["--config", str(self.config_path)])
                 output = buf.getvalue()
             self.assertIn("Invalid choice. Please try again.", output)
         finally:
@@ -343,7 +344,7 @@ class TestTaskManager(unittest.TestCase):
         from taskman.cli import task_manager
         try:
             with StringIO() as buf, redirect_stdout(buf):
-                task_manager.main_cli()
+                task_manager.main_cli(["--config", str(self.config_path)])
                 output = buf.getvalue()
             self.assertIn("No projects found.", output)
         finally:
@@ -365,7 +366,7 @@ class TestTaskManager(unittest.TestCase):
         from taskman.cli import task_manager
         try:
             with StringIO() as buf, redirect_stdout(buf):
-                task_manager.main_cli()
+                task_manager.main_cli(["--config", str(self.config_path)])
                 output = buf.getvalue()
             self.assertIn("Invalid input. Please enter a valid task index.", output)
             self.assertIn("Exiting Task Manager. Goodbye!", output)
@@ -390,7 +391,7 @@ class TestTaskManager(unittest.TestCase):
         from taskman.cli import task_manager
         try:
             with StringIO() as buf, redirect_stdout(buf):
-                task_manager.main_cli()
+                task_manager.main_cli(["--config", str(self.config_path)])
                 output = buf.getvalue()
             self.assertIn(f"Tasks exported to Markdown file: '{expected_md_path}'", output)
             # Check that the file was created and contains expected Markdown
@@ -428,7 +429,7 @@ class TestTaskManager(unittest.TestCase):
         from taskman.cli import task_manager
         try:
             with StringIO() as buf, redirect_stdout(buf):
-                task_manager.main_cli()
+                task_manager.main_cli(["--config", str(self.config_path)])
                 output = buf.getvalue()
             # Check that all tasks are present
             self.assertIn("Summary0", output)
@@ -470,7 +471,7 @@ class TestTaskManager(unittest.TestCase):
         from taskman.cli import task_manager
         try:
             with StringIO() as buf, redirect_stdout(buf):
-                task_manager.main_cli()
+                task_manager.main_cli(["--config", str(self.config_path)])
                 output = buf.getvalue()
             self.assertIn(f"Project '{self.PROJECT_A}' has been renamed to '{self.PROJECT_B}'.", output)
             self.assertIn("Exiting Task Manager. Goodbye!", output)
@@ -498,7 +499,7 @@ class TestTaskManager(unittest.TestCase):
         from taskman.cli import task_manager
         try:
             with StringIO() as buf, redirect_stdout(buf):
-                task_manager.main_cli()
+                task_manager.main_cli(["--config", str(self.config_path)])
                 output = buf.getvalue()
             self.assertIn(f"Opened project: '{self.PROJECT_A}'", output)
             self.assertIn(f"Project '{self.PROJECT_A}' has been renamed to '{self.PROJECT_B}'.", output)

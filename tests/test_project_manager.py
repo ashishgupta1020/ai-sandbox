@@ -4,7 +4,8 @@ import shutil
 from io import StringIO
 from contextlib import redirect_stdout
 from pathlib import Path
-from taskman.server import sqlite_storage
+
+from taskman.config import get_data_store_dir, set_data_store_dir
 from taskman.server.project_manager import ProjectManager
 
 class TestProjectManager(unittest.TestCase):
@@ -18,19 +19,16 @@ class TestProjectManager(unittest.TestCase):
         if os.path.exists(self.TEST_DATA_DIR):
             shutil.rmtree(self.TEST_DATA_DIR)
         os.makedirs(self.TEST_DATA_DIR, exist_ok=True)
-        # Patch ProjectManager to use test directories and files
-        self._orig_projects_dir = ProjectManager.PROJECTS_DIR
-        ProjectManager.PROJECTS_DIR = self.TEST_DATA_DIR
-        self._orig_default_dir = sqlite_storage._DEFAULT_DB_DIR
-        sqlite_storage._DEFAULT_DB_DIR = Path(self.TEST_DATA_DIR)
+        # Patch data store path for tests
+        self._orig_data_dir = get_data_store_dir()
+        set_data_store_dir(Path(self.TEST_DATA_DIR))
 
     def tearDown(self):
         # Clean up test data directory
         if os.path.exists(self.TEST_DATA_DIR):
             shutil.rmtree(self.TEST_DATA_DIR)
-        # Restore original ProjectManager settings
-        ProjectManager.PROJECTS_DIR = self._orig_projects_dir
-        sqlite_storage._DEFAULT_DB_DIR = self._orig_default_dir
+        # Restore original data store path
+        set_data_store_dir(self._orig_data_dir)
 
     def test_save_and_load_project_name(self):
         saved = ProjectManager.save_project_name(self.TEST_PROJECT)

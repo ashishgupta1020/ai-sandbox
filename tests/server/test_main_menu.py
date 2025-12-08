@@ -11,8 +11,8 @@ from pathlib import Path
 
 from http.server import ThreadingHTTPServer
 from taskman.server.tasker_server import _UIRequestHandler, UI_DIR
-from taskman.server import sqlite_storage
 from taskman.server.project_manager import ProjectManager
+from taskman.config import get_data_store_dir, set_data_store_dir
 
 
 class _ServerThread:
@@ -42,8 +42,8 @@ class TestMainMenuAPI(unittest.TestCase):
     def setUp(self):
         # Patch ProjectManager storage to temp dir
         self.tmpdir = tempfile.mkdtemp(prefix="taskman-ui-test-")
-        self.orig_default_dir = sqlite_storage._DEFAULT_DB_DIR
-        sqlite_storage._DEFAULT_DB_DIR = Path(self.tmpdir)
+        self.orig_data_dir = get_data_store_dir()
+        set_data_store_dir(Path(self.tmpdir))
 
         self.srv = _ServerThread()
         self.srv.start()
@@ -51,7 +51,7 @@ class TestMainMenuAPI(unittest.TestCase):
 
     def tearDown(self):
         self.srv.stop()
-        sqlite_storage._DEFAULT_DB_DIR = self.orig_default_dir
+        set_data_store_dir(self.orig_data_dir)
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
     def _get(self, path: str):

@@ -30,24 +30,36 @@ Hosting model: the UI server is intended to be centrally hosted in a shared envi
 - From source for dev: `pip install -e .`
 - Alternative: `pip install -r requirements.txt` (then run via `python -m ...`)
 
+## Configuration
+
+- Create a JSON config file and pass it to both commands:
+  ```json
+  {
+    "DATA_STORE_PATH": "/absolute/path/to/taskman/data"
+  }
+  ```
+- Run the UI: `taskman-ui --config /path/to/config.json`
+- Run the CLI: `taskman-cli --config /path/to/config.json`
+
 UI loads its JS libraries from CDNs; the Python server has no extra UI deps.
 
 ## Quick Start
 
 - UI (central or local)
   - Central: open the shared UI URL provided by your team.
-  - Local dev: run `taskman-ui` (or `python -m taskman.server.tasker_server`) and visit `http://127.0.0.1:8765`.
+  - Local dev: run `taskman-ui --config /path/to/config.json` (or `python -m taskman.server.tasker_server --config /path/to/config.json`) and visit `http://127.0.0.1:8765`.
 - CLI (server required)
-  - Run: `taskman-cli` (or `python -m taskman.cli.task_manager`).
+  - Run: `taskman-cli --config /path/to/config.json` (or `python -m taskman.cli.task_manager --config /path/to/config.json`).
   - Ensure the UI server is running and reachable; the CLI talks to the server API.
 
 See `QUICKSTART.md` for brief usage notes.
 
 ## Data Storage
 
-- Projects registry and tasks database: `~/taskman/data/taskman.db`
-- Todo database: `~/taskman/data/taskman_todo.db`
-- Markdown export: `~/taskman/data/<project>_tasks_export.md`
+- All data lives under `DATA_STORE_PATH` from the config file you provide.
+- Projects registry and tasks database: `<DATA_STORE_PATH>/taskman.db`
+- Todo database: `<DATA_STORE_PATH>/taskman_todo.db`
+- Markdown export: `<DATA_STORE_PATH>/<project>_tasks_export.md`
 
 ## Tests
 

@@ -9,8 +9,8 @@ from contextlib import closing
 
 from taskman.client.api_client import TaskmanApiClient
 from taskman.server.project_manager import ProjectManager
-from taskman.server import sqlite_storage
 from taskman.server.tasker_server import start_server
+from taskman.config import get_data_store_dir, set_data_store_dir
 
 
 class _ServerThread:
@@ -47,12 +47,12 @@ class _ServerThread:
 
 # Module-level setup/teardown using default host/port
 _TMPDIR = None
-_ORIG_DEFAULT_DIR = None
+_ORIG_DATA_DIR = None
 _SERVER = None
 
 
 def setup_module():
-    global _TMPDIR, _ORIG_DEFAULT_DIR, _SERVER
+    global _TMPDIR, _ORIG_DATA_DIR, _SERVER
     # ensure any existing server is stopped
     try:
         with closing(http.client.HTTPConnection("127.0.0.1", 8765, timeout=0.5)) as conn:
@@ -62,19 +62,19 @@ def setup_module():
     except Exception:
         pass
     _TMPDIR = tempfile.mkdtemp(prefix="taskman-client-api-")
-    _ORIG_DEFAULT_DIR = sqlite_storage._DEFAULT_DB_DIR
-    sqlite_storage._DEFAULT_DB_DIR = Path(_TMPDIR)
+    _ORIG_DATA_DIR = get_data_store_dir()
+    set_data_store_dir(Path(_TMPDIR))
     _SERVER = _ServerThread("127.0.0.1", 8765)
     _SERVER.start()
 
 
 def teardown_module():
-    global _TMPDIR, _ORIG_DEFAULT_DIR, _SERVER
+    global _TMPDIR, _ORIG_DATA_DIR, _SERVER
     if _SERVER:
         _SERVER.stop()
         _SERVER = None
-    if _ORIG_DEFAULT_DIR is not None:
-        sqlite_storage._DEFAULT_DB_DIR = _ORIG_DEFAULT_DIR
+    if _ORIG_DATA_DIR is not None:
+        set_data_store_dir(_ORIG_DATA_DIR)
     if _TMPDIR and os.path.exists(_TMPDIR):
         shutil.rmtree(_TMPDIR, ignore_errors=True)
     _TMPDIR = None

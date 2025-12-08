@@ -2,7 +2,7 @@
 
 This module exposes the ``Project`` class, the primary in-memory representation
 of a Taskman project. Tasks are persisted in a lightweight SQLite database
-(`taskman.db` under ``ProjectManager.PROJECTS_DIR``), enabling transactional
+(`taskman.db` under the configured data store path), enabling transactional
 updates and concurrent-safe reads with a simple file-based deployment.
 
 The class maintains an in-memory dict of :class:`taskman.server.task.Task` objects

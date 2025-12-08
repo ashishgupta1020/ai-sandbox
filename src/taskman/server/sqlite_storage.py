@@ -8,17 +8,17 @@ as INTEGER columns for simple boolean mapping.
 
 from __future__ import annotations
 
-import os
 import re
 import sqlite3
 import threading
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional
 
+from taskman.config import get_data_store_dir
+
 _TABLE_PREFIX = "tasks_"
 _PROJECTS_TABLE = "projects"
 _PROJECT_TAGS_TABLE = "project_tags"
-_DEFAULT_DB_DIR = Path(os.path.expanduser("~/taskman/data"))
 
 
 def _project_table_name(project_name: str) -> str:
@@ -38,7 +38,7 @@ class SQLiteTaskStore:
             root = Path(db_path).expanduser().resolve().parent
             self.db_path = Path(db_path)
         else:
-            root = _DEFAULT_DB_DIR
+            root = get_data_store_dir()
             self.db_path = root / "taskman.db"
         root.mkdir(parents=True, exist_ok=True)
         self._conn: Optional[sqlite3.Connection] = None

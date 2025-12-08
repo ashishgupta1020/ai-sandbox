@@ -6,8 +6,8 @@ from io import StringIO
 from pathlib import Path
 from unittest import mock
 
+from taskman.config import get_data_store_dir, set_data_store_dir
 from taskman.server.project import Project
-from taskman.server import sqlite_storage
 from taskman.server.project_manager import ProjectManager
 from taskman.server.sqlite_storage import ProjectTaskSession
 from taskman.server.task import Task, TaskPriority, TaskStatus
@@ -22,16 +22,16 @@ class TestProject(unittest.TestCase):
         if os.path.exists(self.TEST_DATA_DIR):
             shutil.rmtree(self.TEST_DATA_DIR)
         os.makedirs(self.TEST_DATA_DIR, exist_ok=True)
-        # Patch ProjectManager to use test directories
+        # Patch data store path for tests
         self.db_path = Path(self.TEST_DATA_DIR) / "taskman.db"
-        self._orig_default_dir = sqlite_storage._DEFAULT_DB_DIR
-        sqlite_storage._DEFAULT_DB_DIR = Path(self.TEST_DATA_DIR)
+        self._orig_data_dir = get_data_store_dir()
+        set_data_store_dir(Path(self.TEST_DATA_DIR))
 
     def tearDown(self):
         # Clean up test data directory
         if os.path.exists(self.TEST_DATA_DIR):
             shutil.rmtree(self.TEST_DATA_DIR)
-        sqlite_storage._DEFAULT_DB_DIR = self._orig_default_dir
+        set_data_store_dir(self._orig_data_dir)
 
 
     def test_edit_task(self):

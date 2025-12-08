@@ -14,20 +14,31 @@ Hosting model
 - From source for dev: `pip install -e .`
 - Alternative: `pip install -r requirements.txt` and run via `python -m ...`
 
+## Configuration
+
+- Create a JSON config file:
+  ```json
+  {
+    "DATA_STORE_PATH": "/absolute/path/to/taskman/data"
+  }
+  ```
+- Pass it to both commands: `taskman-ui --config /path/to/config.json` and `taskman-cli --config /path/to/config.json`.
+
 ## UI
 
 - Central: open the shared URL for your hosted server.
-- Local (dev/testing): start with `taskman-ui` (or `python -m taskman.server.tasker_server`) and open `http://127.0.0.1:8765`.
+- Local (dev/testing): start with `taskman-ui --config /path/to/config.json` (or `python -m taskman.server.tasker_server --config /path/to/config.json`) and open `http://127.0.0.1:8765`.
 - Do: Add/rename projects, open a project, then add/edit/delete tasks inline. Remarks support markdown with preview.
 
 ## CLI
 
 - Requires the server: make sure the UI server is running and reachable.
-- Run: `taskman-cli` (or `python -m taskman.cli.task_manager`).
+- Run: `taskman-cli --config /path/to/config.json` (or `python -m taskman.cli.task_manager --config /path/to/config.json`).
 - Do: From the menus, open/create a project, add tasks, list/sort, edit, and export to markdown.
 
 ## Data Location
 
-- Projects registry and tasks database: `~/taskman/data/taskman.db`
-- Todo database: `~/taskman/data/taskman_todo.db`
-- Markdown export: `~/taskman/data/<project>_tasks_export.md`
+- All data lives under `DATA_STORE_PATH` from the config file you provide.
+- Projects registry and tasks database: `<DATA_STORE_PATH>/taskman.db`
+- Todo database: `<DATA_STORE_PATH>/taskman_todo.db`
+- Markdown export: `<DATA_STORE_PATH>/<project>_tasks_export.md`

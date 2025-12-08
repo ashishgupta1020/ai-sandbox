@@ -1,13 +1,34 @@
+import argparse
+from typing import List, Optional
+
 from taskman.client.api_client import TaskmanApiClient  # REST API client to talk to UI server
 from taskman.client.project_adapter import ProjectAdapter  # Project-like adapter backed by REST API
+from taskman.config import load_config
 from .interaction import Interaction  # Handles user input interactions
 
 
-def main_cli() -> None:
+def _parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Taskman CLI")
+    parser.add_argument(
+        "--config",
+        required=True,
+        help="Path to JSON config containing DATA_STORE_PATH",
+    )
+    return parser.parse_args(argv)
+
+
+def main_cli(argv: Optional[List[str]] = None) -> None:
     """
     Main entry point for the CLI application.
     Provides a menu-driven interface to manage projects and tasks.
     """
+    args = _parse_args(argv)
+    try:
+        load_config(args.config)
+    except Exception as exc:  # noqa: BLE001
+        print(f"Failed to load config: {exc}")
+        return
+
     interaction = Interaction()
     api = TaskmanApiClient()
     if not api.is_available():
