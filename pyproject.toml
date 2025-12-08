@@ -3,11 +3,12 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "taskman"
-version = "0.1.0"
+name = "ataskman"
+version = "0.2.0"
 description = "Simple project and task manager with CLI and UI."
 readme = "README.md"
 requires-python = ">=3.8"
+license = { file = "LICENSE.txt" }
 authors = [
   { name = "Ashish Gupta" }
 ]
@@ -36,4 +37,5 @@ where = ["src"]
 taskman = [
   "ui/*.html",
   "ui/*.css",
+  "ui/*.js",
 ]

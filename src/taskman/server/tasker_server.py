@@ -437,7 +437,7 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
         getattr(logger, lvl, logger.info)(line)
 
 
-def start_server(host: str = "127.0.0.1", port: int = 8765) -> None:
+def start_server(host: str = "0.0.0.0", port: int = 8765) -> None:
     """
     Start the Taskman HTTP server.
 
