@@ -15,7 +15,7 @@ rm -rf dist build src/taskman.egg-info src/ataskman.egg-info
 
 4) Fresh tooling  
 ```bash
-python -m venv .venv && source .venv/bin/activate
+python -m venv venv && source venv/bin/activate
 python -m pip install --upgrade pip build twine
 ```
 
