@@ -487,7 +487,7 @@ def main() -> None:
         logger.error("Failed to load config: %s", exc)
         return
 
-    start_server(host=args.host, port=args.port)
+    start_server()
 
 
 if __name__ == "__main__":
