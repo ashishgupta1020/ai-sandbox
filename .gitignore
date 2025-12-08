@@ -5,3 +5,4 @@ __pycache__/
 .pytest_cache/
 pytest*.log
 dist/
+*.egg-info/

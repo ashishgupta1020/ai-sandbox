@@ -26,9 +26,8 @@ Hosting model: the UI server is intended to be centrally hosted in a shared envi
 ## Install
 
 - Python 3.8+
-- Recommended (editable install):
-  - `pip install -e .`
-  - Creates convenience commands: `taskman-ui`, `taskman-cli`
+- From PyPI (recommended): `pip install ataskman` (adds `taskman-ui`, `taskman-cli`)
+- From source for dev: `pip install -e .`
 - Alternative: `pip install -r requirements.txt` (then run via `python -m ...`)
 
 UI loads its JS libraries from CDNs; the Python server has no extra UI deps.

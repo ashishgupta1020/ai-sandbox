@@ -10,9 +10,8 @@ Hosting model
 ## Install
 
 - Python 3.8+
-- Recommended: `pip install -e .` (editable install)
-  - Adds commands: `taskman-ui`, `taskman-cli`
-  - Works from any directory
+- From PyPI (recommended): `pip install ataskman` (adds `taskman-ui`, `taskman-cli`)
+- From source for dev: `pip install -e .`
 - Alternative: `pip install -r requirements.txt` and run via `python -m ...`
 
 ## UI
