@@ -1,3 +1,0 @@
-[console_scripts]
-taskman-cli = taskman.cli.task_manager:main_cli
-taskman-ui = taskman.server.tasker_server:main
