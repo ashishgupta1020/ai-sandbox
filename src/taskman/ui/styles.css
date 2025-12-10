@@ -544,6 +544,11 @@ td.gridjs-td.editable-cell:hover { background: #f8fafc; }
   gap: 0.35rem;
   min-height: 1.4rem;
 }
+.assignee-row { justify-content: space-between; }
+.assignee-actions { margin-left: auto; display: flex; align-items: center; gap: 0.35rem; }
+.assignee-note { font-size: 0.95rem; }
+.assignee-chip { cursor: pointer; border: 1px solid var(--border-strong); background: linear-gradient(#ffffff, #f8fafc); }
+.assignee-chip.active { background: #2563eb; color: #ffffff; border-color: #1d4ed8; }
 .filter-chips .small {
   font-size: 0.9rem;
 }

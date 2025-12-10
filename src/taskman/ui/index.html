@@ -42,6 +42,22 @@
       <div id="highlights" class="muted" aria-live="polite">Loading highlights…</div>
     </section>
 
+    <section>
+      <h2 class="title-row">
+        <span>People</span>
+      </h2>
+      <div class="filter-controls" aria-label="Assignee selection">
+        <div class="filter-row assignee-row">
+          <span class="muted assignee-note">Select one or more assignees to populate the table below.</span>
+          <div class="assignee-actions">
+            <button id="btn-clear-assignees" type="button" class="btn btn-sm btn-ghost" disabled>Clear selection</button>
+          </div>
+        </div>
+        <div id="assignee-options" class="filter-chips" aria-live="polite">No assignees yet.</div>
+      </div>
+      <div id="people" class="muted" aria-live="polite">Loading people…</div>
+    </section>
+
     <!-- Templates for icons/elements -->
     <template id="tpl-icon-pencil">
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">

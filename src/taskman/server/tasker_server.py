@@ -14,6 +14,8 @@ Currently supported routes:
   - GET  /api/projects/<name>/tasks              -> list tasks JSON for a project
   - GET  /api/projects/<name>/tags               -> list tags for a project
   - GET  /api/highlights                         -> aggregate highlighted tasks across projects
+  - GET  /api/assignees                          -> list unique assignees across all projects
+  - GET  /api/tasks?assignee=...                 -> list tasks (optionally filtered by assignees) across projects
   - POST /api/projects/<name>/tasks/update       -> update a single task { index, fields }
   - POST /api/projects/<name>/tasks/create       -> create a new task { optional fields }
   - POST /api/projects/<name>/tasks/delete       -> delete a task { index }
@@ -49,7 +51,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Optional, Tuple
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 import importlib.resources as resources
 
 from taskman.config import load_config
@@ -150,6 +152,44 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
             cur_obj = getattr(self.server, "current_project", None)
             current = cur_obj.name if isinstance(cur_obj, Project) else None
             return self._json({"projects": projects, "currentProject": current})
+        if req_path == "/api/assignees":
+            try:
+                projects = ProjectManager.load_project_names()
+                assignees = set()
+                for name in projects:
+                    proj = Project(name)
+                    for t in proj.iter_tasks():
+                        assignee = (getattr(t, "assignee", "") or "").strip()
+                        if assignee:
+                            assignees.add(assignee)
+                return self._json({"assignees": sorted(assignees)})
+            except Exception as e:
+                return self._json({"error": f"Failed to fetch assignees: {e}"}, 500)
+        if req_path == "/api/tasks":
+            qs = parse_qs(parsed.query or "")
+            raw_assignees = qs.get("assignee", [])
+            wanted = {a.strip().lower() for a in raw_assignees if a and a.strip()}
+            try:
+                projects = ProjectManager.load_project_names()
+                tasks = []
+                for name in projects:
+                    proj = Project(name)
+                    for t in proj.iter_tasks():
+                        assignee = (getattr(t, "assignee", "") or "").strip()
+                        if wanted and assignee.lower() not in wanted:
+                            continue
+                        tasks.append(
+                            {
+                                "project": name,
+                                "summary": t.summary,
+                                "assignee": assignee,
+                                "status": getattr(t, "status", None).value if hasattr(t, "status") else "",
+                                "priority": getattr(t, "priority", None).value if hasattr(t, "priority") else "",
+                            }
+                        )
+                return self._json({"tasks": tasks})
+            except Exception as e:
+                return self._json({"error": f"Failed to fetch tasks: {e}"}, 500)
         if req_path == "/api/highlights":
             highlights = []
             try:

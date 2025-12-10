@@ -3,6 +3,12 @@ const projectTags = new Map(); // current known state per project (client cache)
 let allProjects = [];
 let selectedFilterTags = []; // active tag filters for project list (OR logic)
 let tagFilterControl = null;
+let availableAssignees = [];
+let selectedAssignees = [];
+const peopleColumns = ['Assignee', 'Project', 'Summary', 'Status', 'Priority'];
+let peopleGrid = null; // reused Grid.js instance for the People table
+let assigneesLoadPromise = null;
+const assigneeTasksCache = new Map(); // assignee -> tasks array
 
 async function api(path, opts = {}) {
   const res = await fetch(path, opts);
@@ -41,6 +47,13 @@ const apiRemoveProjectTag = (name, tag) => api(`/api/projects/${encodeURICompone
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ tag })
 });
+const apiAssignees = () => api('/api/assignees');
+const apiTasks = (assignees = []) => {
+  const params = Array.isArray(assignees) && assignees.length
+    ? `?${assignees.map((a) => `assignee=${encodeURIComponent(a)}`).join('&')}`
+    : '';
+  return api(`/api/tasks${params}`);
+};
 
 const tagColorMap = new Map();
 const tagPalette = ['#c7d2fe', '#bbf7d0', '#fde68a', '#fbcfe8', '#bae6fd', '#fecdd3', '#a7f3d0', '#fef9c3', '#ddd6fe'];
@@ -437,18 +450,165 @@ async function refreshHighlights() {
   }
 }
 
+function renderAssigneeSelector() {
+  const host = document.getElementById('assignee-options');
+  const clearBtn = document.getElementById('btn-clear-assignees');
+  if (!host) return;
+  host.replaceChildren();
+  const names = Array.isArray(availableAssignees) ? availableAssignees : [];
+  if (!names.length) {
+    host.append(el('span', { class: 'muted assignee-empty' }, 'No assignees yet.'));
+    if (clearBtn) clearBtn.disabled = true;
+    return;
+  }
+  for (const name of names) {
+    const active = selectedAssignees.includes(name);
+    const chip = el(
+      'button',
+      {
+        type: 'button',
+        class: `filter-chip assignee-chip${active ? ' active' : ''}`,
+        'aria-pressed': String(active),
+        'data-assignee': name
+      },
+      name
+    );
+    chip.addEventListener('click', () => toggleAssignee(name));
+    host.append(chip);
+  }
+  if (clearBtn) clearBtn.disabled = selectedAssignees.length === 0;
+}
+
+function toggleAssignee(name) {
+  const exists = selectedAssignees.includes(name);
+  selectedAssignees = exists ? selectedAssignees.filter((n) => n !== name) : [...selectedAssignees, name];
+  refreshPeople();
+}
+
+function clearAssigneeSelection() {
+  selectedAssignees = [];
+  refreshPeople();
+}
+
+async function ensureAssigneesLoaded() {
+  if (Array.isArray(availableAssignees) && availableAssignees.length) return availableAssignees;
+  if (assigneesLoadPromise) return assigneesLoadPromise;
+  assigneesLoadPromise = apiAssignees()
+    .then((data) => {
+      const names = Array.isArray(data.assignees) ? data.assignees.map((a) => String(a)).filter(Boolean) : [];
+      if (names.length) availableAssignees = names;
+      return availableAssignees;
+    })
+    .catch(() => {
+      return availableAssignees;
+    })
+    .finally(() => { assigneesLoadPromise = null; });
+  return assigneesLoadPromise;
+}
+
+async function ensureTasksForAssignees(names) {
+  const target = Array.isArray(names) ? names : [];
+  const missing = target.filter((n) => !assigneeTasksCache.has(n));
+  if (!missing.length) return;
+  const data = await apiTasks(missing);
+  const tasks = Array.isArray(data.tasks) ? data.tasks : [];
+  const grouped = new Map();
+  for (const t of tasks) {
+    const assignee = (t.assignee || '').toString();
+    if (!grouped.has(assignee)) grouped.set(assignee, []);
+    grouped.get(assignee).push(t);
+  }
+  for (const name of missing) {
+    assigneeTasksCache.set(name, grouped.get(name) || []);
+  }
+}
+
+async function refreshPeople() {
+  const box = document.getElementById('people');
+  if (!box) return;
+  try {
+    await ensureAssigneesLoaded();
+    renderAssigneeSelector();
+    if (!availableAssignees.length) {
+      box.textContent = 'No assignees yet.';
+      return;
+    }
+    await ensureTasksForAssignees(selectedAssignees);
+    const filtered = selectedAssignees.length
+      ? selectedAssignees.flatMap((name) => assigneeTasksCache.get(name) || [])
+      : [];
+    const rows = filtered.map((t) => [t.assignee || '', t.project || '', t.summary || '', t.status || '', t.priority || '']);
+    const emptyMessage = selectedAssignees.length ? 'No tasks for selected assignees yet.' : 'Select at least one assignee to see tasks.';
+    box.classList.toggle('muted', rows.length === 0);
+    if (!window.gridjs || typeof gridjs.Grid !== 'function') {
+      const table = el('table', { class: 'table' });
+      const thead = el('thead');
+      const headerRow = el('tr');
+      for (const col of peopleColumns) {
+        headerRow.append(el('th', {}, col));
+      }
+      thead.append(headerRow);
+      const tbody = el('tbody');
+      if (rows.length === 0) {
+        const emptyRow = el('tr');
+        emptyRow.append(el('td', { colspan: peopleColumns.length, class: 'muted' }, emptyMessage));
+        tbody.append(emptyRow);
+      } else {
+        for (const r of rows) {
+          const tr = el('tr');
+          for (const cell of r) {
+            tr.append(el('td', {}, cell));
+          }
+          tbody.append(tr);
+        }
+      }
+      table.append(thead, tbody);
+      box.replaceChildren(table);
+      return;
+    }
+    const gridConfig = {
+      columns: peopleColumns,
+      data: rows,
+      sort: true,
+      search: true,
+      pagination: { limit: 10 },
+      language: { noRecordsFound: emptyMessage }
+    };
+    // Reuse a single Grid.js instance and forceRender to refresh rows.
+    if (peopleGrid) {
+      const prevHeight = box.offsetHeight;
+      if (prevHeight > 0) box.style.minHeight = `${prevHeight}px`;
+      peopleGrid.updateConfig(gridConfig).forceRender(box);
+      setTimeout(() => { box.style.minHeight = ''; }, 0);
+    } else {
+      peopleGrid = new gridjs.Grid(gridConfig);
+      box.replaceChildren();
+      peopleGrid.render(box);
+    }
+
+  } catch (e) {
+    document.getElementById('people').textContent = `Error: ${e.message}`;
+  }
+}
+
 // Initial load
 (async function init() {
   wireFilterControls();
   renderFilterChips();
-  await Promise.all([refreshProjects(), refreshHighlights()]);
+  await Promise.all([refreshProjects(), refreshHighlights(), refreshPeople()]);
   // Wire up actions
+  const clearAssigneesBtn = document.getElementById('btn-clear-assignees');
+  if (clearAssigneesBtn) {
+    clearAssigneesBtn.addEventListener('click', () => {
+      clearAssigneeSelection();
+    });
+  }
   document.getElementById('btn-add').addEventListener('click', async () => {
     try {
       const name = prompt('Enter new project name:');
       if (!name) return;
       await apiCreateProject(name);
-      await Promise.all([refreshProjects(), refreshHighlights()]);
+      await Promise.all([refreshProjects(), refreshHighlights(), refreshPeople()]);
     } catch (e) {
       alert(e.message);
     }
