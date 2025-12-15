@@ -172,6 +172,21 @@ class TestTasksPageAPI(unittest.TestCase):
         data = json.loads(body)
         self.assertEqual(data["tags"], ["alpha", "gamma"])
 
+    def test_project_tags_bulk_endpoint(self):
+        self._post("/api/projects/Alpha/tags/add", {"tags": ["one", "two"]})
+        self._post("/api/projects/Beta/tags/add", {"tags": ["z"]})
+        # Project without tags still appears with an empty list
+        ProjectManager.save_project_name("Gamma")
+
+        resp, body = self._get("/api/project-tags")
+        self.assertEqual(resp.status, 200)
+        data = json.loads(body)
+        tags_by_project = data.get("tagsByProject") or {}
+        self.assertEqual(tags_by_project.get("Alpha"), ["one", "two"])
+        self.assertEqual(tags_by_project.get("Beta"), ["z"])
+        self.assertIn("Gamma", tags_by_project)
+        self.assertEqual(tags_by_project.get("Gamma"), [])
+
     def test_tasks_endpoint_url_decoding(self):
         name = "Alpha Beta"
         self._seed_tasks(name, [])
@@ -268,6 +283,58 @@ class TestTasksPageAPI(unittest.TestCase):
     def test_update_task_invalid_name(self):
         resp, _ = self._post("/api/projects/../etc/tasks/update", {"id": 0, "fields": {"summary": "X"}})
         self.assertEqual(resp.status, 400)
+
+    def test_assignees_endpoint(self):
+        self._seed_tasks(
+            "Alpha",
+            [
+                {"task_id": 0, "summary": "S1", "assignee": "Alice", "remarks": "", "status": "Not Started", "priority": "Low"},
+                {"task_id": 1, "summary": "S2", "assignee": "alice", "remarks": "", "status": "Completed", "priority": "High"},
+                {"task_id": 2, "summary": "S3", "assignee": "", "remarks": "", "status": "Completed", "priority": "High"},
+            ],
+        )
+        self._seed_tasks(
+            "Beta",
+            [
+                {"task_id": 0, "summary": "B1", "assignee": "Bob", "remarks": "", "status": "In Progress", "priority": "Medium"},
+            ],
+        )
+
+        resp, body = self._get("/api/assignees")
+        self.assertEqual(resp.status, 200)
+        data = json.loads(body)
+        self.assertEqual(data.get("assignees"), ["Alice", "Bob"])
+
+    def test_tasks_endpoint_cross_project_and_filter(self):
+        self._seed_tasks(
+            "Alpha",
+            [
+                {"task_id": 0, "summary": "S1", "assignee": "Alice", "remarks": "", "status": "Not Started", "priority": "Low"},
+                {"task_id": 1, "summary": "S2", "assignee": "Bob", "remarks": "", "status": "Completed", "priority": "High"},
+            ],
+        )
+        self._seed_tasks(
+            "Beta",
+            [
+                {"task_id": 0, "summary": "B1", "assignee": "Alice", "remarks": "", "status": "In Progress", "priority": "Medium"},
+            ],
+        )
+
+        resp, body = self._get("/api/tasks")
+        self.assertEqual(resp.status, 200)
+        data = json.loads(body)
+        tasks = data.get("tasks") or []
+        self.assertEqual(len(tasks), 3)
+        projects_seen = {t["project"] for t in tasks}
+        self.assertEqual(projects_seen, {"Alpha", "Beta"})
+
+        resp_filt, body_filt = self._get("/api/tasks?assignee=alice")
+        self.assertEqual(resp_filt.status, 200)
+        data_filt = json.loads(body_filt)
+        filt_tasks = data_filt.get("tasks") or []
+        self.assertEqual(len(filt_tasks), 2)
+        for t in filt_tasks:
+            self.assertEqual(t["assignee"], "Alice")
 
     # ----- Tests for /api/projects/<name>/tasks/create -----
     def test_create_task_defaults(self):

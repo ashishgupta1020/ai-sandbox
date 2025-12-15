@@ -10,6 +10,7 @@ Currently supported routes:
   - GET  /                                       -> UI index (projects list with add + inline rename)
   - GET  /project.html?name=<name>               -> UI project view (tasks table)
   - GET  /api/projects                           -> list saved project names + current
+  - GET  /api/project-tags                       -> map of all project tags
   - GET  /api/state                              -> current project name
   - GET  /api/projects/<name>/tasks              -> list tasks JSON for a project
   - GET  /api/projects/<name>/tags               -> list tags for a project
@@ -152,17 +153,26 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
             cur_obj = getattr(self.server, "current_project", None)
             current = cur_obj.name if isinstance(cur_obj, Project) else None
             return self._json({"projects": projects, "currentProject": current})
+        if req_path == "/api/project-tags":
+            try:
+                tags = ProjectManager.get_tags_for_all_projects()
+                return self._json({"tagsByProject": tags})
+            except Exception as e:
+                return self._json({"error": f"Failed to fetch project tags: {e}"}, 500)
         if req_path == "/api/assignees":
             try:
                 projects = ProjectManager.load_project_names()
-                assignees = set()
+                assignees = {}
                 for name in projects:
                     proj = Project(name)
                     for t in proj.iter_tasks():
                         assignee = (getattr(t, "assignee", "") or "").strip()
                         if assignee:
-                            assignees.add(assignee)
-                return self._json({"assignees": sorted(assignees)})
+                            key = assignee.lower()
+                            if key not in assignees:
+                                assignees[key] = assignee
+                # Sort case-insensitively for predictable UI ordering
+                return self._json({"assignees": sorted(assignees.values(), key=lambda s: s.lower())})
             except Exception as e:
                 return self._json({"error": f"Failed to fetch assignees: {e}"}, 500)
         if req_path == "/api/tasks":

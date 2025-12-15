@@ -80,6 +80,12 @@ class ProjectManager:
             return store.get_tags_for_project(project_name)
 
     @staticmethod
+    def get_tags_for_all_projects() -> dict[str, list[str]]:
+        """Return tags for all known projects as a mapping of name -> tags list."""
+        with SQLiteTaskStore() as store:
+            return store.get_tags_for_all_projects()
+
+    @staticmethod
     def add_tags_for_project(project_name: str, tags: list[str]) -> list[str]:
         """Add tags to a project, returning the updated list."""
         with SQLiteTaskStore() as store:

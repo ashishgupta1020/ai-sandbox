@@ -36,6 +36,7 @@ const apiProjects = () => api('/api/projects');
 const apiHighlights = () => api('/api/highlights');
 const apiCreateProject = (name) => api('/api/projects/open', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
 const apiRenameProject = (oldName, newName) => api('/api/projects/edit-name', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ old_name: oldName, new_name: newName }) });
+const apiFetchAllProjectTags = () => api('/api/project-tags');
 const apiFetchProjectTags = (name) => api(`/api/projects/${encodeURIComponent(name)}/tags`);
 const apiAddProjectTags = (name, tags) => api(`/api/projects/${encodeURIComponent(name)}/tags/add`, {
   method: 'POST',
@@ -76,6 +77,16 @@ function getProjectTags(name) {
 function setProjectTags(name, tags) {
   const arr = Array.isArray(tags) ? tags.map((t) => String(t)) : [];
   projectTags.set(name, arr);
+}
+
+function applyTagsByProject(tagsByProject) {
+  const loaded = new Set();
+  if (!tagsByProject || typeof tagsByProject !== 'object') return loaded;
+  for (const [name, tags] of Object.entries(tagsByProject)) {
+    loaded.add(name);
+    setProjectTags(name, tags);
+  }
+  return loaded;
 }
 
 function normalizeTagValue(tag) {
@@ -126,6 +137,13 @@ async function fetchProjectTags(name, { store = true } = {}) {
     setProjectTags(name, tags);
   }
   return tags;
+}
+
+async function fetchAllProjectTags() {
+  const data = await apiFetchAllProjectTags();
+  const tagsByProject = (data && typeof data.tagsByProject === 'object') ? data.tagsByProject : {};
+  const loaded = applyTagsByProject(tagsByProject);
+  return { tagsByProject, loaded };
 }
 
 function renderCardTags(container, name) {
@@ -383,7 +401,17 @@ async function refreshProjects() {
       renderProjectsList([]);
       return;
     }
-    await Promise.all(allProjects.map((name) => fetchProjectTags(name).catch(() => { setProjectTags(name, []); })));
+    let loadedProjects = new Set();
+    try {
+      const res = await fetchAllProjectTags();
+      loadedProjects = res.loaded || new Set();
+    } catch (err) {
+      loadedProjects = new Set();
+    }
+    const missing = allProjects.filter((name) => !loadedProjects.has(name));
+    if (missing.length) {
+      await Promise.all(missing.map((name) => fetchProjectTags(name).catch(() => { setProjectTags(name, []); })));
+    }
     renderFilterChips();
     renderFilteredProjects();
   } catch (e) {

@@ -80,3 +80,18 @@ class TestSQLiteStorage(unittest.TestCase):
         store = SQLiteTaskStore(db_path=self.db_path)
         with self.assertRaises(RuntimeError):
             store.delete_task("alpha", 1)
+
+    def test_get_tags_for_all_projects(self):
+        store = SQLiteTaskStore(db_path=self.db_path)
+        store.open()
+        try:
+            store.add_tags("Alpha", ["one", "two"])
+            store.add_tags("beta", ["three"])
+            store.upsert_project_name("Gamma")
+            tags = store.get_tags_for_all_projects()
+        finally:
+            store.close()
+        self.assertEqual(tags.get("Alpha"), ["one", "two"])
+        self.assertEqual(tags.get("beta"), ["three"])
+        self.assertIn("Gamma", tags)
+        self.assertEqual(tags.get("Gamma"), [])

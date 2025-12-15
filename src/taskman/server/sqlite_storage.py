@@ -331,7 +331,7 @@ class SQLiteTaskStore:
                 self._conn.execute(
                     f"INSERT OR IGNORE INTO {_PROJECT_TAGS_TABLE} (project_lower, tag) VALUES (?, ?)",
                     (key, tag),
-                )
+            )
         return self.get_tags_for_project(project_name)
 
     def remove_tag(self, project_name: str, tag: str) -> List[str]:
@@ -346,6 +346,28 @@ class SQLiteTaskStore:
                 (key, tag),
             )
         return self.get_tags_for_project(project_name)
+
+    def get_tags_for_all_projects(self) -> Dict[str, List[str]]:
+        """Return a mapping of project name -> tags for all known projects."""
+        if self._conn is None:
+            raise RuntimeError("Database connection is not open")
+        self._ensure_registry_tables()
+        projects = self.list_projects()
+        by_lower = {p.lower(): p for p in projects}
+        tags_by_project: Dict[str, List[str]] = {p: [] for p in projects}
+        with self._lock:
+            cur = self._conn.execute(
+                f"SELECT project_lower, tag FROM {_PROJECT_TAGS_TABLE} ORDER BY rowid ASC"
+            )
+            rows = cur.fetchall()
+        for row in rows:
+            project_lower = str(row[0])
+            tag = str(row[1])
+            name = by_lower.get(project_lower)
+            if name is None:
+                continue
+            tags_by_project[name].append(tag)
+        return tags_by_project
 
 
 class ProjectTaskSession:
