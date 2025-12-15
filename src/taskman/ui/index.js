@@ -441,7 +441,8 @@ async function refreshHighlights() {
       data: rows,
       sort: true,
       search: true,
-      pagination: { limit: 10 }
+      pagination: { limit: 10 },
+      style: { table: { tableLayout: 'auto' } }
     });
     box.replaceChildren();
     grid.render(box);
@@ -572,6 +573,7 @@ async function refreshPeople() {
       sort: true,
       search: true,
       pagination: { limit: 10 },
+      style: { table: { tableLayout: 'auto' } },
       language: { noRecordsFound: emptyMessage }
     };
     // Reuse a single Grid.js instance and forceRender to refresh rows.

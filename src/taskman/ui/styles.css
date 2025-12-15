@@ -35,6 +35,11 @@ body {
   padding: 0 1rem;
 }
 
+.project-container {
+  max-width: none;
+  width: 80vw;
+}
+
 h1 {
   margin-bottom: 0.25rem;
   font-size: 1.75rem;

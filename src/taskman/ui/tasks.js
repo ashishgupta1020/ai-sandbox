@@ -360,7 +360,7 @@ function renderWithGrid(rows) {
       { name: 'Assignee', sort: true, formatter: editableFormatter('assignee', 'text') },
       { name: 'Status',   sort: true, formatter: editableFormatter('status',   'select', STATUS_OPTS) },
       { name: 'Priority', sort: true, formatter: editableFormatter('priority', 'select', PRIORITY_OPTS) },
-      { name: 'Remarks', sort: false, formatter: editableFormatter('remarks', 'markdown') },
+      { name: 'Remarks', sort: false, width: '30%', formatter: editableFormatter('remarks', 'markdown') },
       { name: '', sort: false, formatter: actionsFormatter() }
     ];
   }
@@ -379,7 +379,14 @@ function renderWithGrid(rows) {
   }
 
   box.replaceChildren();
-  GRID = new gridjs.Grid({ columns: GRID_COLUMNS, data: rows, sort: true, search: true, pagination: { limit: 20 } });
+  GRID = new gridjs.Grid({
+    columns: GRID_COLUMNS,
+    data: rows,
+    sort: true,
+    search: true,
+    pagination: { limit: 20 },
+    style: { table: { tableLayout: 'auto' } }
+  });
   GRID.render(box);
 }
 
