@@ -63,7 +63,7 @@ class TestBasicServer(unittest.TestCase):
         self.assertTrue(len(body) > 0)
 
     def test_static_css_served(self):
-        resp, body = self._request("/styles.css")
+        resp, body = self._request("/styles/index.css")
         self.assertEqual(resp.status, 200)
         self.assertTrue(resp.getheader("Content-Type", "").startswith("text/css"))
         self.assertIn(b"{", body)  # simple sanity: css content

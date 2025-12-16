@@ -1,0 +1,97 @@
+/* Todo / checklist */
+.checklist {
+  list-style: none;
+  padding: 0;
+  margin: 0.75rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+.checklist-item {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+}
+.checklist input[type="checkbox"] {
+  appearance: none;
+  width: 1.05rem;
+  height: 1.05rem;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 5px;
+  background: #fff;
+  position: relative;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.checklist input[type="checkbox"]:focus-visible {
+  outline: 2px solid #cbd5e1;
+  outline-offset: 2px;
+}
+.checklist input[type="checkbox"]:checked {
+  background: #fff;
+  border-color: #2563eb;
+}
+.checklist input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 70%;
+  height: 70%;
+  transform: translate(-50%, -50%);
+  border-radius: 3px;
+  background: #2563eb;
+}
+.checklist-add .checklist-item { color: var(--muted); }
+.checklist-add .checklist-item .checklist-note { cursor: pointer; }
+.checklist-add input[type="checkbox"] { border-color: var(--border); }
+.todo-add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 40%;
+  margin-top: 0.4rem;
+}
+.todo-add-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+.todo-add-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-start;
+}
+.checklist-text { display: flex; flex-direction: column; gap: 0.15rem; }
+.checklist-title { font-weight: 600; margin-top: 0.1rem; }
+.todo-add-label { font-style: italic; }
+.checklist-note { font-size: 0.95rem; }
+.checklist li.done .checklist-title,
+.checklist li.done .checklist-note,
+.checklist li.done .checklist-meta { color: var(--muted); }
+.checklist li.done { opacity: 0.8; }
+.todo-item.editing .checklist-item { display: none; }
+.checklist-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.1rem;
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  background: #eef2ff;
+  color: #111827;
+  border: 1px solid #e5e7eb;
+}
+.pill.due { background: #ecfeff; border-color: #bae6fd; color: #0f172a; }
+.pill.due.due-over { background: #fef2f2; border-color: #fecdd3; color: #7f1d1d; }
+.pill.people { background: #f8fafc; border-color: #e2e8f0; }
+.pill.priority { font-weight: 600; }
+.pill.priority-low { background: #ecfdf3; border-color: #bbf7d0; color: #0f5132; }
+.pill.priority-medium { background: #eef2ff; border-color: #c7d2fe; color: #312e81; }
+.pill.priority-high { background: #fff7ed; border-color: #fed7aa; color: #7c2d12; }
+.pill.priority-urgent { background: #fef2f2; border-color: #fecdd3; color: #7f1d1d; }

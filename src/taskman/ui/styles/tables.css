@@ -1,0 +1,55 @@
+/* Grid.js Overrides */
+.gridjs *,.gridjs :after,.gridjs :before { box-sizing: border-box; }
+.gridjs thead .gridjs-th { vertical-align: middle; }
+
+/* Center header text and sort icon vertically in sortable columns */
+.gridjs thead th.gridjs-th .gridjs-th-content { line-height: 24px; }
+.gridjs thead button.gridjs-sort-asc,
+.gridjs thead button.gridjs-sort-desc { background-position-y: center !important; }
+
+/* Prevent header labels from being ellipsized (allow wrapping) */
+.gridjs thead th.gridjs-th { white-space: normal; position: relative; }
+.gridjs thead th.gridjs-th .gridjs-th-content {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  padding-right: 0;
+  display: block;
+  margin-right: 17px; /* reserve space for sort icon */
+}
+/* Place sort icon absolutely to the right, centered vertically */
+.gridjs thead th.gridjs-th button.gridjs-sort {
+  float: none !important;
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* Reduce horizontal padding in Grid.js header/body cells */
+table.gridjs-table th.gridjs-th,
+table.gridjs-table td.gridjs-td { padding: 12px; }
+
+/* Hide the trailing actions column header cell entirely for tasks grid */
+.tasks-grid-container .gridjs thead tr th:last-child { display: none !important; }
+
+/* Make trailing actions column fit icon width tightly for tasks grid */
+.tasks-grid-container table.gridjs-table td.gridjs-td:last-child {
+  width: 1%;
+  white-space: nowrap;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+/* Make Grid.js search box a bit shorter */
+.gridjs input.gridjs-input {
+  padding: 6px 10px;
+  line-height: 1.3;
+}
+
+/* Keep icons visible inside task tables at all times */
+table.gridjs-table .btn-icon { vertical-align: middle; }
+
+/* Inline editable cells */
+td.gridjs-td.editable-cell { cursor: text; }
+td.gridjs-td.editable-cell:hover { background: #f8fafc; }

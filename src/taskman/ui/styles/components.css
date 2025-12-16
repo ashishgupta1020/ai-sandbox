@@ -1,0 +1,121 @@
+/* Components */
+.card, section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 1rem 1.25rem;
+  margin-top: 1rem;
+}
+
+.actions { margin-top: 0.75rem; }
+.title-row { display: flex; align-items: center; gap: 0.2rem; }
+.btn {
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--border-strong);
+  background: linear-gradient(#ffffff, #f7f9fb);
+  border-radius: 6px;
+  cursor: pointer;
+  margin-right: 0.5rem;
+}
+.btn:hover { background: #f1f5f9; }
+
+/* Shared icon button behavior */
+.btn-icon, .btn-icon-sm {
+  /* Always visible but muted by default */
+  opacity: 0.55;
+  pointer-events: auto;
+  transition: opacity 0.15s ease-in-out, color 0.15s ease-in-out, background 0.15s ease-in-out;
+  margin-left: 0.15rem;
+  /* Common button box */
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--surface);
+  line-height: 0;
+  color: var(--muted);
+}
+
+/* Icon buttons should be borderless even if combined with .btn */
+.btn.btn-icon, .btn.btn-icon-sm { border: 0; }
+
+.btn-icon { width: 1.6rem; height: 1.6rem; }
+.btn-icon .icon { width: 1.15rem; height: 1.15rem; }
+.btn-icon .icon, .btn-icon-sm .icon { display: block; }
+.btn-icon:hover, .btn-icon-sm:hover { background: #f8fafc; }
+/* Unmute icon on direct hover/focus */
+.btn-icon:hover, .btn-icon:focus,
+.btn-icon-sm:hover, .btn-icon-sm:focus {
+  opacity: 1;
+  color: var(--text);
+  pointer-events: auto;
+}
+.btn-danger { border-color: var(--danger-border); background: var(--danger-bg); }
+.btn-danger:hover { background: var(--danger-bg-hover); }
+
+.list { padding-left: 1.25rem; margin: 0.5rem 0 0 0; }
+.list a { text-decoration: none; color: var(--link); }
+.list a:hover { text-decoration: underline; }
+.btn-icon-sm { width: 1.3rem; height: 1.3rem; }
+.btn-icon-sm .icon { width: 0.85rem; height: 0.85rem; }
+.btn-ghost {
+  background: transparent;
+  border-color: var(--border);
+}
+
+.inline-input {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: #fff;
+}
+
+/* Multiline editor for markdown */
+.inline-input.multiline { min-height: 120px; line-height: 1.35; resize: vertical; }
+.md-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  padding: 0.5rem; /* keep content from touching the border */
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden; /* prevent inner toolbar from spilling */
+}
+/* Group the markdown editor actions visibly and separate from textarea */
+.md-toolbar {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.35rem 0.4rem;
+  border-bottom: 0; /* no divider under toolbar */
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+  background: var(--surface);
+  align-items: center;
+  flex-wrap: wrap;            /* allow controls to wrap within editor width */
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* Ensure editor controls have breathing room inside the bordered box */
+.md-editor .inline-input.multiline { margin: 0; }
+.md-editor .md.preview { margin: 0; }
+.btn.btn-sm { padding: 0.25rem 0.5rem; font-size: 0.9rem; }
+
+/* Markdown Reset inside table cells */
+.md { padding: 0; }
+.md > :first-child { margin-top: 0; }
+.md > :last-child { margin-bottom: 0; }
+/* Keep lists readable without adding top padding */
+.md ul, .md ol { margin-top: 0; margin-bottom: 0; padding-left: 1.2rem; }
+/* Avoid extra top space for common blocks */
+.md p, .md pre, .md blockquote { margin-top: 0; }

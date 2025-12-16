@@ -1,0 +1,203 @@
+/* Projects and tags */
+.project-list {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.75rem;
+}
+
+.project-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: var(--text);
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: linear-gradient(180deg, #fdfdfd, #f8fafc);
+  transition: border-color 0.15s ease, background 0.15s ease;
+  cursor: pointer;
+}
+
+.project-card:visited {
+  color: var(--text);
+}
+
+.project-card:hover,
+.project-card:focus-visible {
+  border-color: #9ca3af;
+  background: #f1f5f9;
+}
+
+.project-card .edit-btn {
+  margin-left: auto;
+}
+
+.project-name { font-weight: 600; }
+
+.project-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.project-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.project-card-right {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.project-editor {
+  border-top: 1px dashed var(--border);
+  padding-top: 0.65rem;
+}
+
+.project-editor-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.project-editor-row {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.project-editor-label {
+  color: var(--muted);
+  font-size: 0.9rem;
+  padding-top: 0.35rem;
+}
+
+.tag-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.tag-pill, .filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: #e5e7eb;
+  color: #111827;
+  border-radius: 999px;
+  padding: 0.18rem 0.55rem;
+  font-size: 0.9rem;
+}
+.tag-pill { padding: 0.2rem 0.6rem; }
+.tag-pill.tag-pill-small {
+  padding: 0.12rem 0.5rem;
+  font-size: 0.85rem;
+}
+.filter-chip { padding: 0.15rem 0.55rem; }
+
+.tag-remove,
+.filter-chip button {
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0 0.15rem;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.tag-remove:hover,
+.filter-chip button:hover { color: #111827; }
+
+.tag-note { font-size: 0.85rem; }
+.tag-placeholder { font-size: 0.95rem; }
+.tag-input { max-width: 340px; }
+
+.project-editor-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+/* Project tag filter + assignee filter */
+.filter-controls {
+  margin: 0.5rem 0 0.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.filter-row {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.filter-row .btn { margin-right: 0; }
+.filter-input-wrapper {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+}
+.filter-input {
+  max-width: 280px;
+}
+.filter-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-top: 0.15rem;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.filter-suggestion {
+  padding: 0.35rem 0.5rem;
+  cursor: pointer;
+}
+.filter-suggestion:hover,
+.filter-suggestion.active {
+  background: #f1f5f9;
+}
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  min-height: 1.4rem;
+}
+.assignee-row { justify-content: space-between; }
+.assignee-actions { margin-left: auto; display: flex; align-items: center; gap: 0.35rem; }
+.assignee-note { font-size: 0.95rem; }
+.assignee-chip { cursor: pointer; border: 1px solid var(--border-strong); background: linear-gradient(#ffffff, #f8fafc); }
+.assignee-chip.active { background: #2563eb; color: #ffffff; border-color: #1d4ed8; }
+.filter-chips .small {
+  font-size: 0.9rem;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  column-gap: 0.75rem;
+  row-gap: 0.5rem;
+  align-items: start;
+}
+.form-grid .label { color: var(--muted); padding-top: 0.35rem; }
+.form-grid .field { width: 100%; }
+.form-grid .field .inline-input { width: 100%; }
+.add-task-actions { margin-top: 0.75rem; display: flex; gap: 0.5rem; }
+.add-task-panel { margin-top: 0.5rem; padding-top: 0.5rem; }

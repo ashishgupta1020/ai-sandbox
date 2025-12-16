@@ -1,0 +1,47 @@
+/* Theme Tokens */
+:root {
+  --bg: #f6f8fa;
+  --surface: #ffffff;
+  --border: #e5e7eb;
+  --border-strong: #cbd5e1; /* slightly darker than --border for buttons */
+  --shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06);
+  --text: #111827;
+  --muted: #6b7280;
+  --link: #2563eb;
+  --code-bg: #f2f2f2;
+  --danger-border: #c66;
+  --danger-bg: #fee;
+  --danger-bg-hover: #fdd;
+}
+
+/* Base Reset */
+html, body {
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  font-family: 'SF Pro Text', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Ubuntu, Cantarell, 'Noto Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Typography */
+.muted {
+  color: var(--muted);
+}
+
+/* Placeholder text for empty editable cells */
+.placeholder {
+  color: var(--muted);
+  font-style: italic;
+  font-size: 0.9em;
+}
+
+code {
+  background: var(--code-bg);
+  padding: 0.1rem 0.25rem;
+  border-radius: 4px;
+}
