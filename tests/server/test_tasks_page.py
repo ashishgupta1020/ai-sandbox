@@ -12,8 +12,8 @@ from pathlib import Path
 
 from http.server import ThreadingHTTPServer
 from taskman.server import tasker_server
-from taskman.server.project_manager import ProjectManager
-from taskman.server.sqlite_storage import ProjectTaskSession
+from taskman.server.project_api import ProjectAPI
+from taskman.server.task_store import ProjectTaskSession
 from taskman.server.tasker_server import _UIRequestHandler
 from taskman.config import get_data_store_dir, set_data_store_dir
 
@@ -43,7 +43,7 @@ class _ServerThread:
 
 class TestTasksPageAPI(unittest.TestCase):
     def setUp(self):
-        # Patch ProjectManager storage to temp dir
+        # Patch storage to temp dir
         self.tmpdir = tempfile.mkdtemp(prefix="taskman-ui-test-")
         self.orig_data_dir = get_data_store_dir()
         self.orig_project_cls = tasker_server.Project
@@ -79,8 +79,8 @@ class TestTasksPageAPI(unittest.TestCase):
     def _seed_tasks(self, project: str, tasks: list[dict]):
         with ProjectTaskSession(project, db_path=self.db_path) as store:
             store.bulk_replace(project, tasks)
-        # Also ensure the project is recorded for load_project_names()
-        ProjectManager.save_project_name(project)
+        # Also ensure the project is recorded for listing
+        ProjectAPI().open_project(project)
 
     def _restart_with_project_stub(self, project_cls):
         """Restart the server using a patched Project class."""
@@ -176,7 +176,7 @@ class TestTasksPageAPI(unittest.TestCase):
         self._post("/api/projects/Alpha/tags/add", {"tags": ["one", "two"]})
         self._post("/api/projects/Beta/tags/add", {"tags": ["z"]})
         # Project without tags still appears with an empty list
-        ProjectManager.save_project_name("Gamma")
+        ProjectAPI().open_project("Gamma")
 
         resp, body = self._get("/api/project-tags")
         self.assertEqual(resp.status, 200)

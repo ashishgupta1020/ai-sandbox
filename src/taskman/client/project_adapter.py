@@ -5,8 +5,8 @@ from typing import Dict, List, Optional
 from prettytable import PrettyTable
 
 from taskman.client.api_client import TaskmanApiClient
-from taskman.server.project_manager import ProjectManager
 from taskman.server.task import Task, TaskStatus, TaskPriority
+from taskman.config import get_data_store_dir
 
 
 class ProjectAdapter:
@@ -115,7 +115,9 @@ class ProjectAdapter:
                 lines.append("| " + " | ".join(row) + " |")
             md_output = "\n".join(lines) + "\n"
 
-        md_path = ProjectManager.get_markdown_file_path(self.name)
+        base = get_data_store_dir()
+        base.mkdir(parents=True, exist_ok=True)
+        md_path = base / f"{self.name.lower()}_tasks_export.md"
         with open(md_path, "w") as md_file:
             md_file.write(md_output)
         print(f"\nTasks exported to Markdown file: '{md_path}'")

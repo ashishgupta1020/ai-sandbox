@@ -57,7 +57,7 @@ import importlib.resources as resources
 
 from taskman.config import load_config
 from .project import Project
-from .project_manager import ProjectManager
+from .project_api import ProjectAPI
 from .todo import TodoAPI
 
 # Module-wide resources
@@ -72,6 +72,7 @@ except Exception:
 atexit.register(_ui_stack.close)
 logger = logging.getLogger(__name__)
 _todo_api = TodoAPI()
+_project_api = ProjectAPI()
 
 
 class _UIRequestHandler(BaseHTTPRequestHandler):
@@ -149,19 +150,14 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
 
         # API endpoints (read-only)
         if req_path == "/api/projects":
-            projects = ProjectManager.load_project_names()
-            cur_obj = getattr(self.server, "current_project", None)
-            current = cur_obj.name if isinstance(cur_obj, Project) else None
-            return self._json({"projects": projects, "currentProject": current})
+            payload, status = _project_api.list_projects(getattr(self.server, "current_project", None))
+            return self._json(payload, status)
         if req_path == "/api/project-tags":
-            try:
-                tags = ProjectManager.get_tags_for_all_projects()
-                return self._json({"tagsByProject": tags})
-            except Exception as e:
-                return self._json({"error": f"Failed to fetch project tags: {e}"}, 500)
+            payload, status = _project_api.list_project_tags()
+            return self._json(payload, status)
         if req_path == "/api/assignees":
             try:
-                projects = ProjectManager.load_project_names()
+                projects = _project_api.list_project_names()
                 assignees = {}
                 for name in projects:
                     proj = Project(name)
@@ -180,7 +176,7 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
             raw_assignees = qs.get("assignee", [])
             wanted = {a.strip().lower() for a in raw_assignees if a and a.strip()}
             try:
-                projects = ProjectManager.load_project_names()
+                projects = _project_api.list_project_names()
                 tasks = []
                 for name in projects:
                     proj = Project(name)
@@ -203,7 +199,7 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
         if req_path == "/api/highlights":
             highlights = []
             try:
-                projects = ProjectManager.load_project_names()
+                projects = _project_api.list_project_names()
                 for name in projects:
                     proj = Project(name)
                     for t in proj.iter_tasks():
@@ -221,9 +217,8 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
                 return self._json({"error": f"Failed to fetch highlights: {e}"}, 500)
             return self._json({"highlights": highlights})
         if req_path == "/api/state":
-            cur_obj = getattr(self.server, "current_project", None)
-            current = cur_obj.name if isinstance(cur_obj, Project) else None
-            return self._json({"currentProject": current})
+            payload, status = _project_api.get_state(getattr(self.server, "current_project", None))
+            return self._json(payload, status)
         
         # TODO APIs
         if req_path == "/api/todo":
@@ -247,7 +242,7 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
                     proj = Project(name)
                 tasks = [t.to_dict() for t in proj.iter_tasks()]
             except Exception as e:
-                # Be forgiving: if file contains unexpected JSON (non-list), return empty list
+                # Be forgiving: if storage contains unexpected data, return empty list
                 self.log_message("Failed loading tasks for project '%s': %r", name, e, level="warning")
                 tasks = []
             return self._json({"project": name, "tasks": tasks})
@@ -256,10 +251,8 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
         m_tags = re.match(r"^/api/projects/([^/]+)/tags$", req_path)
         if m_tags:
             name = unquote(m_tags.group(1))
-            if not name or ".." in name or name.startswith("."):
-                return self._json({"error": "Invalid project name"}, 400)
-            tags = ProjectManager.get_tags_for_project(name)
-            return self._json({"project": name, "tags": tags})
+            payload, status = _project_api.get_project_tags(name)
+            return self._json(payload, status)
 
         # Default document
         if req_path in ("", "/"):
@@ -292,40 +285,22 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
         path = parsed.path
         if path == "/api/projects/open":
             body = self._read_json()
-            if body is None or "name" not in body or not str(body["name"]).strip():
-                return self._json({"error": "Missing 'name'"}, 400)
-            name = str(body["name"]).strip()
-            try:
-                # Persist and load
-                canonical = ProjectManager.save_project_name(name)
+            resp, status, canonical = _project_api.open_project(body.get("name") if body is not None else None)
+            if canonical:
                 # Initialize project (creates files/dirs as needed)
                 proj = Project(canonical)
-                # Remember current project object on server
                 setattr(self.server, "current_project", proj)
-                return self._json({"ok": True, "currentProject": proj.name})
-            except Exception as e:
-                return self._json({"error": str(e)}, 500)
+            return self._json(resp, status)
 
         if path == "/api/projects/edit-name":
             body = self._read_json()
             if body is None:
                 return self._json({"error": "Invalid JSON"}, 400)
-            old = str(body.get("old_name", "")).strip()
-            new = str(body.get("new_name", "")).strip()
-            if not old or not new:
-                return self._json({"error": "'old_name' and 'new_name' required"}, 400)
-            ok = ProjectManager.edit_project_name(old, new)
-            if not ok:
-                # edit_project_name already prints; respond with generic failure
-                return self._json({"ok": False}, 400)
-            # update current project if it matched
             cur_obj = getattr(self.server, "current_project", None)
-            if isinstance(cur_obj, Project) and cur_obj.name.lower() == old.lower():
-                # Replace with a fresh Project bound to new name
-                setattr(self.server, "current_project", Project(new))
-            cur_obj = getattr(self.server, "current_project", None)
-            cur_name = cur_obj.name if isinstance(cur_obj, Project) else None
-            return self._json({"ok": True, "currentProject": cur_name})
+            resp, status, new_name = _project_api.edit_project_name(body.get("old_name"), body.get("new_name"), cur_obj)
+            if new_name and isinstance(cur_obj, Project) and cur_obj.name.lower() == str(body.get("old_name", "")).strip().lower():
+                setattr(self.server, "current_project", Project(new_name))
+            return self._json(resp, status)
 
         # Update a single task in a project: POST /api/projects/<name>/tasks/update
         m_update = re.match(r"^/api/projects/(.+)/tasks/update$", path)
@@ -350,36 +325,21 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
         m_tags_add = re.match(r"^/api/projects/(.+)/tags/add$", path)
         if m_tags_add:
             name = unquote(m_tags_add.group(1))
-            if not name or ".." in name or name.startswith(".") or "/" in name:
-                _ = self._read_json()  # drain
-                return self._json({"error": "Invalid project name"}, 400)
             body = self._read_json()
             if body is None or not isinstance(body, dict):
                 return self._json({"error": "Invalid payload"}, 400)
-            tags_val = body.get("tags")
-            tags: list[str] = []
-            if isinstance(tags_val, list):
-                tags = [str(t) for t in tags_val]
-            if not tags:
-                return self._json({"error": "No tags provided"}, 400)
-            updated = ProjectManager.add_tags_for_project(name, tags)
-            return self._json({"project": name, "tags": updated})
+            resp, status = _project_api.add_project_tags(name, body.get("tags"))
+            return self._json(resp, status)
 
         # Remove a single tag: POST /api/projects/<name>/tags/remove
         m_tags_remove = re.match(r"^/api/projects/(.+)/tags/remove$", path)
         if m_tags_remove:
             name = unquote(m_tags_remove.group(1))
-            if not name or ".." in name or name.startswith(".") or "/" in name:
-                _ = self._read_json()
-                return self._json({"error": "Invalid project name"}, 400)
             body = self._read_json()
             if body is None or not isinstance(body, dict):
                 return self._json({"error": "Invalid payload"}, 400)
-            tag_val = body.get("tag")
-            if not isinstance(tag_val, str) or not tag_val.strip():
-                return self._json({"error": "No tag provided"}, 400)
-            updated = ProjectManager.remove_tag_for_project(name, tag_val.strip())
-            return self._json({"project": name, "tags": updated})
+            resp, status = _project_api.remove_project_tag(name, body.get("tag"))
+            return self._json(resp, status)
 
         # Highlight or un-highlight a task: POST /api/projects/<name>/tasks/highlight
         m_highlight = re.match(r"^/api/projects/(.+)/tasks/highlight$", path)

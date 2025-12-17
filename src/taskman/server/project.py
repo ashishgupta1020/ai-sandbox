@@ -7,7 +7,7 @@ updates and concurrent-safe reads with a simple file-based deployment.
 
 The class maintains an in-memory dict of :class:`taskman.server.task.Task` objects
 for fast lookups and defers actual storage to the helpers in
-``taskman.server.sqlite_storage``.
+``taskman.server.task_store``.
 """
 
 from __future__ import annotations
@@ -16,8 +16,8 @@ import os
 from pathlib import Path
 from typing import Dict, Iterator, Optional, Tuple
 
-from .project_manager import ProjectManager
-from .sqlite_storage import ProjectTaskSession
+from taskman.config import get_data_store_dir
+from .task_store import ProjectTaskSession
 from .task import Task, TaskPriority, TaskStatus
 
 
@@ -29,8 +29,14 @@ class Project:
         self.name = name
         self._tasks_by_id: Dict[int, Task] = {}
         self.last_id: int = -1
-        self.markdown_file_path = ProjectManager.get_markdown_file_path(self.name)
+        self.markdown_file_path = Project._markdown_file_path(self.name)
         self._load_from_db()
+
+    @staticmethod
+    def _markdown_file_path(project_name: str) -> Path:
+        base = get_data_store_dir()
+        base.mkdir(parents=True, exist_ok=True)
+        return base / f"{project_name.lower()}_tasks_export.md"
 
     def _load_from_db(self) -> None:
         """Hydrate in-memory task cache from the database."""

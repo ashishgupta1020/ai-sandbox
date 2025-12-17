@@ -11,7 +11,7 @@ from pathlib import Path
 
 from http.server import ThreadingHTTPServer
 from taskman.server.tasker_server import _UIRequestHandler, UI_DIR
-from taskman.server.project_manager import ProjectManager
+from taskman.server.project_api import ProjectAPI
 from taskman.config import get_data_store_dir, set_data_store_dir
 
 
@@ -40,7 +40,7 @@ class _ServerThread:
 
 class TestMainMenuAPI(unittest.TestCase):
     def setUp(self):
-        # Patch ProjectManager storage to temp dir
+        # Patch storage to temp dir
         self.tmpdir = tempfile.mkdtemp(prefix="taskman-ui-test-")
         self.orig_data_dir = get_data_store_dir()
         set_data_store_dir(Path(self.tmpdir))

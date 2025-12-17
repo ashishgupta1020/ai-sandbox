@@ -8,8 +8,7 @@ from unittest import mock
 
 from taskman.config import get_data_store_dir, set_data_store_dir
 from taskman.server.project import Project
-from taskman.server.project_manager import ProjectManager
-from taskman.server.sqlite_storage import ProjectTaskSession
+from taskman.server.task_store import ProjectTaskSession
 from taskman.server.task import Task, TaskPriority, TaskStatus
 
 class TestProject(unittest.TestCase):

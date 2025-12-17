@@ -30,7 +30,7 @@ def _project_table_name(project_name: str) -> str:
     return f"{_TABLE_PREFIX}{sanitized}"
 
 
-class SQLiteTaskStore:
+class TaskStore:
     """Encapsulates CRUD helpers for per-project task tables and project registry."""
 
     def __init__(self, db_path: Optional[Path] = None) -> None:
@@ -61,7 +61,7 @@ class SQLiteTaskStore:
             self._conn.close()
             self._conn = None
 
-    def __enter__(self) -> "SQLiteTaskStore":
+    def __enter__(self) -> "TaskStore":
         self.open()
         return self
 
@@ -375,9 +375,9 @@ class ProjectTaskSession:
 
     def __init__(self, project_name: str, db_path: Optional[Path] = None) -> None:
         self.project_name = project_name
-        self._store = SQLiteTaskStore(db_path=db_path)
+        self._store = TaskStore(db_path=db_path)
 
-    def __enter__(self) -> SQLiteTaskStore:
+    def __enter__(self) -> TaskStore:
         store = self._store.__enter__()
         store._ensure_table(self.project_name)
         return store

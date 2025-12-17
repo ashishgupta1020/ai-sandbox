@@ -12,7 +12,7 @@ from contextlib import closing
 from pathlib import Path
 
 from taskman.config import get_data_store_dir, set_data_store_dir
-from taskman.server.project_manager import ProjectManager
+from taskman.server.project_api import ProjectAPI
 from taskman.server.tasker_server import start_server
 
 
@@ -383,7 +383,9 @@ class TestTaskManager(unittest.TestCase):
             "5",    # Export to Markdown
             "9"     # Exit
         ]
-        expected_md_path = ProjectManager.get_markdown_file_path(self.CLI_PROJECT)
+        base = get_data_store_dir()
+        base.mkdir(parents=True, exist_ok=True)
+        expected_md_path = base / f"{self.CLI_PROJECT.lower()}_tasks_export.md"
         def mock_input(prompt=None):
             return user_inputs.pop(0)
         original_input = builtins.input
@@ -456,7 +458,7 @@ class TestTaskManager(unittest.TestCase):
         from unittest.mock import patch
         import builtins
         # First, create a project "manually"
-        ProjectManager.save_project_name(self.PROJECT_A)
+        ProjectAPI().open_project(self.PROJECT_A)
         # Simulate editing a project name from the main menu, then exiting
         user_inputs = [
             "3",  # Edit project name
@@ -475,9 +477,9 @@ class TestTaskManager(unittest.TestCase):
                 output = buf.getvalue()
             self.assertIn(f"Project '{self.PROJECT_A}' has been renamed to '{self.PROJECT_B}'.", output)
             self.assertIn("Exiting Task Manager. Goodbye!", output)
-            projects = ProjectManager.load_project_names()
-            self.assertNotIn(self.PROJECT_A, projects)
-            self.assertIn(self.PROJECT_B, projects)
+            names = ProjectAPI().list_project_names()
+            self.assertIn(self.PROJECT_B, names)
+            self.assertNotIn(self.PROJECT_A, names)
         finally:
             builtins.input = original_input
 
