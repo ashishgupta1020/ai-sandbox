@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """Project and task API helpers backed directly by TaskStore."""
 
-from typing import Callable, Dict, Tuple
+from typing import Callable, Dict, Tuple, Optional
 from pathlib import Path
 
 from taskman.config import get_data_store_dir
