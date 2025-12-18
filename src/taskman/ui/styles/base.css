@@ -1,6 +1,7 @@
 /* Theme Tokens */
 :root {
   --bg: #f6f8fa;
+  --accent-bar: #c4d8f2;
   --surface: #ffffff;
   --border: #e5e7eb;
   --border-strong: #cbd5e1; /* slightly darker than --border for buttons */
@@ -22,7 +23,7 @@ html, body {
 
 body {
   font-family: 'SF Pro Text', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Ubuntu, Cantarell, 'Noto Sans', sans-serif;
-  background: var(--bg);
+  background-color: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

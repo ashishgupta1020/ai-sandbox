@@ -30,6 +30,11 @@
 table.gridjs-table th.gridjs-th,
 table.gridjs-table td.gridjs-td { padding: 12px; }
 
+/* Match project card tone for table headers */
+table.gridjs-table thead th.gridjs-th {
+  background-color: #f7f9fc !important;
+}
+
 /* Hide the trailing actions column header cell entirely for tasks grid */
 .tasks-grid-container .gridjs thead tr th:last-child { display: none !important; }
 

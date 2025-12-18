@@ -1,7 +1,8 @@
 /* Components */
 .card, section {
-  background: var(--surface);
+  background-color: var(--surface);
   border: 1px solid var(--border);
+  border-top: 4px solid var(--accent-bar);
   border-radius: 10px;
   box-shadow: var(--shadow);
   padding: 1rem 1.25rem;

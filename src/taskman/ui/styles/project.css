@@ -14,7 +14,7 @@
   padding: 0.9rem 1rem;
   border: 1px solid var(--border);
   border-radius: 9px;
-  background: linear-gradient(180deg, #fdfdfd, #f8fafc);
+  background: #f7f9fc;
   transition: border-color 0.15s ease, background 0.15s ease;
   cursor: pointer;
 }
@@ -26,7 +26,7 @@
 .project-card:hover,
 .project-card:focus-visible {
   border-color: #9ca3af;
-  background: #f1f5f9;
+  background: #e8f0fb;
 }
 
 .project-card .edit-btn {
