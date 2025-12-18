@@ -45,6 +45,15 @@
     return Number(`${m[1]}${m[2]}${m[3]}`);
   };
 
+  const priorityRank = (val) => {
+    const key = String(val || 'medium').toLowerCase();
+    if (key === 'urgent') return 0;
+    if (key === 'high') return 1;
+    if (key === 'medium') return 2;
+    if (key === 'low') return 3;
+    return 2;
+  };
+
   const isOverdue = (isoDate) => {
     const m = String(isoDate || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (!m) return false;
@@ -75,7 +84,10 @@
       if (aDone !== bDone) return aDone - bDone; // unchecked first
       const aDue = Number(a.dataset.dueValue || Number.POSITIVE_INFINITY);
       const bDue = Number(b.dataset.dueValue || Number.POSITIVE_INFINITY);
-      return aDue - bDue;
+      if (aDue !== bDue) return aDue - bDue;
+      const aPriority = Number(a.dataset.priorityValue || Number.POSITIVE_INFINITY);
+      const bPriority = Number(b.dataset.priorityValue || Number.POSITIVE_INFINITY);
+      return aPriority - bPriority;
     });
     items.forEach((li) => list.appendChild(li));
   };
@@ -311,6 +323,7 @@
 
       li.append(label, editForm.element);
       li.dataset.dueValue = String(dueNumeric(dueIso));
+      li.dataset.priorityValue = String(priorityRank(prio));
       li.dataset.done = checkbox.checked ? '1' : '0';
       li.classList.toggle('done', checkbox.checked);
       attachCheckboxHandler(checkbox, item.id);
