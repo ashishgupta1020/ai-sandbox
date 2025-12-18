@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """Project and task API helpers backed directly by TaskStore."""
 
-from typing import Callable, Dict, Optional, Tuple
+from typing import Callable, Dict, Tuple
 from pathlib import Path
 
 from taskman.config import get_data_store_dir
@@ -20,23 +20,15 @@ class ProjectAPI:
         return (not name) or (".." in name) or name.startswith(".") or ("/" in name)
 
     @staticmethod
-    def _current_name(cur_obj: object) -> Optional[str]:
-        try:
-            return getattr(cur_obj, "name", None)
-        except Exception:
-            return None
-
-    @staticmethod
     def _markdown_file_path(project_name: str) -> Path:
         base = get_data_store_dir()
         base.mkdir(parents=True, exist_ok=True)
         return base / f"{project_name.lower()}_tasks_export.md"
 
-    def list_projects(self, current_project: Optional[object]) -> Tuple[Dict[str, object], int]:
+    def list_projects(self) -> Tuple[Dict[str, object], int]:
         with self._store_factory() as store:
             projects = store.list_projects()
-        current = self._current_name(current_project)
-        return {"projects": projects, "currentProject": current}, 200
+        return {"projects": projects}, 200
 
     def list_project_names(self, case_insensitive: bool = False) -> list[str]:
         with self._store_factory() as store:
@@ -52,10 +44,6 @@ class ProjectAPI:
             return {"tagsByProject": tags}, 200
         except Exception as exc:
             return {"error": f"Failed to fetch project tags: {exc}"}, 500
-
-    def get_state(self, current_project: Optional[object]) -> Tuple[Dict[str, object], int]:
-        current = self._current_name(current_project)
-        return {"currentProject": current}, 200
 
     def get_project_tags(self, name: str) -> Tuple[Dict[str, object], int]:
         if self._invalid_name(name):
@@ -85,32 +73,32 @@ class ProjectAPI:
             updated = store.remove_tag(name, tag_val.strip())
         return {"project": name, "tags": updated}, 200
 
-    def open_project(self, name: object) -> Tuple[Dict[str, object], int, Optional[str]]:
+    def open_project(self, name: object) -> Tuple[Dict[str, object], int]:
         if name is None:
-            return {"error": "Missing 'name'"}, 400, None
+            return {"error": "Missing 'name'"}, 400
         clean = str(name).strip()
         if not clean:
-            return {"error": "Missing 'name'"}, 400, None
+            return {"error": "Missing 'name'"}, 400
         try:
             with self._store_factory() as store:
                 canonical = store.upsert_project_name(clean)
-            return {"ok": True, "currentProject": canonical}, 200, canonical
+            return {"ok": True, "currentProject": canonical}, 200
         except Exception as exc:
-            return {"error": str(exc)}, 500, None
+            return {"error": str(exc)}, 500
 
     def edit_project_name(
-        self, old_name: object, new_name: object, current_project: Optional[object] = None
-    ) -> Tuple[Dict[str, object], int, Optional[str]]:
+        self, old_name: object, new_name: object
+    ) -> Tuple[Dict[str, object], int]:
         old = str(old_name or "").strip()
         new = str(new_name or "").strip()
         if not old or not new:
-            return {"error": "'old_name' and 'new_name' required"}, 400, None
+            return {"error": "'old_name' and 'new_name' required"}, 400
 
         try:
             with self._store_factory() as store:
                 store.rename_project(old, new)
         except Exception as exc:
-            return {"ok": False, "error": str(exc)}, 400, None
+            return {"ok": False, "error": str(exc)}, 400
 
         # Rename markdown export if present
         old_md = self._markdown_file_path(old)
@@ -122,7 +110,4 @@ class ProjectAPI:
             # Non-fatal; keep going
             pass
 
-        cur_name = self._current_name(current_project)
-        new_current = new if (cur_name and cur_name.lower() == old.lower()) else cur_name
-
-        return {"ok": True, "currentProject": new_current}, 200, new_current
+        return {"ok": True, "currentProject": new}, 200

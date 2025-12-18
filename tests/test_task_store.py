@@ -94,3 +94,49 @@ class TestSQLiteStorage(unittest.TestCase):
         self.assertEqual(tags.get("beta"), ["three"])
         self.assertIn("Gamma", tags)
         self.assertEqual(tags.get("Gamma"), [])
+
+    def test_fetch_task_and_next_id(self):
+        store = TaskStore(db_path=self.db_path)
+        with self.assertRaises(RuntimeError):
+            store.fetch_task("alpha", 1)
+
+        store.open()
+        try:
+            # Empty table returns zero as next id
+            self.assertEqual(store.next_task_id("alpha"), 0)
+
+            store.upsert_task(
+                "alpha",
+                {
+                    "task_id": 1,
+                    "summary": "S1",
+                    "assignee": "A",
+                    "remarks": "",
+                    "status": "Not Started",
+                    "priority": "Low",
+                    "highlight": True,
+                },
+            )
+            row = store.fetch_task("alpha", 1)
+            self.assertIsNotNone(row)
+            assert row is not None  # for type checkers
+            self.assertEqual(row["task_id"], 1)
+            self.assertTrue(isinstance(row.get("highlight"), bool))
+            self.assertIsNone(store.fetch_task("alpha", 999))
+
+            # Next id should be max + 1
+            store.upsert_task(
+                "alpha",
+                {
+                    "task_id": 5,
+                    "summary": "S5",
+                    "assignee": "",
+                    "remarks": "",
+                    "status": "Completed",
+                    "priority": "High",
+                    "highlight": False,
+                },
+            )
+            self.assertEqual(store.next_task_id("alpha"), 6)
+        finally:
+            store.close()

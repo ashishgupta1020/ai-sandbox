@@ -152,6 +152,43 @@ class TestTodoAPI(unittest.TestCase):
         self.assertEqual(item["due_date"], "")
         self.assertEqual(item["people"], [])
 
+    def test_store_errors_surface_as_500(self):
+        class BoomStore:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def add_item(self, todo):
+                raise RuntimeError("add fail")
+
+            def list_items(self):
+                raise RuntimeError("list fail")
+
+            def set_done(self, todo_id, done):
+                raise RuntimeError("done fail")
+
+            def update_item(self, todo_id, todo):
+                raise RuntimeError("edit fail")
+
+        api = TodoAPI(store_factory=lambda: BoomStore())
+        resp, status = api.add_todo({"title": "X"})
+        self.assertEqual(status, 500)
+        self.assertIn("Failed to add todo", resp.get("error", ""))
+
+        resp2, status2 = api.list_todos()
+        self.assertEqual(status2, 500)
+        self.assertIn("Failed to fetch todos", resp2.get("error", ""))
+
+        resp3, status3 = api.mark_done({"id": 1, "done": True})
+        self.assertEqual(status3, 500)
+        self.assertIn("Failed to update todo", resp3.get("error", ""))
+
+        resp4, status4 = api.edit_todo({"id": 1, "title": "X"})
+        self.assertEqual(status4, 500)
+        self.assertIn("Failed to update todo", resp4.get("error", ""))
+
 
 if __name__ == "__main__":
     unittest.main()

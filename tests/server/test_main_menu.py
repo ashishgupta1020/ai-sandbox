@@ -70,18 +70,12 @@ class TestMainMenuAPI(unittest.TestCase):
             body = resp.read()
             return resp, body
 
-    def test_state_endpoint_initially_none(self):
-        resp, body = self._get("/api/state")
-        self.assertEqual(resp.status, 200)
-        obj = json.loads(body)
-        self.assertIsNone(obj.get("currentProject"))
-
     def test_list_projects_initially_empty(self):
         resp, body = self._get("/api/projects")
         self.assertEqual(resp.status, 200)
         obj = json.loads(body)
         self.assertEqual(obj["projects"], [])
-        self.assertIsNone(obj["currentProject"])
+        self.assertNotIn("currentProject", obj)
 
     def test_open_project_and_edit_name(self):
         # Open a project
@@ -96,7 +90,6 @@ class TestMainMenuAPI(unittest.TestCase):
         self.assertEqual(resp.status, 200)
         obj = json.loads(body)
         self.assertEqual(obj["projects"], ["Alpha"])
-        self.assertEqual(obj["currentProject"], "Alpha")
 
         # Edit name
         resp, body = self._post("/api/projects/edit-name", {"old_name": "Alpha", "new_name": "Beta"})

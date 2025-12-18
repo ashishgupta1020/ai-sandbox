@@ -64,9 +64,6 @@ class TaskmanApiClient:
             return False
 
     # ----- Project operations -----
-    def get_state(self) -> Dict[str, Any]:
-        return self._get_json("/api/state")
-
     def list_projects(self) -> Dict[str, Any]:
         return self._get_json("/api/projects")
 

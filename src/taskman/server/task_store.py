@@ -131,6 +131,35 @@ class TaskStore:
             result.append(as_dict)
         return result
 
+    def fetch_task(self, project_name: str, task_id: int) -> Optional[Dict[str, object]]:
+        """Return a single task row by id or None if not found."""
+        if self._conn is None:
+            raise RuntimeError("Database connection is not open")
+        table = self._ensure_table(project_name)
+        with self._lock:
+            cur = self._conn.execute(
+                f"SELECT task_id, summary, assignee, remarks, status, priority, highlight "
+                f"FROM {table} WHERE task_id = ?",
+                (int(task_id),),
+            )
+            row = cur.fetchone()
+        if row is None:
+            return None
+        as_dict = dict(row)
+        as_dict["highlight"] = bool(as_dict.get("highlight"))
+        return as_dict
+
+    def next_task_id(self, project_name: str) -> int:
+        """Return the next available task_id for the project."""
+        if self._conn is None:
+            raise RuntimeError("Database connection is not open")
+        table = self._ensure_table(project_name)
+        with self._lock:
+            cur = self._conn.execute(f"SELECT MAX(task_id) FROM {table}")
+            row = cur.fetchone()
+        max_id = row[0] if row and row[0] is not None else -1
+        return int(max_id) + 1
+
     def upsert_task(self, project_name: str, task: Dict[str, object]) -> None:
         """Insert or update a single task row."""
         if self._conn is None:

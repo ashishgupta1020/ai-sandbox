@@ -9,9 +9,8 @@ Currently supported routes:
   - GET  /health                                 -> basic health check (JSON)
   - GET  /                                       -> UI index (projects list with add + inline rename)
   - GET  /project.html?name=<name>               -> UI project view (tasks table)
-  - GET  /api/projects                           -> list saved project names + current
+  - GET  /api/projects                           -> list saved project names
   - GET  /api/project-tags                       -> map of all project tags
-  - GET  /api/state                              -> current project name
   - GET  /api/projects/<name>/tasks              -> list tasks JSON for a project
   - GET  /api/projects/<name>/tags               -> list tags for a project
   - GET  /api/highlights                         -> aggregate highlighted tasks across projects
@@ -56,8 +55,8 @@ from urllib.parse import parse_qs, unquote, urlparse
 import importlib.resources as resources
 
 from taskman.config import load_config
-from .project import Project
 from .project_api import ProjectAPI
+from .task_api import TaskAPI
 from .todo import TodoAPI
 
 # Module-wide resources
@@ -73,6 +72,7 @@ atexit.register(_ui_stack.close)
 logger = logging.getLogger(__name__)
 _todo_api = TodoAPI()
 _project_api = ProjectAPI()
+_task_api = TaskAPI()
 
 
 class _UIRequestHandler(BaseHTTPRequestHandler):
@@ -150,7 +150,7 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
 
         # API endpoints (read-only)
         if req_path == "/api/projects":
-            payload, status = _project_api.list_projects(getattr(self.server, "current_project", None))
+            payload, status = _project_api.list_projects()
             return self._json(payload, status)
         if req_path == "/api/project-tags":
             payload, status = _project_api.list_project_tags()
@@ -160,9 +160,11 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
                 projects = _project_api.list_project_names()
                 assignees = {}
                 for name in projects:
-                    proj = Project(name)
-                    for t in proj.iter_tasks():
-                        assignee = (getattr(t, "assignee", "") or "").strip()
+                    payload, status = _task_api.list_tasks(name)
+                    if status != 200:
+                        continue
+                    for t in payload.get("tasks", []):
+                        assignee = (t.get("assignee", "") or "").strip()
                         if assignee:
                             key = assignee.lower()
                             if key not in assignees:
@@ -179,18 +181,20 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
                 projects = _project_api.list_project_names()
                 tasks = []
                 for name in projects:
-                    proj = Project(name)
-                    for t in proj.iter_tasks():
-                        assignee = (getattr(t, "assignee", "") or "").strip()
+                    payload, status = _task_api.list_tasks(name)
+                    if status != 200:
+                        continue
+                    for t in payload.get("tasks", []):
+                        assignee = (t.get("assignee", "") or "").strip()
                         if wanted and assignee.lower() not in wanted:
                             continue
                         tasks.append(
                             {
                                 "project": name,
-                                "summary": t.summary,
+                                "summary": t.get("summary", ""),
                                 "assignee": assignee,
-                                "status": getattr(t, "status", None).value if hasattr(t, "status") else "",
-                                "priority": getattr(t, "priority", None).value if hasattr(t, "priority") else "",
+                                "status": t.get("status", ""),
+                                "priority": t.get("priority", ""),
                             }
                         )
                 return self._json({"tasks": tasks})
@@ -201,24 +205,23 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
             try:
                 projects = _project_api.list_project_names()
                 for name in projects:
-                    proj = Project(name)
-                    for t in proj.iter_tasks():
-                        if getattr(t, "highlight", False):
+                    payload, status = _task_api.list_tasks(name)
+                    if status != 200:
+                        continue
+                    for t in payload.get("tasks", []):
+                        if t.get("highlight"):
                             highlights.append(
                                 {
                                     "project": name,
-                                    "summary": t.summary,
-                                    "assignee": getattr(t, "assignee", "") or "",
-                                    "status": getattr(t, "status", None).value if hasattr(t, "status") else "",
-                                    "priority": getattr(t, "priority", None).value if hasattr(t, "priority") else "",
+                                    "summary": t.get("summary", ""),
+                                    "assignee": t.get("assignee", "") or "",
+                                    "status": t.get("status", ""),
+                                    "priority": t.get("priority", ""),
                                 }
                             )
             except Exception as e:
                 return self._json({"error": f"Failed to fetch highlights: {e}"}, 500)
             return self._json({"highlights": highlights})
-        if req_path == "/api/state":
-            payload, status = _project_api.get_state(getattr(self.server, "current_project", None))
-            return self._json(payload, status)
         
         # TODO APIs
         if req_path == "/api/todo":
@@ -229,23 +232,9 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
         m_tasks = re.match(r"^/api/projects/([^/]+)/tasks$", req_path)
         if m_tasks:
             name = unquote(m_tasks.group(1))
-            # Basic validation; prevent traversal or dotfiles
-            if not name or ".." in name or name.startswith("."):
-                return self._json({"error": "Invalid project name"}, 400)
-            tasks = []
-            proj: Optional[Project] = None
-            try:
-                cur_obj = getattr(self.server, "current_project", None)
-                if isinstance(cur_obj, Project) and cur_obj.name.lower() == name.lower():
-                    proj = cur_obj
-                else:
-                    proj = Project(name)
-                tasks = [t.to_dict() for t in proj.iter_tasks()]
-            except Exception as e:
-                # Be forgiving: if storage contains unexpected data, return empty list
-                self.log_message("Failed loading tasks for project '%s': %r", name, e, level="warning")
-                tasks = []
-            return self._json({"project": name, "tasks": tasks})
+            log_fn = lambda msg: self.log_message(msg, level="warning")
+            payload, status = _task_api.list_tasks(name, log_warning=log_fn)
+            return self._json(payload, status)
 
         # Project tags
         m_tags = re.match(r"^/api/projects/([^/]+)/tags$", req_path)
@@ -285,21 +274,14 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
         path = parsed.path
         if path == "/api/projects/open":
             body = self._read_json()
-            resp, status, canonical = _project_api.open_project(body.get("name") if body is not None else None)
-            if canonical:
-                # Initialize project (creates files/dirs as needed)
-                proj = Project(canonical)
-                setattr(self.server, "current_project", proj)
+            resp, status = _project_api.open_project(body.get("name") if body is not None else None)
             return self._json(resp, status)
 
         if path == "/api/projects/edit-name":
             body = self._read_json()
             if body is None:
                 return self._json({"error": "Invalid JSON"}, 400)
-            cur_obj = getattr(self.server, "current_project", None)
-            resp, status, new_name = _project_api.edit_project_name(body.get("old_name"), body.get("new_name"), cur_obj)
-            if new_name and isinstance(cur_obj, Project) and cur_obj.name.lower() == str(body.get("old_name", "")).strip().lower():
-                setattr(self.server, "current_project", Project(new_name))
+            resp, status = _project_api.edit_project_name(body.get("old_name"), body.get("new_name"))
             return self._json(resp, status)
 
         # Update a single task in a project: POST /api/projects/<name>/tasks/update
@@ -315,10 +297,7 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
                 return self._json({"error": "Invalid JSON"}, 400)
             if not isinstance(body, dict):
                 return self._json({"error": "Invalid payload"}, 400)
-            # Delegate validation and update to Project model
-            cur_obj = getattr(self.server, "current_project", None)
-            proj = cur_obj if (isinstance(cur_obj, Project) and cur_obj.name.lower() == name.lower()) else Project(name)
-            resp, status = proj.update_task_from_payload(body)
+            resp, status = _task_api.update_task(name, body)
             return self._json(resp, status)
 
         # Add tags to a project: POST /api/projects/<name>/tags/add
@@ -355,10 +334,8 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
             if not isinstance(highlight_val, bool):
                 return self._json({"error": "Invalid highlight"}, 400)
             try:
-                cur_obj = getattr(self.server, "current_project", None)
-                proj = cur_obj if (isinstance(cur_obj, Project) and cur_obj.name.lower() == name.lower()) else Project(name)
-                resp, status = proj.update_task_from_payload(
-                    {"id": body.get("id"), "fields": {"highlight": highlight_val}}
+                resp, status = _task_api.update_task(
+                    name, {"id": body.get("id"), "fields": {"highlight": highlight_val}}
                 )
                 return self._json(resp, status)
             except Exception as e:
@@ -376,9 +353,7 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
                 # treat invalid JSON as empty object
                 body = {}
             try:
-                cur_obj = getattr(self.server, "current_project", None)
-                proj = cur_obj if (isinstance(cur_obj, Project) and cur_obj.name.lower() == name.lower()) else Project(name)
-                resp, status = proj.create_task_from_payload(body)
+                resp, status = _task_api.create_task(name, body)
                 return self._json(resp, status)
             except Exception as e:
                 return self._json({"error": f"Failed to create task: {e}"}, 500)
@@ -392,9 +367,7 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
                 return self._json({"error": "Invalid project name"}, 400)
             body = self._read_json()
             try:
-                cur_obj = getattr(self.server, "current_project", None)
-                proj = cur_obj if (isinstance(cur_obj, Project) and cur_obj.name.lower() == name.lower()) else Project(name)
-                resp, status = proj.delete_task_from_payload(body)
+                resp, status = _task_api.delete_task(name, body)
                 return self._json(resp, status)
             except Exception as e:
                 return self._json({"error": f"Failed to delete task: {e}"}, 500)
@@ -460,8 +433,6 @@ def start_server(host: str = "0.0.0.0", port: int = 8765) -> None:
     server_address: Tuple[str, int] = (host, port)
     ThreadingHTTPServer.allow_reuse_address = True
     httpd = ThreadingHTTPServer(server_address, _UIRequestHandler)
-    # Track current project object across requests (in-memory)
-    httpd.current_project = None  # type: ignore[attr-defined]
     print(f"Taskman server listening on http://{host}:{port}")
     print("Press Ctrl+C to stop.")
     try:
