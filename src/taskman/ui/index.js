@@ -395,23 +395,11 @@ function wireFilterControls() {
 
 async function refreshProjects() {
   try {
-    const p = await apiProjects();
-    allProjects = Array.isArray(p.projects) ? p.projects : [];
-    if (allProjects.length === 0) {
-      renderProjectsList([]);
-      return;
-    }
-    let loadedProjects = new Set();
-    try {
-      const res = await fetchAllProjectTags();
-      loadedProjects = res.loaded || new Set();
-    } catch (err) {
-      loadedProjects = new Set();
-    }
-    const missing = allProjects.filter((name) => !loadedProjects.has(name));
-    if (missing.length) {
-      await Promise.all(missing.map((name) => fetchProjectTags(name).catch(() => { setProjectTags(name, []); })));
-    }
+    const [projectsResponse] = await Promise.all([
+      apiProjects(),
+      fetchAllProjectTags().catch(() => ({ tagsByProject: {}, loaded: new Set() }))
+    ]);
+    allProjects = Array.isArray(projectsResponse.projects) ? projectsResponse.projects : [];
     renderFilterChips();
     renderFilteredProjects();
   } catch (e) {
@@ -625,7 +613,6 @@ async function refreshPeople() {
 (async function init() {
   wireFilterControls();
   renderFilterChips();
-  await Promise.all([refreshProjects(), refreshHighlights(), refreshPeople()]);
   // Wire up actions
   const clearAssigneesBtn = document.getElementById('btn-clear-assignees');
   if (clearAssigneesBtn) {
@@ -643,4 +630,5 @@ async function refreshPeople() {
       alert(e.message);
     }
   });
+  void Promise.all([refreshProjects(), refreshHighlights(), refreshPeople()]);
 })();
