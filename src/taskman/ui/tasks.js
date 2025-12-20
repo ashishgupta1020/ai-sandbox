@@ -223,7 +223,7 @@ function actionsFormatter() {
           if (idx >= 0 && resp.task && updateRowFromTask(idx, resp.task)) {
             renderWithGrid(DATA_ROWS);
           } else {
-            await loadTasks(CURRENT_PROJECT);
+            void loadTasks(CURRENT_PROJECT);
           }
         }
       } catch (e) {
@@ -326,7 +326,7 @@ function startInlineEditor(target, index0, field, type, options, currentValue, t
         if (idx >= 0 && resp.task && updateRowFromTask(idx, resp.task)) {
           renderWithGrid(DATA_ROWS);
         } else {
-          await loadTasks(CURRENT_PROJECT);
+          void loadTasks(CURRENT_PROJECT);
         }
       } else {
         renderWithGrid(DATA_ROWS);
@@ -526,7 +526,7 @@ function wireTasksUI() {
           insertRowFromTask(DATA_ROWS.length, resp.task);
           renderWithGrid(DATA_ROWS);
         } else {
-          await loadTasks(CURRENT_PROJECT);
+          void loadTasks(CURRENT_PROJECT);
         }
       } catch (e) {
         alert(e && e.message ? e.message : String(e));
@@ -543,5 +543,5 @@ function wireTasksUI() {
 window.initTasksUI = async function(name) {
   CURRENT_PROJECT = name;
   wireTasksUI();
-  await loadTasks(name);
+  void loadTasks(name);
 };
