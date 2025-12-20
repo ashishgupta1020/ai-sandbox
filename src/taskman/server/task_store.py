@@ -398,18 +398,3 @@ class TaskStore:
             tags_by_project[name].append(tag)
         return tags_by_project
 
-
-class ProjectTaskSession:
-    """Context manager scoped to a project-specific tasks table."""
-
-    def __init__(self, project_name: str, db_path: Optional[Path] = None) -> None:
-        self.project_name = project_name
-        self._store = TaskStore(db_path=db_path)
-
-    def __enter__(self) -> TaskStore:
-        store = self._store.__enter__()
-        store._ensure_table(self.project_name)
-        return store
-
-    def __exit__(self, exc_type, exc, tb) -> None:
-        self._store.__exit__(exc_type, exc, tb)

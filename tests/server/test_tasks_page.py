@@ -13,7 +13,7 @@ from pathlib import Path
 from http.server import ThreadingHTTPServer
 from taskman.server import tasker_server
 from taskman.server.project_api import ProjectAPI
-from taskman.server.task_store import ProjectTaskSession
+from taskman.server.task_store import TaskStore
 from taskman.server.tasker_server import _UIRequestHandler
 from taskman.config import get_data_store_dir, set_data_store_dir
 
@@ -74,7 +74,7 @@ class TestTasksPageAPI(unittest.TestCase):
             return resp, body
 
     def _seed_tasks(self, project: str, tasks: list[dict]):
-        with ProjectTaskSession(project, db_path=self.db_path) as store:
+        with TaskStore(db_path=self.db_path) as store:
             store.bulk_replace(project, tasks)
         # Also ensure the project is recorded for listing
         ProjectAPI().open_project(project)
