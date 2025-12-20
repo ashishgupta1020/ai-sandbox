@@ -42,6 +42,7 @@ from __future__ import annotations
 import argparse
 import atexit
 import contextlib
+import hashlib
 import json
 import logging
 import mimetypes
@@ -49,7 +50,7 @@ import re
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Optional, Tuple
 from urllib.parse import parse_qs, unquote, urlparse
 import importlib.resources as resources
@@ -73,6 +74,35 @@ logger = logging.getLogger(__name__)
 _todo_api = TodoAPI()
 _project_api = ProjectAPI()
 _task_api = TaskAPI()
+# Long-cache static assets; HTML is kept no-store so it can be rewritten safely.
+_ASSET_CACHE_CONTROL = "public, max-age=31536000, immutable"
+_ASSET_EXTENSIONS = {".css", ".js"}
+
+
+def _build_asset_manifest(ui_dir: Path) -> Tuple[dict, dict]:
+    # Map original asset paths to hash-suffixed variants for cache-busting.
+    manifest = {}
+    reverse = {}
+    for path in ui_dir.rglob("*"):
+        if not path.is_file():
+            continue
+        if path.suffix not in _ASSET_EXTENSIONS:
+            continue
+        rel = PurePosixPath(path.relative_to(ui_dir))
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()[:8]
+        hashed_name = f"{rel.stem}.{digest}{path.suffix}"
+        hashed_rel = str(rel.with_name(hashed_name))
+        original_rel = str(rel)
+        manifest[original_rel] = hashed_rel
+        reverse[hashed_rel] = original_rel
+    return manifest, reverse
+
+
+try:
+    _ASSET_MANIFEST, _HASHED_ASSET_MAP = _build_asset_manifest(UI_DIR)
+except Exception:
+    _ASSET_MANIFEST = {}
+    _HASHED_ASSET_MAP = {}
 
 
 class _UIRequestHandler(BaseHTTPRequestHandler):
@@ -93,13 +123,26 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
         """Log an accepted request at debug level."""
         self.log_message('"%s" %s %s', self.requestline, str(code), str(size), level="debug")
 
-    def _set_headers(self, status: int = 200, content_type: str = "text/html; charset=utf-8") -> None:
+    def _set_headers(
+        self,
+        status: int = 200,
+        content_type: str = "text/html; charset=utf-8",
+        cache_control: str = "no-store",
+    ) -> None:
         self.send_response(status)
         self.send_header("Content-Type", content_type)
-        self.send_header("Cache-Control", "no-store")
+        self.send_header("Cache-Control", cache_control)
         self.end_headers()
 
-    def _serve_file(self, file_path: Path) -> None:
+    def _rewrite_html_assets(self, html: str) -> str:
+        # Replace asset URLs with their hash-suffixed variants in HTML responses.
+        if not _ASSET_MANIFEST:
+            return html
+        for original, hashed in _ASSET_MANIFEST.items():
+            html = html.replace(f"/{original}", f"/{hashed}")
+        return html
+
+    def _serve_file(self, file_path: Path, cache_control: str = "no-store") -> None:
         if not file_path.exists() or not file_path.is_file():
             self._set_headers(404)
             self.wfile.write(b"<h1>404 Not Found</h1><p>File not found.</p>")
@@ -118,7 +161,14 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(b"<h1>500 Internal Server Error</h1>")
             return
 
-        self._set_headers(200, f"{content_type}; charset=utf-8" if content_type.startswith("text/") else content_type)
+        if content_type.startswith("text/html"):
+            # HTML is rewritten on the fly to point at hashed assets.
+            text = data.decode("utf-8", errors="replace")
+            text = self._rewrite_html_assets(text)
+            data = text.encode("utf-8")
+        if content_type.startswith("text/"):
+            content_type = f"{content_type}; charset=utf-8"
+        self._set_headers(200, content_type, cache_control)
         self.wfile.write(data)
 
     def _json(self, data: dict, status: int = 200) -> None:
@@ -255,6 +305,11 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
             self._set_headers(400)
             self.wfile.write(b"<h1>400 Bad Request</h1>")
             return
+
+        if clean in _HASHED_ASSET_MAP:
+            # Serve hashed assets with long-term caching headers.
+            target = (UI_DIR / _HASHED_ASSET_MAP[clean]).resolve()
+            return self._serve_file(target, cache_control=_ASSET_CACHE_CONTROL)
 
         target = (UI_DIR / clean).resolve()
         # Ensure the resolved path is within UI_DIR

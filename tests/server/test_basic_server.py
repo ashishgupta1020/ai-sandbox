@@ -1,10 +1,11 @@
+import hashlib
 import threading
 import time
 import unittest
 import http.client
 from contextlib import closing
 
-from taskman.server.tasker_server import _UIRequestHandler  # testing internal handler intentionally
+from taskman.server.tasker_server import _ASSET_CACHE_CONTROL, UI_DIR, _UIRequestHandler  # testing internal handler intentionally
 from http.server import ThreadingHTTPServer
 
 
@@ -33,6 +34,13 @@ class _ServerThread:
 
 
 class TestBasicServer(unittest.TestCase):
+    @staticmethod
+    def _hashed_asset_name(rel_path: str) -> str:
+        src = (UI_DIR / rel_path).read_bytes()
+        digest = hashlib.sha256(src).hexdigest()[:8]
+        stem, suffix = rel_path.rsplit(".", 1)
+        return f"{stem}.{digest}.{suffix}"
+
     def setUp(self):
         self.srv = _ServerThread()
         self.srv.start()
@@ -66,6 +74,19 @@ class TestBasicServer(unittest.TestCase):
         resp, body = self._request("/styles/base.css")
         self.assertEqual(resp.status, 200)
         self.assertTrue(resp.getheader("Content-Type", "").startswith("text/css"))
+        self.assertTrue(len(body) > 0)
+
+    def test_html_rewrites_hashed_assets(self):
+        resp, body = self._request("/")
+        self.assertEqual(resp.status, 200)
+        html = body.decode("utf-8", errors="ignore")
+        hashed = self._hashed_asset_name("styles/base.css")
+        self.assertIn(f"/{hashed}", html)
+
+        resp, body = self._request(f"/{hashed}")
+        self.assertEqual(resp.status, 200)
+        self.assertTrue(resp.getheader("Content-Type", "").startswith("text/css"))
+        self.assertEqual(resp.getheader("Cache-Control"), _ASSET_CACHE_CONTROL)
         self.assertTrue(len(body) > 0)
 
     def test_404_for_missing(self):
