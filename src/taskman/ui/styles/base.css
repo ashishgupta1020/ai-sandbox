@@ -1,7 +1,7 @@
 /* Theme Tokens */
 :root {
   --bg: #f6f8fa;
-  --accent-bar: #c4d8f2;
+  --accent-bar: #6ba1ef;
   --surface: #ffffff;
   --border: #e5e7eb;
   --border-strong: #cbd5e1; /* slightly darker than --border for buttons */
