@@ -547,7 +547,8 @@ async function refreshPeople() {
     await ensureAssigneesLoaded();
     renderAssigneeSelector();
     if (!availableAssignees.length) {
-      box.textContent = 'No assignees yet.';
+      box.replaceChildren();
+      box.classList.add('muted');
       return;
     }
     await ensureTasksForAssignees(selectedAssignees);
@@ -593,16 +594,21 @@ async function refreshPeople() {
       language: { noRecordsFound: emptyMessage }
     };
     // Reuse a single Grid.js instance and forceRender to refresh rows.
+    const prevHeight = peopleGrid ? box.offsetHeight : 0;
+    if (prevHeight > 0) box.style.minHeight = `${prevHeight}px`;
+    if (peopleGrid && rows.length === 0) {
+      // Grid.js doesn't show noRecordsFound after updateConfig+forceRender when data goes empty.
+      if (typeof peopleGrid.destroy === 'function') peopleGrid.destroy();
+      peopleGrid = null;
+    }
     if (peopleGrid) {
-      const prevHeight = box.offsetHeight;
-      if (prevHeight > 0) box.style.minHeight = `${prevHeight}px`;
       peopleGrid.updateConfig(gridConfig).forceRender(box);
-      setTimeout(() => { box.style.minHeight = ''; }, 0);
     } else {
       peopleGrid = new gridjs.Grid(gridConfig);
       box.replaceChildren();
       peopleGrid.render(box);
     }
+    if (prevHeight > 0) setTimeout(() => { box.style.minHeight = ''; }, 0);
 
   } catch (e) {
     document.getElementById('people').textContent = `Error: ${e.message}`;
