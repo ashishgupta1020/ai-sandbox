@@ -81,6 +81,12 @@ class TestTodoServerEndpoints(unittest.TestCase):
         data = json.loads(body)
         self.assertEqual(data.get("items"), [])
 
+    def test_get_empty_archive(self):
+        status, body = self._get("/api/todo/archive")
+        self.assertEqual(status, 200)
+        data = json.loads(body)
+        self.assertEqual(data.get("items"), [])
+
     def test_todo_flow_endpoints(self):
         # add
         status, data = self._post_json("/api/todo/add", {"title": "Write tests", "priority": "low"})

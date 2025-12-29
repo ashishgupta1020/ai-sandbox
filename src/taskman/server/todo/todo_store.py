@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import threading
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -14,6 +15,8 @@ from .todo import Todo, TodoPriority
 
 class TodoStore:
     """Lightweight store for todo items."""
+
+    _ARCHIVE_DAYS = 30
 
     def __init__(self, db_path: Optional[Path] = None) -> None:
         base_dir = get_data_store_dir()
@@ -58,10 +61,25 @@ class TodoStore:
                   people TEXT,           -- JSON array of strings
                   priority TEXT NOT NULL DEFAULT 'medium',
                   done INTEGER NOT NULL DEFAULT 0,
+                  done_at INTEGER,       -- epoch seconds when completed
                   created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
                 )
                 """
             )
+            self._ensure_columns()
+
+    def _ensure_columns(self) -> None:
+        if self._conn is None:
+            raise RuntimeError("Database connection is not open")
+        cur = self._conn.execute("PRAGMA table_info(todos)")
+        columns = {row["name"] for row in cur.fetchall()}
+        if "done_at" not in columns:
+            self._conn.execute("ALTER TABLE todos ADD COLUMN done_at INTEGER")
+        if "created_at" not in columns:
+            self._conn.execute("ALTER TABLE todos ADD COLUMN created_at INTEGER")
+
+    def _archive_cutoff(self, now: int) -> int:
+        return now - (self._ARCHIVE_DAYS * 24 * 60 * 60)
 
     def add_item(self, todo: Todo) -> Todo:
         if self._conn is None:
@@ -74,12 +92,13 @@ class TodoStore:
             "people": json.dumps(list(todo.people)),
             "priority": todo.priority.value,
             "done": 1 if todo.done else 0,
+            "done_at": int(time.time()) if todo.done else None,
         }
         with self._lock:
             cur = self._conn.execute(
                 """
-                INSERT INTO todos (title, note, due_date, people, priority, done)
-                VALUES (:title, :note, :due_date, :people, :priority, :done)
+                INSERT INTO todos (title, note, due_date, people, priority, done, done_at)
+                VALUES (:title, :note, :due_date, :people, :priority, :done, :done_at)
                 """,
                 payload,
             )
@@ -91,13 +110,56 @@ class TodoStore:
         if self._conn is None:
             raise RuntimeError("Database connection is not open")
         self._ensure_table()
+        now = int(time.time())
+        cutoff = self._archive_cutoff(now)
         with self._lock:
             cur = self._conn.execute(
                 """
                 SELECT id, title, note, due_date, people, priority, done
                 FROM todos
+                WHERE done = 0
+                   OR (done = 1 AND COALESCE(done_at, created_at, :now) >= :cutoff)
                 ORDER BY done ASC, due_date ASC, id ASC
+                """,
+                {"cutoff": cutoff, "now": now},
+            )
+            rows = cur.fetchall()
+        items: list[Todo] = []
+        for row in rows:
+            people_raw = row["people"]
+            try:
+                people = json.loads(people_raw) if people_raw else []
+            except Exception:
+                people = []
+            items.append(
+                Todo(
+                    id=int(row["id"]),
+                    title=row["title"] or "",
+                    note=row["note"] or "",
+                    due_date=row["due_date"] or "",
+                    people=people,
+                    priority=TodoPriority.from_value(row["priority"] or ""),
+                    done=bool(row["done"]),
+                )
+            )
+        return items
+
+    def list_archived_items(self) -> list[Todo]:
+        if self._conn is None:
+            raise RuntimeError("Database connection is not open")
+        self._ensure_table()
+        now = int(time.time())
+        cutoff = self._archive_cutoff(now)
+        with self._lock:
+            cur = self._conn.execute(
                 """
+                SELECT id, title, note, due_date, people, priority, done
+                FROM todos
+                WHERE done = 1
+                  AND COALESCE(done_at, created_at, :now) < :cutoff
+                ORDER BY COALESCE(done_at, created_at, :now) DESC, id DESC
+                """,
+                {"cutoff": cutoff, "now": now},
             )
             rows = cur.fetchall()
         items: list[Todo] = []
@@ -126,8 +188,8 @@ class TodoStore:
         self._ensure_table()
         with self._lock:
             cur = self._conn.execute(
-                "UPDATE todos SET done = :done WHERE id = :id",
-                {"done": 1 if done else 0, "id": int(todo_id)},
+                "UPDATE todos SET done = :done, done_at = :done_at WHERE id = :id",
+                {"done": 1 if done else 0, "done_at": int(time.time()) if done else None, "id": int(todo_id)},
             )
             return cur.rowcount > 0
 

@@ -72,6 +72,14 @@ class TodoAPI:
         except Exception as exc:
             return {"error": f"Failed to fetch todos: {exc}"}, 500
 
+    def list_archived_todos(self) -> Tuple[Dict[str, object], int]:
+        try:
+            with self._store_factory() as store:
+                items = [t.to_dict() for t in store.list_archived_items()]
+            return {"items": items}, 200
+        except Exception as exc:
+            return {"error": f"Failed to fetch archived todos: {exc}"}, 500
+
     def mark_done(self, payload: Dict[str, object]) -> Tuple[Dict[str, object], int]:
         if not isinstance(payload, dict):
             return {"error": "Invalid payload"}, 400

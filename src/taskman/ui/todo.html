@@ -20,8 +20,19 @@
       </header>
 
       <section aria-label="Todo checklist">
-        <ul class="checklist">
-        </ul>
+        <ul class="checklist" id="todo-list"></ul>
+      </section>
+
+      <section class="todo-archive" aria-label="Archived todos">
+        <h2 class="title-row">
+          <span>Archived</span>
+        </h2>
+        <details id="todo-archive-details" class="archive-details">
+          <summary class="archive-summary">Click to load...</summary>
+          <div class="archive-body">
+            <ul class="checklist checklist-archive" id="todo-archive-list"></ul>
+          </div>
+        </details>
       </section>
     </div>
     <script src="/todo.js" defer></script>

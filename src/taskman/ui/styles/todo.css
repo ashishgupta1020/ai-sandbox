@@ -95,3 +95,22 @@
 .pill.priority-medium { background: #eef2ff; border-color: #c7d2fe; color: #312e81; }
 .pill.priority-high { background: #fff7ed; border-color: #fed7aa; color: #7c2d12; }
 .pill.priority-urgent { background: #fef2f2; border-color: #fecdd3; color: #7f1d1d; }
+
+.todo-archive { margin-top: 1.5rem; }
+.archive-details {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.35rem 0.85rem;
+  background: #f8fafc;
+}
+.archive-details[open] { background: #f1f5f9; }
+.archive-details summary {
+  cursor: pointer;
+  font-weight: 400;
+  font-style: italic;
+  color: var(--muted);
+  list-style: none;
+}
+.archive-details summary::-webkit-details-marker { display: none; }
+.archive-body { padding: 0.75rem 0 0.25rem; }
+.checklist-archive { margin-top: 0; }

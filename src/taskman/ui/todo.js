@@ -1,6 +1,8 @@
 (function () {
-  const list = document.querySelector('.checklist');
-  if (!list) return;
+  const todo_list = document.querySelector('#todo-list');
+  if (!todo_list) return;
+  const archiveList = document.querySelector('#todo-archive-list');
+  const archiveDetails = document.querySelector('#todo-archive-details');
 
   // Minimal JSON helper for todo endpoints
   const api = async (path, opts = {}) => {
@@ -15,6 +17,7 @@
     return data;
   };
   const apiListTodos = () => api('/api/todo');
+  const apiListArchived = () => api('/api/todo/archive');
   const apiAddTodo = (payload) => api('/api/todo/add', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -30,6 +33,9 @@
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload || {})
   });
+
+  let archiveLoaded = false;
+  let archiveLoading = false;
 
   const formatDueDisplay = (val) => {
     if (!val) return '';
@@ -72,7 +78,8 @@
     li.dataset.done = input.checked ? '1' : '0';
   };
 
-  const sortList = () => {
+  const sortList = (list) => {
+    if (!list) return;
     const items = Array.from(list.querySelectorAll('li.todo-item'));
     items.forEach((li) => {
       const input = li.querySelector('input[type="checkbox"]');
@@ -92,7 +99,7 @@
     items.forEach((li) => list.appendChild(li));
   };
 
-  const attachCheckboxHandler = (input, todoId) => {
+  const attachCheckboxHandler = (input, todoId, { list, afterChange } = {}) => {
     input.addEventListener('change', async () => {
       const checked = input.checked;
       try {
@@ -103,7 +110,11 @@
         alert(err && err.message ? err.message : 'Failed to update todo.');
         return;
       }
-      sortList();
+      if (typeof afterChange === 'function') {
+        await afterChange();
+        return;
+      }
+      sortList(list);
     });
   };
 
@@ -239,34 +250,38 @@
     return { element: form, show, hide, reset: resetFields, setValues, setSubmitLabel, close };
   };
 
-  const renderList = (items) => {
+  const renderList = (list, items, { showAdd = false, emptyMessage = 'No todos yet.', onAdd, onEdit, afterChange } = {}) => {
+    if (!list) return;
     list.replaceChildren();
-    const addRow = document.createElement('li');
-    addRow.className = 'checklist-add';
-    const collapsed = document.createElement('div');
-    collapsed.className = 'checklist-item';
-    const addCheckbox = document.createElement('input');
-    addCheckbox.type = 'checkbox';
-    addCheckbox.disabled = true;
-    addCheckbox.className = 'muted';
-    const addText = document.createElement('div');
-    addText.className = 'checklist-title muted todo-add-label';
-    addText.textContent = 'Add new…';
-    collapsed.append(addCheckbox, addText);
-    const addForm = createTodoForm({
-      submitLabel: 'Save',
-      onSubmit: async (payload) => {
-        await apiAddTodo(payload);
-        await loadTodos();
-      },
-    });
-    addRow.append(collapsed, addForm.element);
-    collapsed.addEventListener('click', (e) => { e.preventDefault(); addForm.reset(); addForm.show(); });
-    list.appendChild(addRow);
+    if (showAdd) {
+      const addRow = document.createElement('li');
+      addRow.className = 'checklist-add';
+      const collapsed = document.createElement('div');
+      collapsed.className = 'checklist-item';
+      const addCheckbox = document.createElement('input');
+      addCheckbox.type = 'checkbox';
+      addCheckbox.disabled = true;
+      addCheckbox.className = 'muted';
+      const addText = document.createElement('div');
+      addText.className = 'checklist-title muted todo-add-label';
+      addText.textContent = 'Add new…';
+      collapsed.append(addCheckbox, addText);
+      const addForm = createTodoForm({
+        submitLabel: 'Save',
+        onSubmit: async (payload) => {
+          if (typeof onAdd === 'function') {
+            await onAdd(payload);
+          }
+        },
+      });
+      addRow.append(collapsed, addForm.element);
+      collapsed.addEventListener('click', (e) => { e.preventDefault(); addForm.reset(); addForm.show(); });
+      list.appendChild(addRow);
+    }
     if (!items || !items.length) {
       const li = document.createElement('li');
       li.className = 'muted';
-      li.textContent = 'No todos yet.';
+      li.textContent = emptyMessage;
       list.appendChild(li);
       return;
     }
@@ -291,10 +306,10 @@
       meta.className = 'checklist-meta';
       const dueIso = item.due_date || '';
       const dueDisplay = formatDueDisplay(dueIso);
-    if (dueDisplay) {
-      const overdueClass = isOverdue(dueIso) ? 'due-over' : '';
-      meta.appendChild(buildPill(`Due ${dueDisplay}`, `due ${overdueClass}`));
-    }
+      if (dueDisplay) {
+        const overdueClass = isOverdue(dueIso) ? 'due-over' : '';
+        meta.appendChild(buildPill(`Due ${dueDisplay}`, `due ${overdueClass}`));
+      }
       const prio = (item.priority || 'medium').toLowerCase();
       meta.appendChild(buildPill(prio.charAt(0).toUpperCase() + prio.slice(1), `priority priority-${prio}`));
       (item.people || []).forEach((p) => {
@@ -304,35 +319,39 @@
       textWrap.append(title, note, meta);
       label.append(checkbox, textWrap);
 
-      const editForm = createTodoForm({
-        submitLabel: 'Update',
-        onSubmit: async (payload) => {
-          await apiEditTodo({ id: item.id, ...payload });
-          await loadTodos();
-        },
-        onCancel: () => { li.classList.remove('editing'); },
-      });
-      editForm.hide();
+      let editForm = null;
+      if (typeof onEdit === 'function') {
+        editForm = createTodoForm({
+          submitLabel: 'Update',
+          onSubmit: async (payload) => {
+            await onEdit(item.id, payload);
+          },
+          onCancel: () => { li.classList.remove('editing'); },
+        });
+        editForm.hide();
 
-      textWrap.addEventListener('click', (evt) => {
-        evt.preventDefault();
-        editForm.setValues(item, 'Update');
-        li.classList.add('editing');
-        editForm.show();
-      });
+        textWrap.addEventListener('click', (evt) => {
+          evt.preventDefault();
+          editForm.setValues(item, 'Update');
+          li.classList.add('editing');
+          editForm.show();
+        });
+      }
 
-      li.append(label, editForm.element);
+      li.append(label);
+      if (editForm) li.append(editForm.element);
       li.dataset.dueValue = String(dueNumeric(dueIso));
       li.dataset.priorityValue = String(priorityRank(prio));
       li.dataset.done = checkbox.checked ? '1' : '0';
       li.classList.toggle('done', checkbox.checked);
-      attachCheckboxHandler(checkbox, item.id);
+      attachCheckboxHandler(checkbox, item.id, { list, afterChange });
       list.appendChild(li);
     });
-    sortList();
+    sortList(list);
   };
 
-  const showError = (message) => {
+  const showMessage = (list, message) => {
+    if (!list) return;
     list.replaceChildren();
     const li = document.createElement('li');
     li.className = 'muted';
@@ -340,15 +359,72 @@
     list.appendChild(li);
   };
 
-  const loadTodos = async () => {
+  const showError = (list, message) => {
+    showMessage(list, message);
+  };
+
+  async function loadArchived() {
+    if (!archiveList || archiveLoading) return;
+    archiveLoading = true;
+    showMessage(archiveList, 'Loading archive...');
+    try {
+      const data = await apiListArchived();
+      renderList(archiveList, Array.isArray(data.items) ? data.items : [], {
+        showAdd: false,
+        emptyMessage: 'No archived todos yet.',
+        onEdit: async (id, payload) => {
+          await apiEditTodo({ id, ...payload });
+          await refreshAll();
+        },
+        afterChange: refreshAll,
+      });
+      archiveLoaded = true;
+    } catch (err) {
+      showError(archiveList, err && err.message ? err.message : 'Failed to load archive.');
+    } finally {
+      archiveLoading = false;
+    }
+  }
+
+  async function loadTodos() {
     try {
       const data = await apiListTodos();
-      renderList(Array.isArray(data.items) ? data.items : []);
+      renderList(todo_list, Array.isArray(data.items) ? data.items : [], {
+        showAdd: true,
+        emptyMessage: 'No todos yet.',
+        onAdd: async (payload) => {
+          await apiAddTodo(payload);
+          await refreshAll();
+        },
+        onEdit: async (id, payload) => {
+          await apiEditTodo({ id, ...payload });
+          await refreshAll();
+        },
+        afterChange: refreshAll,
+      });
     } catch (err) {
-      showError(err && err.message ? err.message : 'Failed to load todos.');
+      showError(todo_list, err && err.message ? err.message : 'Failed to load todos.');
+    }
+  }
+
+  async function refreshAll() {
+    await loadTodos();
+    if (archiveLoaded) {
+      await loadArchived();
+    }
+  }
+
+  const wireArchivedList = () => {
+    if (archiveDetails) {
+      archiveDetails.addEventListener('toggle', () => {
+        if (archiveDetails.open && !archiveLoaded) {
+          loadArchived();
+        }
+      });
     }
   };
 
   // Initial render from API
+  wireArchivedList();
   loadTodos();
 })();

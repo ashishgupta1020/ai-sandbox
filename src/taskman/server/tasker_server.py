@@ -28,6 +28,7 @@ Currently supported routes:
 
   TODO APIs:
   - GET  /api/todo                               -> list todo items
+  - GET  /api/todo/archive                       -> list archived todo items
   - POST /api/todo/add                           -> create a todo item
   - POST /api/todo/mark                          -> mark todo done/undone
   - POST /api/todo/edit                          -> edit a todo item
@@ -276,6 +277,9 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
         # TODO APIs
         if req_path == "/api/todo":
             resp, status = _todo_api.list_todos()
+            return self._json(resp, status)
+        if req_path == "/api/todo/archive":
+            resp, status = _todo_api.list_archived_todos()
             return self._json(resp, status)
 
         # Project tasks for a given project name

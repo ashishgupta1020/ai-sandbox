@@ -1,6 +1,7 @@
 import shutil
 import tempfile
 import unittest
+import time
 from pathlib import Path
 
 from taskman.server.todo.todo import Todo, TodoPriority
@@ -79,6 +80,32 @@ class TestTodoStore(unittest.TestCase):
             )
             items = store.list_items()
         self.assertEqual(items[0].people, [])
+
+    def test_archive_filters_old_completed_items(self):
+        now = int(time.time())
+        old_ts = now - (40 * 24 * 60 * 60)
+        recent_ts = now - (5 * 24 * 60 * 60)
+        with TodoStore(db_path=self.db_path) as store:
+            store._ensure_table()
+            store._conn.execute(
+                """
+                INSERT INTO todos (title, note, due_date, people, priority, done, done_at, created_at)
+                VALUES (:title, '', '', '[]', 'low', 1, :done_at, :created_at)
+                """,
+                {"title": "Old done", "done_at": old_ts, "created_at": old_ts},
+            )
+            store._conn.execute(
+                """
+                INSERT INTO todos (title, note, due_date, people, priority, done, done_at, created_at)
+                VALUES (:title, '', '', '[]', 'low', 1, :done_at, :created_at)
+                """,
+                {"title": "Recent done", "done_at": recent_ts, "created_at": recent_ts},
+            )
+            store.add_item(Todo(title="Active"))
+            active = store.list_items()
+            archived = store.list_archived_items()
+        self.assertEqual([t.title for t in active], ["Active", "Recent done"])
+        self.assertEqual([t.title for t in archived], ["Old done"])
 
 
 if __name__ == "__main__":

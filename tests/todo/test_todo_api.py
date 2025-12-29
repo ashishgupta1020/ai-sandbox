@@ -1,6 +1,7 @@
 import shutil
 import tempfile
 import unittest
+import time
 from pathlib import Path
 
 from taskman.server.todo.todo_api import TodoAPI
@@ -77,6 +78,31 @@ class TestTodoAPI(unittest.TestCase):
         self.assertEqual(status3, 200)
         items = resp3.get("items") or []
         self.assertTrue(items[0].get("done"))
+
+    def test_list_archived_filters_old_done(self):
+        resp, status = self.api.add_todo({"title": "Recent", "done": True})
+        self.assertEqual(status, 200)
+        resp2, status2 = self.api.add_todo({"title": "Old", "done": True})
+        self.assertEqual(status2, 200)
+        old_id = resp2["item"]["id"]
+
+        old_ts = int(time.time()) - (40 * 24 * 60 * 60)
+        with TodoStore(db_path=self.db_path) as store:
+            store._ensure_table()
+            store._conn.execute(
+                "UPDATE todos SET done_at = :done_at, created_at = :created_at WHERE id = :id",
+                {"done_at": old_ts, "created_at": old_ts, "id": old_id},
+            )
+
+        active_resp, active_status = self.api.list_todos()
+        self.assertEqual(active_status, 200)
+        active_titles = [item.get("title") for item in active_resp.get("items") or []]
+        self.assertEqual(active_titles, ["Recent"])
+
+        archived_resp, archived_status = self.api.list_archived_todos()
+        self.assertEqual(archived_status, 200)
+        archived_titles = [item.get("title") for item in archived_resp.get("items") or []]
+        self.assertEqual(archived_titles, ["Old"])
 
     def test_mark_done_requires_id(self):
         resp, status = self.api.mark_done({"done": True})

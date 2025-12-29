@@ -199,7 +199,7 @@ class TaskStore:
         if self._conn is None:
             raise RuntimeError("Database connection is not open")
         table = self._ensure_table(project_name)
-        normalized: List[Dict[str, Optional[str]]] = []
+        normalized: List[Dict[str, object]] = []
         for task in tasks:
             if "task_id" not in task:
                 raise ValueError("Each task must include 'task_id' for bulk_replace")
