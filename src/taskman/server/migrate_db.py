@@ -1,13 +1,23 @@
 from __future__ import annotations
 
 import argparse
+import re
 import sqlite3
 import sys
 from pathlib import Path
 from typing import Callable, Iterable, Optional
 
 from taskman.config import get_data_store_dir, load_config
-from taskman.server.task_store import _project_table_name
+_TABLE_PREFIX = "tasks_"
+
+
+def _project_table_name(project_name: str) -> str:
+    """Return a safe legacy table name for the given project."""
+    base = project_name.strip().lower()
+    if not base:
+        raise ValueError("Project name must be a non-empty string")
+    sanitized = re.sub(r"[^a-z0-9_]", "_", base)
+    return f"{_TABLE_PREFIX}{sanitized}"
 
 
 def _table_exists(conn: sqlite3.Connection, table: str) -> bool:

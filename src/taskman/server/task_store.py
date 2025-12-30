@@ -7,27 +7,21 @@ separate project and tag tables for metadata.
 
 from __future__ import annotations
 
-import re
 import sqlite3
 import threading
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional, TypedDict
 
 from taskman.config import get_data_store_dir
 
-_TABLE_PREFIX = "tasks_"
 _PROJECTS_TABLE = "projects"
 _TASKS_TABLE = "tasks"
 _PROJECT_TAGS_TABLE = "project_tags"
 
 
-def _project_table_name(project_name: str) -> str:
-    """Return a safe legacy table name for the given project."""
-    base = project_name.strip().lower()
-    if not base:
-        raise ValueError("Project name must be a non-empty string")
-    sanitized = re.sub(r"[^a-z0-9_]", "_", base)
-    return f"{_TABLE_PREFIX}{sanitized}"
+class ProjectRecord(TypedDict):
+    id: int
+    name: str
 
 
 class TaskStore:
@@ -118,7 +112,7 @@ class TaskStore:
                 f"CREATE INDEX IF NOT EXISTS idx_project_tags_tag ON {_PROJECT_TAGS_TABLE}(tag)"
             )
 
-    def _get_project(self, project_name: str, *, create: bool = False) -> Optional[Dict[str, object]]:
+    def _get_project(self, project_name: str, *, create: bool = False) -> Optional[ProjectRecord]:
         if self._conn is None:
             raise RuntimeError("Database connection is not open")
         self._ensure_schema()
@@ -140,7 +134,10 @@ class TaskStore:
                 f"INSERT INTO {_PROJECTS_TABLE} (name, name_lower) VALUES (?, ?)",
                 (name, name_lower),
             )
-            return {"id": int(cur.lastrowid), "name": name}
+            lastrowid = cur.lastrowid
+            if lastrowid is None:
+                raise RuntimeError("Failed to create project row")
+            return {"id": int(lastrowid), "name": name}
 
     def _get_project_id(self, project_name: str, *, create: bool = False) -> Optional[int]:
         project = self._get_project(project_name, create=create)

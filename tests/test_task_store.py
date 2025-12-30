@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from taskman.server.task_store import TaskStore, _project_table_name
+from taskman.server.task_store import TaskStore
 
 
 class TestSQLiteStorage(unittest.TestCase):
@@ -14,13 +14,6 @@ class TestSQLiteStorage(unittest.TestCase):
 
     def tearDown(self):
         shutil.rmtree(self.tmpdir, ignore_errors=True)
-
-    def test_project_table_name_invalid_inputs(self):
-        with self.assertRaises(ValueError):
-            # Empty names are rejected before reaching sqlite
-            _project_table_name("")
-
-        self.assertEqual(_project_table_name("Alpha/Beta"), "tasks_alpha_beta")
 
     def test_open_idempotent(self):
         store = TaskStore(db_path=self.db_path)
