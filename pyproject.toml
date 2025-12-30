@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ataskman"
-version = "0.11.0"
+version = "0.11.2"
 description = "Simple project and task manager with CLI and UI."
 readme = "README.md"
 requires-python = ">=3.8"
@@ -25,6 +25,7 @@ test = [
 [project.scripts]
 taskman-ui = "taskman.server.tasker_server:main"
 taskman-cli = "taskman.cli.task_manager:main_cli"
+taskman-migrate = "taskman.server.migrate_db:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

@@ -1,0 +1,3 @@
+[run]
+omit =
+    */taskman/server/migrate_db.py

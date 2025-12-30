@@ -30,10 +30,10 @@ class TestSQLiteStorage(unittest.TestCase):
         self.assertIs(store._conn, first_conn)
         store.close()
 
-    def test_ensure_table_without_open(self):
+    def test_ensure_schema_without_open(self):
         store = TaskStore(db_path=self.db_path)
         with self.assertRaises(RuntimeError):
-            store._ensure_table("alpha")
+            store._ensure_schema()
 
     def test_fetch_all_without_open(self):
         store = TaskStore(db_path=self.db_path)

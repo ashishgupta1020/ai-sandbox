@@ -106,8 +106,14 @@ class TestTasksPageAPI(unittest.TestCase):
     def test_tasks_endpoint_non_list_json(self):
         # Corrupt the tasks schema to simulate unreadable storage
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute("CREATE TABLE IF NOT EXISTS tasks_bravo (payload TEXT)")
-            conn.execute("INSERT INTO tasks_bravo (payload) VALUES ('oops')")
+            conn.execute("CREATE TABLE IF NOT EXISTS tasks (payload TEXT)")
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS projects (id INTEGER PRIMARY KEY, name TEXT, name_lower TEXT)"
+            )
+            conn.execute(
+                "INSERT INTO projects (name, name_lower) VALUES (?, ?)",
+                ("Bravo", "bravo"),
+            )
         resp, body = self._get("/api/projects/Bravo/tasks")
         self.assertEqual(resp.status, 200)
         data = json.loads(body)
