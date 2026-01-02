@@ -173,7 +173,10 @@ function editableFormatter(field, type, options) {
         // Hover state via CSS class to hint editability.
         onMouseEnter: (ev) => ev.target.closest('td')?.classList.add('editable-cell'),
         onMouseLeave: (ev) => ev.target.closest('td')?.classList.remove('editable-cell'),
-        onClick: (ev) => startInlineEditor(ev.target, idx0, field, type, options, cell, tid)
+        onClick: (ev) => {
+          if (ev.target && ev.target.closest && ev.target.closest('a')) return;
+          startInlineEditor(ev.target, idx0, field, type, options, cell, tid);
+        }
       }, displayNode);
     }
     return h('span', {
