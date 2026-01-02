@@ -25,7 +25,6 @@ test = [
 [project.scripts]
 taskman-ui = "taskman.server.tasker_server:main"
 taskman-cli = "taskman.cli.task_manager:main_cli"
-taskman-migrate = "taskman.server.migrate_db:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
