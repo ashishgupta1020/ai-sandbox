@@ -9,6 +9,7 @@ const peopleColumns = ['Assignee', 'Project', 'Summary', 'Status', 'Priority'];
 let peopleGrid = null; // reused Grid.js instance for the People table
 let assigneesLoadPromise = null;
 const assigneeTasksCache = new Map(); // assignee -> tasks array
+const taskLinkIcon = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5l7 7-7 7M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 async function api(path, opts = {}) {
   const res = await fetch(path, opts);
@@ -29,6 +30,34 @@ function el(tag, attrs = {}, ...children) {
   }
   for (const c of children) n.append(c);
   return n;
+}
+
+function buildTaskLink(project, taskId) {
+  if (!project) return '';
+  const parsed = Number(taskId);
+  if (!Number.isFinite(parsed)) return '';
+  return `/project.html?name=${encodeURIComponent(project)}&taskId=${encodeURIComponent(parsed)}`;
+}
+
+function taskLinkLabel(summary) {
+  return summary ? `View task: ${summary}` : 'View task';
+}
+
+function makeTaskLinkFormatter(projectIdx, summaryIdx, idIdx) {
+  return (_, row) => {
+    const project = row?.cells?.[projectIdx]?.data || '';
+    const summary = row?.cells?.[summaryIdx]?.data || '';
+    const taskId = row?.cells?.[idIdx]?.data;
+    const href = buildTaskLink(project, taskId);
+    if (!href) return '';
+    const label = taskLinkLabel(summary);
+    return gridjs.h('a', {
+      className: 'btn btn-icon',
+      href,
+      title: label,
+      'aria-label': label
+    }, gridjs.html(taskLinkIcon));
+  };
 }
 
 // API wrappers
@@ -445,15 +474,16 @@ async function refreshHighlights() {
       box.replaceChildren(table);
       return;
     }
-    const rows = items.map((h) => [
+    const rows = items.map((h) => ([
       h.project || '',
       h.summary || '',
       h.assignee || '',
       h.status || '',
-      h.priority || ''
-    ]);
+      h.priority || '',
+      h.id
+    ]));
     const grid = new gridjs.Grid({
-      columns: ['Project', 'Summary', 'Assignee', 'Status', 'Priority'],
+      columns: ['Project', 'Summary', 'Assignee', 'Status', 'Priority', { name: '', sort: false, formatter: makeTaskLinkFormatter(0, 1, 5) }],
       data: rows,
       sort: true,
       search: true,
@@ -555,9 +585,10 @@ async function refreshPeople() {
     const filtered = selectedAssignees.length
       ? selectedAssignees.flatMap((name) => assigneeTasksCache.get(name) || [])
       : [];
-    const rows = filtered.map((t) => [t.assignee || '', t.project || '', t.summary || '', t.status || '', t.priority || '']);
+    const gridRows = filtered.map((t) => [t.assignee || '', t.project || '', t.summary || '', t.status || '', t.priority || '', t.id]);
+    const tableRows = filtered.map((t) => [t.assignee || '', t.project || '', t.summary || '', t.status || '', t.priority || '']);
     const emptyMessage = selectedAssignees.length ? 'No tasks for selected assignees yet.' : 'Select at least one assignee to see tasks.';
-    box.classList.toggle('muted', rows.length === 0);
+    box.classList.toggle('muted', gridRows.length === 0);
     if (!window.gridjs || typeof gridjs.Grid !== 'function') {
       const table = el('table', { class: 'table' });
       const thead = el('thead');
@@ -567,12 +598,12 @@ async function refreshPeople() {
       }
       thead.append(headerRow);
       const tbody = el('tbody');
-      if (rows.length === 0) {
+      if (tableRows.length === 0) {
         const emptyRow = el('tr');
         emptyRow.append(el('td', { colspan: peopleColumns.length, class: 'muted' }, emptyMessage));
         tbody.append(emptyRow);
       } else {
-        for (const r of rows) {
+        for (const r of tableRows) {
           const tr = el('tr');
           for (const cell of r) {
             tr.append(el('td', {}, cell));
@@ -585,8 +616,8 @@ async function refreshPeople() {
       return;
     }
     const gridConfig = {
-      columns: peopleColumns,
-      data: rows,
+      columns: [...peopleColumns, { name: '', sort: false, formatter: makeTaskLinkFormatter(1, 2, 5) }],
+      data: gridRows,
       sort: true,
       search: true,
       pagination: { limit: 10 },
@@ -596,7 +627,7 @@ async function refreshPeople() {
     // Reuse a single Grid.js instance and forceRender to refresh rows.
     const prevHeight = peopleGrid ? box.offsetHeight : 0;
     if (prevHeight > 0) box.style.minHeight = `${prevHeight}px`;
-    if (peopleGrid && rows.length === 0) {
+    if (peopleGrid && gridRows.length === 0) {
       // Grid.js doesn't show noRecordsFound after updateConfig+forceRender when data goes empty.
       if (typeof peopleGrid.destroy === 'function') peopleGrid.destroy();
       peopleGrid = null;

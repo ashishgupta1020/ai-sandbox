@@ -5,6 +5,18 @@ let DATA_ROWS = [];
 const STATUS_OPTS = ['Not Started', 'In Progress', 'Completed'];
 const PRIORITY_OPTS = ['Low', 'Medium', 'High'];
 let CURRENT_PROJECT = null;
+let pendingFocusTaskId = null;
+
+function getQueryParam(name) {
+  const url = new URL(window.location.href);
+  return url.searchParams.get(name);
+}
+
+const rawFocusTaskId = getQueryParam('taskId');
+if (rawFocusTaskId !== null) {
+  const parsed = Number(rawFocusTaskId);
+  if (Number.isFinite(parsed)) pendingFocusTaskId = parsed;
+}
 
 // Minimal JSON API with consistent error propagation.
 async function api(path, opts = {}) {
@@ -314,6 +326,47 @@ function findRowIndexById(taskId) {
   return -1;
 }
 
+function focusTaskRow(taskId, attempt = 0) {
+  if (taskId == null) return;
+  const idx0 = findRowIndexById(taskId);
+  if (idx0 < 0) { pendingFocusTaskId = null; return; }
+  const box = document.getElementById('tasks');
+  if (!box) return;
+  const limit = (GRID && GRID.config && GRID.config.pagination && GRID.config.pagination.limit)
+    ? Number(GRID.config.pagination.limit)
+    : 20;
+  const pageSize = Number.isFinite(limit) && limit > 0 ? limit : 20;
+  const targetPage = Math.floor(idx0 / pageSize) + 1;
+  const rowInPage = idx0 % pageSize;
+
+  const scrollToRow = () => {
+    const rows = box.querySelectorAll('table.gridjs-table tbody tr');
+    const row = rows && rows.length ? rows[rowInPage] : null;
+    if (!row) return false;
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return true;
+  };
+
+  if (GRID && GRID.config && GRID.config.pagination && targetPage > 1) {
+    const pages = box.querySelector('.gridjs-pages');
+    if (pages) {
+      const buttons = Array.from(pages.querySelectorAll('button'));
+      const targetBtn = buttons.find((btn) => btn.textContent.trim() === String(targetPage));
+      if (targetBtn && !targetBtn.disabled) targetBtn.click();
+    }
+  }
+
+  if (scrollToRow()) {
+    pendingFocusTaskId = null;
+    return;
+  }
+  if (attempt < 6) {
+    setTimeout(() => focusTaskRow(taskId, attempt + 1), 80);
+  } else {
+    pendingFocusTaskId = null;
+  }
+}
+
 // Inline editing for grid cells
 function startInlineEditor(target, index0, field, type, options, currentValue, taskId) {
   const td = target.closest && target.closest('td') ? target.closest('td') : null;
@@ -427,6 +480,7 @@ function renderFallbackTable(tasks) {
   table.appendChild(thead);
   table.appendChild(tbody);
   box.replaceChildren(table);
+  if (pendingFocusTaskId != null) pendingFocusTaskId = null;
 }
 
 // Load tasks for a project and render. Grid.js receives raw text; Markdown is formatted via cell formatter.
@@ -452,6 +506,9 @@ async function loadTasks(name) {
       // Cache data for in-place edits/deletes without a full reload.
       DATA_ROWS = rows;
       renderWithGrid(DATA_ROWS);
+      if (pendingFocusTaskId != null) {
+        setTimeout(() => focusTaskRow(pendingFocusTaskId), 80);
+      }
     } else {
       renderFallbackTable(tasks);
     }

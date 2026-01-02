@@ -242,6 +242,7 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
                         tasks.append(
                             {
                                 "project": name,
+                                "id": t.get("id"),
                                 "summary": t.get("summary", ""),
                                 "assignee": assignee,
                                 "status": t.get("status", ""),
@@ -264,6 +265,7 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
                             highlights.append(
                                 {
                                     "project": name,
+                                    "id": t.get("id"),
                                     "summary": t.get("summary", ""),
                                     "assignee": t.get("assignee", "") or "",
                                     "status": t.get("status", ""),

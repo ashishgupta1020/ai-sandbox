@@ -268,6 +268,7 @@ class TestTasksPageAPI(unittest.TestCase):
         self.assertIn("B1", summary_set)
         # Verify fields are present
         for h in highlights:
+            self.assertIn("id", h)
             self.assertIn("assignee", h)
             self.assertIn("status", h)
             self.assertIn("priority", h)
@@ -319,6 +320,8 @@ class TestTasksPageAPI(unittest.TestCase):
         self.assertEqual(len(tasks), 3)
         projects_seen = {t["project"] for t in tasks}
         self.assertEqual(projects_seen, {"Alpha", "Beta"})
+        for t in tasks:
+            self.assertIn("id", t)
 
         resp_filt, body_filt = self._get("/api/tasks?assignee=alice")
         self.assertEqual(resp_filt.status, 200)
@@ -327,6 +330,7 @@ class TestTasksPageAPI(unittest.TestCase):
         self.assertEqual(len(filt_tasks), 2)
         for t in filt_tasks:
             self.assertEqual(t["assignee"], "Alice")
+            self.assertIn("id", t)
 
     # ----- Tests for /api/projects/<name>/tasks/create -----
     def test_create_task_defaults(self):

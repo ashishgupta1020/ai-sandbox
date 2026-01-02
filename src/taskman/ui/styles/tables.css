@@ -46,6 +46,28 @@ table.gridjs-table thead th.gridjs-th {
   padding-right: 6px;
 }
 
+/* Hide the trailing link column header cell for highlights grid */
+#highlights .gridjs thead tr th:last-child { display: none !important; }
+
+/* Make trailing link column fit icon width tightly for highlights grid */
+#highlights table.gridjs-table td.gridjs-td:last-child {
+  width: 1%;
+  white-space: nowrap;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+/* Hide the trailing link column header cell for people grid */
+#people .gridjs thead tr th:last-child { display: none !important; }
+
+/* Make trailing link column fit icon width tightly for people grid */
+#people table.gridjs-table td.gridjs-td:last-child {
+  width: 1%;
+  white-space: nowrap;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
 /* Make Grid.js search box a bit shorter */
 .gridjs input.gridjs-input {
   padding: 6px 10px;
