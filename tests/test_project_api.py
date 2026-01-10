@@ -2,6 +2,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from taskman.config import get_data_store_dir, set_data_store_dir
 from taskman.server.project_api import ProjectAPI
@@ -114,7 +115,7 @@ class TestProjectAPI(unittest.TestCase):
         self.api.open_project("OldName")
         old_md = self.api._markdown_file_path("OldName")
         old_md.write_text("content")
-        with unittest.mock.patch.object(Path, "rename", side_effect=OSError("nope")):
+        with patch.object(Path, "rename", side_effect=OSError("nope")):
             resp, status = self.api.edit_project_name("OldName", "NewName")
         self.assertEqual(status, 200)
         self.assertTrue(resp.get("ok"))
@@ -141,6 +142,80 @@ class TestProjectAPI(unittest.TestCase):
         tags_map = all_tags.get("tagsByProject") or {}
         self.assertEqual(tags_map.get("Tagged"), ["two"])
         self.assertEqual(tags_map.get("Untagged"), [])
+
+    def test_delete_project_missing_name(self):
+        resp, status = self.api.delete_project("")
+        self.assertEqual(status, 400)
+        self.assertIn("required", resp.get("error", ""))
+
+        resp2, status2 = self.api.delete_project(None)
+        self.assertEqual(status2, 400)
+
+    def test_delete_project_invalid_name(self):
+        resp, status = self.api.delete_project("..")
+        self.assertEqual(status, 400)
+        self.assertIn("Invalid", resp.get("error", ""))
+
+        resp2, status2 = self.api.delete_project(".hidden")
+        self.assertEqual(status2, 400)
+
+        resp3, status3 = self.api.delete_project("path/with/slash")
+        self.assertEqual(status3, 400)
+
+    def test_delete_project_not_found(self):
+        resp, status = self.api.delete_project("NonExistent")
+        self.assertEqual(status, 404)
+        self.assertIn("not found", resp.get("error", ""))
+
+    def test_delete_project_success(self):
+        self.api.open_project("ToDelete")
+        names = self.api.list_project_names()
+        self.assertIn("ToDelete", names)
+
+        resp, status = self.api.delete_project("ToDelete")
+        self.assertEqual(status, 200)
+        self.assertTrue(resp.get("ok"))
+        self.assertEqual(resp.get("deleted"), "ToDelete")
+
+        names_after = self.api.list_project_names()
+        self.assertNotIn("ToDelete", names_after)
+
+    def test_delete_project_removes_markdown(self):
+        self.api.open_project("WithMarkdown")
+        md_path = self.api._markdown_file_path("WithMarkdown")
+        md_path.write_text("# Tasks Export")
+        self.assertTrue(md_path.exists())
+
+        resp, status = self.api.delete_project("WithMarkdown")
+        self.assertEqual(status, 200)
+        self.assertTrue(resp.get("ok"))
+        self.assertFalse(md_path.exists())
+
+    def test_delete_project_markdown_failure_nonfatal(self):
+        self.api.open_project("MarkdownFail")
+        md_path = self.api._markdown_file_path("MarkdownFail")
+        md_path.write_text("content")
+
+        with patch.object(Path, "unlink", side_effect=OSError("nope")):
+            resp, status = self.api.delete_project("MarkdownFail")
+        self.assertEqual(status, 200)
+        self.assertTrue(resp.get("ok"))
+
+    def test_delete_project_error_bubble(self):
+        class BoomStore:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def delete_project(self, name):
+                raise RuntimeError("db crashed")
+
+        api = ProjectAPI(store_factory=lambda: BoomStore())
+        resp, status = api.delete_project("Alpha")
+        self.assertEqual(status, 500)
+        self.assertIn("db crashed", resp.get("error", ""))
 
 
 if __name__ == "__main__":

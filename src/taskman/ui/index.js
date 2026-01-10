@@ -65,6 +65,7 @@ const apiProjects = () => api('/api/projects');
 const apiHighlights = () => api('/api/highlights');
 const apiCreateProject = (name) => api('/api/projects/open', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
 const apiRenameProject = (oldName, newName) => api('/api/projects/edit-name', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ old_name: oldName, new_name: newName }) });
+const apiDeleteProject = (name) => api('/api/projects/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
 const apiFetchAllProjectTags = () => api('/api/project-tags');
 const apiFetchProjectTags = (name) => api(`/api/projects/${encodeURIComponent(name)}/tags`);
 const apiAddProjectTags = (name, tags) => api(`/api/projects/${encodeURIComponent(name)}/tags/add`, {
@@ -300,12 +301,17 @@ function buildProjectCard(name) {
   if (tpl && 'content' in tpl) {
     editBtn.appendChild(tpl.content.firstElementChild.cloneNode(true));
   }
-  rightCluster.append(tagRow, editBtn);
+  const deleteBtn = el('button', { type: 'button', class: 'btn btn-icon btn-icon-sm delete-btn', title: `Delete ${name}`, 'aria-label': `Delete ${name}`, 'data-name': name });
+  const tplTrash = document.getElementById('tpl-icon-trash');
+  if (tplTrash && 'content' in tplTrash) {
+    deleteBtn.appendChild(tplTrash.content.firstElementChild.cloneNode(true));
+  }
+  rightCluster.append(tagRow, editBtn, deleteBtn);
   header.append(title, rightCluster);
   const editor = buildProjectEditor(name, refreshProjects);
 
   card.addEventListener('click', (evt) => {
-    if (evt.target.closest('.edit-btn') || evt.target.closest('.project-editor')) return;
+    if (evt.target.closest('.edit-btn') || evt.target.closest('.delete-btn') || evt.target.closest('.project-editor')) return;
     window.location.href = card.getAttribute('data-href');
   });
   card.addEventListener('keydown', (evt) => {
@@ -321,6 +327,21 @@ function buildProjectCard(name) {
     evt.stopPropagation();
     editor.hidden = !editor.hidden;
     if (!editor.hidden && editor.focusEditor) editor.focusEditor();
+  });
+
+  deleteBtn.addEventListener('click', async (evt) => {
+    evt.preventDefault();
+    evt.stopPropagation();
+    if (!confirm(`Are you sure you want to delete the project "${name}"? This will permanently delete all tasks and tags associated with this project.`)) {
+      return;
+    }
+    try {
+      await apiDeleteProject(name);
+      projectTags.delete(name);
+      await Promise.all([refreshProjects(), refreshHighlights(), refreshPeople()]);
+    } catch (e) {
+      alert(e.message || String(e));
+    }
   });
 
   card.append(header, editor);

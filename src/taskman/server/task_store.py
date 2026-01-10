@@ -351,6 +351,40 @@ class TaskStore:
                 (new_name, new_lower, old_lower),
             )
 
+    def delete_project(self, project_name: str) -> bool:
+        """Delete a project and all its tasks/tags. Returns True if deleted."""
+        if self._conn is None:
+            raise RuntimeError("Database connection is not open")
+        self._ensure_schema()
+        name_lower = project_name.strip().lower()
+        if not name_lower:
+            raise ValueError("Project name must be non-empty")
+        with self._lock:
+            # Enable foreign keys to trigger CASCADE deletes
+            self._conn.execute("PRAGMA foreign_keys = ON")
+            cur = self._conn.execute(
+                f"SELECT id FROM {_PROJECTS_TABLE} WHERE name_lower = ?",
+                (name_lower,),
+            )
+            row = cur.fetchone()
+            if not row:
+                return False
+            project_id = row[0]
+            # Delete tasks and tags first (in case CASCADE isn't working)
+            self._conn.execute(
+                f"DELETE FROM {_TASKS_TABLE} WHERE project_id = ?",
+                (project_id,),
+            )
+            self._conn.execute(
+                f"DELETE FROM {_PROJECT_TAGS_TABLE} WHERE project_id = ?",
+                (project_id,),
+            )
+            self._conn.execute(
+                f"DELETE FROM {_PROJECTS_TABLE} WHERE id = ?",
+                (project_id,),
+            )
+            return True
+
     def get_tags_for_project(self, project_name: str) -> List[str]:
         """Return tags for a project (case-insensitive)."""
         if self._conn is None:

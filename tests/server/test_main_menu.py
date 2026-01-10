@@ -136,19 +136,48 @@ class TestMainMenuAPI(unittest.TestCase):
         resp, body = self._post("/api/projects/open", {"name": "Alpha"})
         self.assertEqual(resp.status, 200)
         obj = json.loads(body)
-        self.assertTrue(obj["ok"]) 
+        self.assertTrue(obj["ok"])
         self.assertEqual(obj["currentProject"], "Alpha")
         # Rename to same
         resp, body = self._post("/api/projects/edit-name", {"old_name": "Alpha", "new_name": "Alpha"})
         self.assertEqual(resp.status, 200)
         obj = json.loads(body)
-        self.assertTrue(obj["ok"]) 
+        self.assertTrue(obj["ok"])
         self.assertEqual(obj["currentProject"], "Alpha")
         # List remains unchanged
         resp, body = self._get("/api/projects")
         self.assertEqual(resp.status, 200)
         obj = json.loads(body)
         self.assertEqual(obj["projects"], ["Alpha"])
+
+    def test_delete_project_success(self):
+        # Create a project
+        resp, body = self._post("/api/projects/open", {"name": "ToDelete"})
+        self.assertEqual(resp.status, 200)
+
+        # Verify it exists
+        resp, body = self._get("/api/projects")
+        obj = json.loads(body)
+        self.assertIn("ToDelete", obj["projects"])
+
+        # Delete it
+        resp, body = self._post("/api/projects/delete", {"name": "ToDelete"})
+        self.assertEqual(resp.status, 200)
+        obj = json.loads(body)
+        self.assertTrue(obj["ok"])
+        self.assertEqual(obj["deleted"], "ToDelete")
+
+        # Verify it's gone
+        resp, body = self._get("/api/projects")
+        obj = json.loads(body)
+        self.assertNotIn("ToDelete", obj["projects"])
+
+    def test_delete_project_invalid_json(self):
+        with closing(http.client.HTTPConnection(self.host, self.port, timeout=2)) as conn:
+            conn.request("POST", "/api/projects/delete", body=b"not json", headers={"Content-Type": "application/json", "Content-Length": "8"})
+            resp = conn.getresponse()
+            _ = resp.read()
+            self.assertEqual(resp.status, 400)
 
     def test_unknown_mutation_endpoint(self):
         with closing(http.client.HTTPConnection(self.host, self.port, timeout=2)) as conn:

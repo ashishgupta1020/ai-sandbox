@@ -111,3 +111,30 @@ class ProjectAPI:
             pass
 
         return {"ok": True, "currentProject": new}, 200
+
+    def delete_project(self, name: object) -> Tuple[Dict[str, object], int]:
+        """Delete a project and all its associated tasks and tags."""
+        clean = str(name or "").strip()
+        if not clean:
+            return {"error": "'name' required"}, 400
+        if self._invalid_name(clean):
+            return {"error": "Invalid project name"}, 400
+
+        try:
+            with self._store_factory() as store:
+                deleted = store.delete_project(clean)
+            if not deleted:
+                return {"error": f"Project '{clean}' not found"}, 404
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}, 500
+
+        # Remove markdown export if present
+        md_path = self._markdown_file_path(clean)
+        try:
+            if md_path.exists():
+                md_path.unlink()
+        except Exception:
+            # Non-fatal; keep going
+            pass
+
+        return {"ok": True, "deleted": clean}, 200

@@ -24,6 +24,7 @@ Currently supported routes:
   - POST /api/projects/<name>/tags/remove        -> remove a tag from a project
   - POST /api/projects/open                      -> open/create a project { name }
   - POST /api/projects/edit-name                 -> rename project { old_name, new_name }
+  - POST /api/projects/delete                    -> delete a project { name }
   - POST /api/exit                               -> graceful shutdown
 
   TODO APIs:
@@ -343,6 +344,13 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
             if body is None:
                 return self._json({"error": "Invalid JSON"}, 400)
             resp, status = _project_api.edit_project_name(body.get("old_name"), body.get("new_name"))
+            return self._json(resp, status)
+
+        if path == "/api/projects/delete":
+            body = self._read_json()
+            if body is None:
+                return self._json({"error": "Invalid JSON"}, 400)
+            resp, status = _project_api.delete_project(body.get("name"))
             return self._json(resp, status)
 
         # Update a single task in a project: POST /api/projects/<name>/tasks/update
