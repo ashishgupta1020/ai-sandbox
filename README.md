@@ -6,11 +6,12 @@ Hosting model: the UI server is intended to be centrally hosted in a shared envi
 
 ## Features
 
-- Keep projects organized: browse projects, open or create new ones, and rename them when they change
+- Keep projects organized: browse projects, open or create new ones, rename or delete them, and tag them for filtering
+- Filter and find: filter projects by tags, view tasks by assignee in the People section
 - Track tasks quickly: add tasks with summary, assignee, status, priority, and rich-text/Markdown remarks
 - Highlight milestones: star important tasks so they appear on the shared Highlights board
 - Edit in place: update any task field right inside the table, including Markdown preview for remarks
-- Export anytime: save a project’s tasks to a Markdown file for sharing
+- Export anytime: save a project's tasks to a Markdown file for sharing
 - Choose your interface: use the browser UI or the guided CLI menus—the same data is shared either way
 - Capture quick todos: lightweight checklist with due dates, people, priorities, add/edit inline, and mark done
 

@@ -28,7 +28,7 @@ Hosting model
 
 - Central: open the shared URL for your hosted server.
 - Local (dev/testing): start with `taskman-ui --config /path/to/config.json` (or `python -m taskman.server.tasker_server --config /path/to/config.json`) and open `http://127.0.0.1:8765`.
-- Do: Add/rename projects, open a project, then add/edit/delete tasks inline. Remarks support markdown with preview.
+- Do: Add/rename/delete projects, manage project tags, filter by tags, open a project, then add/edit/delete tasks inline. Remarks support markdown with preview.
 
 ## CLI
 
