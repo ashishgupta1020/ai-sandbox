@@ -33,7 +33,7 @@
   margin-left: auto;
 }
 
-.project-name { font-weight: 600; }
+.project-name { font-weight: 600; font-size: 1.0625rem; }
 
 .project-card-header {
   display: flex;
@@ -106,7 +106,7 @@
   padding: 0.12rem 0.5rem;
   font-size: 0.85rem;
 }
-.filter-chip { padding: 0.15rem 0.55rem; }
+.filter-chip { padding: 0.12rem 0.45rem; font-size: 0.8125rem; }
 
 .tag-remove,
 .filter-chip button {
@@ -153,6 +153,8 @@
 }
 .filter-input {
   max-width: 280px;
+  font-size: 0.875rem;
+  padding: 5px 8px;
 }
 .filter-suggestions {
   position: absolute;
@@ -168,8 +170,9 @@
   overflow: hidden;
 }
 .filter-suggestion {
-  padding: 0.35rem 0.5rem;
+  padding: 0.3rem 0.5rem;
   cursor: pointer;
+  font-size: 0.875rem;
 }
 .filter-suggestion:hover,
 .filter-suggestion.active {
@@ -184,7 +187,7 @@
 .assignee-row { justify-content: space-between; }
 .assignee-actions { margin-left: auto; display: flex; align-items: center; gap: 0.35rem; }
 .assignee-note { font-size: 0.95rem; }
-.assignee-chip { cursor: pointer; border: 1px solid var(--border-strong); background: linear-gradient(#ffffff, #f8fafc); }
+.assignee-chip { cursor: pointer; border: 1px solid var(--border-strong); background: linear-gradient(#ffffff, #f8fafc); font-size: 0.875rem; }
 .assignee-chip.active { background: #2563eb; color: #ffffff; border-color: #1d4ed8; }
 .filter-chips .small {
   font-size: 0.9rem;

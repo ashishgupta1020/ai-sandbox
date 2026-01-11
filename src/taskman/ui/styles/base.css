@@ -13,6 +13,47 @@
   --danger-border: #c66;
   --danger-bg: #fee;
   --danger-bg-hover: #fdd;
+
+  /* Enhanced Shadow System */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06);
+  --shadow-lg: 0 4px 6px rgba(0,0,0,0.05), 0 10px 24px rgba(0,0,0,0.08);
+  --shadow-hover: 0 8px 16px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+
+  /* Color Refinements */
+  --accent-bar-hover: #5a91df;
+  --border-hover: #9ca3af;
+  --text-strong: #0f172a;
+
+  /* Typography Scale */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --font-size-xs: 0.8125rem;   /* 13px */
+  --font-size-sm: 0.9375rem;   /* 15px */
+  --font-size-base: 1.125rem;  /* 18px */
+  --font-size-md: 1.1875rem;   /* 19px */
+  --font-size-lg: 1.25rem;     /* 20px */
+  --font-size-xl: 1.375rem;    /* 22px */
+  --font-size-2xl: 1.5rem;     /* 24px */
+  --font-size-3xl: 1.875rem;   /* 30px */
+
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.625;
+
+  --letter-spacing-tight: -0.01em;
+  --letter-spacing-normal: 0;
+  --letter-spacing-wide: 0.025em;
+
+  /* Transition Timing */
+  --transition-fast: 0.01s;
+  --transition-base: 0.05s;
+  --transition-slow: 0.08s;
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* Base Reset */
@@ -25,13 +66,34 @@ body {
   font-family: 'SF Pro Text', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Ubuntu, Cantarell, 'Noto Sans', sans-serif;
   background-color: var(--bg);
   color: var(--text);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-normal);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 /* Typography */
+h1 {
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--letter-spacing-tight);
+  color: var(--text-strong);
+}
+
+h2 {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--letter-spacing-tight);
+  color: var(--text-strong);
+}
+
 .muted {
   color: var(--muted);
+  font-size: var(--font-size-sm);
+  letter-spacing: var(--letter-spacing-wide);
 }
 
 /* Placeholder text for empty editable cells */

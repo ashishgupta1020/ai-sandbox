@@ -609,7 +609,6 @@ async function refreshPeople() {
     const gridRows = filtered.map((t) => [t.assignee || '', t.project || '', t.summary || '', t.status || '', t.priority || '', t.id]);
     const tableRows = filtered.map((t) => [t.assignee || '', t.project || '', t.summary || '', t.status || '', t.priority || '']);
     const emptyMessage = selectedAssignees.length ? 'No tasks for selected assignees yet.' : 'Select at least one assignee to see tasks.';
-    box.classList.toggle('muted', gridRows.length === 0);
     if (!window.gridjs || typeof gridjs.Grid !== 'function') {
       const table = el('table', { class: 'table' });
       const thead = el('thead');

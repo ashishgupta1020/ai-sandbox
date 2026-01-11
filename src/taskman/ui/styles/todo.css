@@ -5,7 +5,7 @@
   margin: 0.75rem 0 0;
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
+  gap: 0.5rem;
 }
 .checklist-item {
   display: flex;
@@ -21,6 +21,8 @@
   background: #fff;
   position: relative;
   cursor: pointer;
+  margin-top: 0.25rem;
+  flex-shrink: 0;
   transition: border-color 0.12s ease, background 0.12s ease;
 }
 .checklist input[type="checkbox"]:focus-visible {
@@ -63,9 +65,9 @@
   justify-content: flex-start;
 }
 .checklist-text { display: flex; flex-direction: column; gap: 0.15rem; }
-.checklist-title { font-weight: 600; margin-top: 0.1rem; }
+.checklist-title { font-weight: 600; font-size: 1rem; }
 .todo-add-label { font-style: italic; }
-.checklist-note { font-size: 0.95rem; }
+.checklist-note { font-size: var(--font-size-sm); }
 .checklist li.done .checklist-title,
 .checklist li.done .checklist-note,
 .checklist li.done .checklist-meta { color: var(--muted); }
@@ -80,9 +82,9 @@
 .pill {
   display: inline-flex;
   align-items: center;
-  padding: 0.18rem 0.55rem;
+  padding: 0.1rem 0.4rem;
   border-radius: 999px;
-  font-size: 0.9rem;
+  font-size: 0.8125rem;
   background: #eef2ff;
   color: #111827;
   border: 1px solid #e5e7eb;
@@ -108,6 +110,7 @@
   cursor: pointer;
   font-weight: 400;
   font-style: italic;
+  font-size: var(--font-size-sm);
   color: var(--muted);
   list-style: none;
 }

@@ -18,15 +18,22 @@
   border-radius: 6px;
   cursor: pointer;
   margin-right: 0.5rem;
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-sm);
 }
-.btn:hover { background: #f1f5f9; }
+
+.btn:hover {
+  background: #f1f5f9;
+  border-color: var(--border-hover);
+}
 
 /* Shared icon button behavior */
 .btn-icon, .btn-icon-sm {
   /* Always visible but muted by default */
   opacity: 0.55;
   pointer-events: auto;
-  transition: opacity 0.15s ease-in-out, color 0.15s ease-in-out, background 0.15s ease-in-out;
+  transition: opacity var(--transition-base) var(--ease-smooth),
+              color var(--transition-base) var(--ease-smooth);
   margin-left: 0.15rem;
   /* Common button box */
   padding: 0;
@@ -45,7 +52,11 @@
 .btn-icon { width: 1.6rem; height: 1.6rem; }
 .btn-icon .icon { width: 1.15rem; height: 1.15rem; }
 .btn-icon .icon, .btn-icon-sm .icon { display: block; }
-.btn-icon:hover, .btn-icon-sm:hover { background: #f8fafc; }
+.btn-icon:hover, .btn-icon-sm:hover {
+  background: #f8fafc;
+  opacity: 1;
+  color: var(--text);
+}
 /* Unmute icon on direct hover/focus */
 .btn-icon:hover, .btn-icon:focus,
 .btn-icon-sm:hover, .btn-icon-sm:focus {
@@ -74,6 +85,12 @@
   border: 1px solid var(--border);
   border-radius: 4px;
   background: #fff;
+}
+
+.inline-input:focus {
+  outline: none;
+  border-color: var(--accent-bar);
+  box-shadow: 0 0 0 2px rgba(107, 161, 239, 0.2);
 }
 
 /* Multiline editor for markdown */
