@@ -127,7 +127,7 @@
 /* Ensure editor controls have breathing room inside the bordered box */
 .md-editor .inline-input.multiline { margin: 0; }
 .md-editor .md.preview { margin: 0; }
-.btn.btn-sm { padding: 0.25rem 0.5rem; font-size: 0.9rem; }
+.btn.btn-sm { padding: 0.25rem 0.5rem; font-size: var(--font-size-sm); }
 
 /* Markdown Reset inside table cells */
 .md { padding: 0; }

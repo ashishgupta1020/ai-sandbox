@@ -31,14 +31,12 @@
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
 
-  --font-size-xs: 0.8125rem;   /* 13px */
-  --font-size-sm: 0.9375rem;   /* 15px */
-  --font-size-base: 1.125rem;  /* 18px */
-  --font-size-md: 1.1875rem;   /* 19px */
-  --font-size-lg: 1.25rem;     /* 20px */
-  --font-size-xl: 1.375rem;    /* 22px */
-  --font-size-2xl: 1.5rem;     /* 24px */
-  --font-size-3xl: 1.875rem;   /* 30px */
+  --font-size-xs:   0.8125rem;  /* 13px - small labels, pills, chips */
+  --font-size-sm:   0.9375rem;  /* 15px - secondary text, notes */
+  --font-size-base: 1rem;       /* 16px - body text, form inputs */
+  --font-size-lg:   1.25rem;    /* 20px - emphasis, titles */
+  --font-size-xl:   1.5rem;     /* 24px - section headers */
+  --font-size-2xl:  1.75rem;    /* 28px - page titles */
 
   --line-height-tight: 1.25;
   --line-height-normal: 1.5;
@@ -75,7 +73,7 @@ body {
 
 /* Typography */
 h1 {
-  font-size: var(--font-size-3xl);
+  font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-bold);
   line-height: var(--line-height-tight);
   letter-spacing: var(--letter-spacing-tight);
@@ -100,7 +98,7 @@ h2 {
 .placeholder {
   color: var(--muted);
   font-style: italic;
-  font-size: 0.9em;
+  font-size: var(--font-size-sm);
 }
 
 code {

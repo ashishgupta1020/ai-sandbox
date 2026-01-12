@@ -65,7 +65,7 @@
   justify-content: flex-start;
 }
 .checklist-text { display: flex; flex-direction: column; gap: 0.15rem; }
-.checklist-title { font-weight: 600; font-size: 1rem; }
+.checklist-title { font-weight: 600; font-size: var(--font-size-base); }
 .todo-add-label { font-style: italic; }
 .checklist-note { font-size: var(--font-size-sm); }
 .checklist li.done .checklist-title,
@@ -84,7 +84,7 @@
   align-items: center;
   padding: 0.1rem 0.4rem;
   border-radius: 999px;
-  font-size: 0.8125rem;
+  font-size: var(--font-size-xs);
   background: #eef2ff;
   color: #111827;
   border: 1px solid #e5e7eb;

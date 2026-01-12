@@ -33,7 +33,7 @@
   margin-left: auto;
 }
 
-.project-name { font-weight: 600; font-size: 1.0625rem; }
+.project-name { font-weight: 600; font-size: var(--font-size-base); }
 
 .project-card-header {
   display: flex;
@@ -75,7 +75,7 @@
 
 .project-editor-label {
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
   padding-top: 0.35rem;
 }
 
@@ -99,14 +99,14 @@
   color: #111827;
   border-radius: 999px;
   padding: 0.18rem 0.55rem;
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
 }
 .tag-pill { padding: 0.2rem 0.6rem; }
 .tag-pill.tag-pill-small {
   padding: 0.12rem 0.5rem;
-  font-size: 0.85rem;
+  font-size: var(--font-size-xs);
 }
-.filter-chip { padding: 0.12rem 0.45rem; font-size: 0.8125rem; }
+.filter-chip { padding: 0.12rem 0.45rem; font-size: var(--font-size-xs); }
 
 .tag-remove,
 .filter-chip button {
@@ -115,15 +115,15 @@
   color: #6b7280;
   cursor: pointer;
   padding: 0 0.15rem;
-  font-size: 0.95rem;
+  font-size: var(--font-size-sm);
   line-height: 1;
 }
 
 .tag-remove:hover,
 .filter-chip button:hover { color: #111827; }
 
-.tag-note { font-size: 0.85rem; }
-.tag-placeholder { font-size: 0.95rem; }
+.tag-note { font-size: var(--font-size-xs); }
+.tag-placeholder { font-size: var(--font-size-sm); }
 .tag-input { max-width: 340px; }
 
 .project-editor-actions {
@@ -153,7 +153,7 @@
 }
 .filter-input {
   max-width: 280px;
-  font-size: 0.875rem;
+  font-size: var(--font-size-xs);
   padding: 5px 8px;
 }
 .filter-suggestions {
@@ -172,7 +172,7 @@
 .filter-suggestion {
   padding: 0.3rem 0.5rem;
   cursor: pointer;
-  font-size: 0.875rem;
+  font-size: var(--font-size-xs);
 }
 .filter-suggestion:hover,
 .filter-suggestion.active {
@@ -186,11 +186,11 @@
 }
 .assignee-row { justify-content: space-between; }
 .assignee-actions { margin-left: auto; display: flex; align-items: center; gap: 0.35rem; }
-.assignee-note { font-size: 0.95rem; }
-.assignee-chip { cursor: pointer; border: 1px solid var(--border-strong); background: linear-gradient(#ffffff, #f8fafc); font-size: 0.875rem; }
+.assignee-note { font-size: var(--font-size-sm); }
+.assignee-chip { cursor: pointer; border: 1px solid var(--border-strong); background: linear-gradient(#ffffff, #f8fafc); font-size: var(--font-size-xs); }
 .assignee-chip.active { background: #2563eb; color: #ffffff; border-color: #1d4ed8; }
 .filter-chips .small {
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
 }
 .form-grid {
   display: grid;
