@@ -133,6 +133,40 @@ class TestTaskAPI(unittest.TestCase):
         self.assertEqual(resp2.get("task", {}).get("id"), 2)
         self.assertTrue(resp2.get("task", {}).get("highlight"))
 
+    def test_list_tasks_with_invalid_enum_values(self):
+        """Tasks with invalid enum values are filtered out gracefully."""
+        # Task with invalid status/priority should be filtered out during list
+        store = _DummyStore(fetch_all_response=[
+            {"task_id": 0, "summary": "Bad", "assignee": "A", "remarks": "", "status": "???", "priority": "Low"},
+        ])
+        api = TaskAPI(store_factory=lambda: store)
+        payload, status = api.list_tasks("Alpha")
+        self.assertEqual(status, 200)
+        # Invalid tasks are filtered out
+        self.assertEqual(payload.get("tasks"), [])
+
+    def test_list_tasks_empty_project(self):
+        """Empty project returns empty task list."""
+        store = _DummyStore(fetch_all_response=[])
+        api = TaskAPI(store_factory=lambda: store)
+        payload, status = api.list_tasks("Alpha")
+        self.assertEqual(status, 200)
+        self.assertEqual(payload.get("project"), "Alpha")
+        self.assertEqual(payload.get("tasks"), [])
+
+    def test_list_tasks_valid_tasks_returned(self):
+        """Valid tasks are returned with proper structure."""
+        store = _DummyStore(fetch_all_response=[
+            {"task_id": 0, "summary": "S1", "assignee": "A1", "remarks": "R1", "status": "Not Started", "priority": "Low", "highlight": False},
+            {"task_id": 1, "summary": "S2", "assignee": "A2", "remarks": "R2", "status": "Completed", "priority": "High", "highlight": True},
+        ])
+        api = TaskAPI(store_factory=lambda: store)
+        payload, status = api.list_tasks("Alpha")
+        self.assertEqual(status, 200)
+        self.assertEqual(len(payload.get("tasks")), 2)
+        self.assertEqual(payload["tasks"][0]["summary"], "S1")
+        self.assertEqual(payload["tasks"][1]["summary"], "S2")
+
 
 if __name__ == "__main__":
     unittest.main()

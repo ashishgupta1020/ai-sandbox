@@ -44,20 +44,21 @@ from __future__ import annotations
 import argparse
 import atexit
 import contextlib
-import hashlib
+import importlib.resources as resources
 import json
 import logging
 import mimetypes
-import re
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Optional, Tuple
-from urllib.parse import parse_qs, unquote, urlparse
-import importlib.resources as resources
+from urllib.parse import urlparse
 
 from taskman.config import load_config
+
+from . import asset_manifest
+from . import route_handlers
 from .project_api import ProjectAPI
 from .task_api import TaskAPI
 from .todo import TodoAPI
@@ -72,36 +73,17 @@ except Exception:
     # Fallback for editable installs or unusual environments
     UI_DIR = (Path(__file__).resolve().parent.parent / "ui").resolve()
 atexit.register(_ui_stack.close)
+
 logger = logging.getLogger(__name__)
+
+# API instances (module-level singletons)
 _todo_api = TodoAPI()
 _project_api = ProjectAPI()
 _task_api = TaskAPI()
-# Long-cache static assets; HTML is kept no-store so it can be rewritten safely.
-_ASSET_CACHE_CONTROL = "public, max-age=31536000, immutable"
-_ASSET_EXTENSIONS = {".css", ".js"}
 
-
-def _build_asset_manifest(ui_dir: Path) -> Tuple[dict, dict]:
-    # Map original asset paths to hash-suffixed variants for cache-busting.
-    manifest = {}
-    reverse = {}
-    for path in ui_dir.rglob("*"):
-        if not path.is_file():
-            continue
-        if path.suffix not in _ASSET_EXTENSIONS:
-            continue
-        rel = PurePosixPath(path.relative_to(ui_dir))
-        digest = hashlib.sha256(path.read_bytes()).hexdigest()[:8]
-        hashed_name = f"{rel.stem}.{digest}{path.suffix}"
-        hashed_rel = str(rel.with_name(hashed_name))
-        original_rel = str(rel)
-        manifest[original_rel] = hashed_rel
-        reverse[hashed_rel] = original_rel
-    return manifest, reverse
-
-
+# Build asset manifest for cache-busting
 try:
-    _ASSET_MANIFEST, _HASHED_ASSET_MAP = _build_asset_manifest(UI_DIR)
+    _ASSET_MANIFEST, _HASHED_ASSET_MAP = asset_manifest.build_asset_manifest(UI_DIR)
 except Exception:
     _ASSET_MANIFEST = {}
     _HASHED_ASSET_MAP = {}
@@ -121,9 +103,15 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
 
     server_version = "taskman-server/0.1"
 
-    def log_request(self, code='-', size='-') -> None:  # noqa: D401, N802
+    def log_request(self, code="-", size="-") -> None:
         """Log an accepted request at debug level."""
-        self.log_message('"%s" %s %s', self.requestline, str(code), str(size), level="debug")
+        self.log_message(
+            '"%s" %s %s', self.requestline, str(code), str(size), level="debug"
+        )
+
+    def _log_warning(self, msg: str) -> None:
+        """Log a warning message (bound method for passing to handlers)."""
+        self.log_message(msg, level="warning")
 
     def _set_headers(
         self,
@@ -136,15 +124,8 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", cache_control)
         self.end_headers()
 
-    def _rewrite_html_assets(self, html: str) -> str:
-        # Replace asset URLs with their hash-suffixed variants in HTML responses.
-        if not _ASSET_MANIFEST:
-            return html
-        for original, hashed in _ASSET_MANIFEST.items():
-            html = html.replace(f"/{original}", f"/{hashed}")
-        return html
-
     def _serve_file(self, file_path: Path, cache_control: str = "no-store") -> None:
+        """Serve a static file from disk."""
         if not file_path.exists() or not file_path.is_file():
             self._set_headers(404)
             self.wfile.write(b"<h1>404 Not Found</h1><p>File not found.</p>")
@@ -163,22 +144,25 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(b"<h1>500 Internal Server Error</h1>")
             return
 
+        # Rewrite HTML to use hashed asset URLs
         if content_type.startswith("text/html"):
-            # HTML is rewritten on the fly to point at hashed assets.
             text = data.decode("utf-8", errors="replace")
-            text = self._rewrite_html_assets(text)
+            text = asset_manifest.rewrite_html_assets(text, _ASSET_MANIFEST)
             data = text.encode("utf-8")
         if content_type.startswith("text/"):
             content_type = f"{content_type}; charset=utf-8"
+
         self._set_headers(200, content_type, cache_control)
         self.wfile.write(data)
 
     def _json(self, data: dict, status: int = 200) -> None:
+        """Send a JSON response."""
         payload = json.dumps(data).encode("utf-8")
         self._set_headers(status, "application/json; charset=utf-8")
         self.wfile.write(payload)
 
     def _read_json(self) -> Optional[dict]:
+        """Read and parse JSON from the request body."""
         try:
             length = int(self.headers.get("Content-Length", "0"))
         except ValueError:
@@ -192,114 +176,62 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
             return None
 
     def do_GET(self) -> None:  # noqa: N802 (match http.server signature)
+        """Handle GET requests."""
         parsed = urlparse(self.path)
         req_path = parsed.path
+
+        # Health check endpoint
         if req_path in ("/health", "/_health"):
-            payload = b"{\n  \"status\": \"ok\"\n}\n"
-            self._set_headers(200, "application/json; charset=utf-8")
-            self.wfile.write(payload)
-            return
+            payload, status = route_handlers.handle_health()
+            return self._json(payload, status)
 
-        # API endpoints (read-only)
+        # Simple API endpoints (no path parameters)
         if req_path == "/api/projects":
-            payload, status = _project_api.list_projects()
+            payload, status = route_handlers.handle_list_projects(_project_api)
             return self._json(payload, status)
+
         if req_path == "/api/project-tags":
-            payload, status = _project_api.list_project_tags()
+            payload, status = route_handlers.handle_project_tags(_project_api)
             return self._json(payload, status)
+
         if req_path == "/api/assignees":
-            try:
-                projects = _project_api.list_project_names()
-                assignees = {}
-                for name in projects:
-                    payload, status = _task_api.list_tasks(name)
-                    if status != 200:
-                        continue
-                    for t in payload.get("tasks", []):
-                        assignee = (t.get("assignee", "") or "").strip()
-                        if assignee:
-                            key = assignee.lower()
-                            if key not in assignees:
-                                assignees[key] = assignee
-                # Sort case-insensitively for predictable UI ordering
-                return self._json({"assignees": sorted(assignees.values(), key=lambda s: s.lower())})
-            except Exception as e:
-                return self._json({"error": f"Failed to fetch assignees: {e}"}, 500)
+            payload, status = route_handlers.handle_assignees(_project_api, _task_api)
+            return self._json(payload, status)
+
         if req_path == "/api/tasks":
-            qs = parse_qs(parsed.query or "")
-            raw_assignees = qs.get("assignee", [])
-            wanted = {a.strip().lower() for a in raw_assignees if a and a.strip()}
-            try:
-                projects = _project_api.list_project_names()
-                tasks = []
-                for name in projects:
-                    payload, status = _task_api.list_tasks(name)
-                    if status != 200:
-                        continue
-                    for t in payload.get("tasks", []):
-                        assignee = (t.get("assignee", "") or "").strip()
-                        if wanted and assignee.lower() not in wanted:
-                            continue
-                        tasks.append(
-                            {
-                                "project": name,
-                                "id": t.get("id"),
-                                "summary": t.get("summary", ""),
-                                "assignee": assignee,
-                                "status": t.get("status", ""),
-                                "priority": t.get("priority", ""),
-                            }
-                        )
-                return self._json({"tasks": tasks})
-            except Exception as e:
-                return self._json({"error": f"Failed to fetch tasks: {e}"}, 500)
+            payload, status = route_handlers.handle_tasks_list(
+                _project_api, _task_api, parsed.query or ""
+            )
+            return self._json(payload, status)
+
         if req_path == "/api/highlights":
-            highlights = []
-            try:
-                projects = _project_api.list_project_names()
-                for name in projects:
-                    payload, status = _task_api.list_tasks(name)
-                    if status != 200:
-                        continue
-                    for t in payload.get("tasks", []):
-                        if t.get("highlight"):
-                            highlights.append(
-                                {
-                                    "project": name,
-                                    "id": t.get("id"),
-                                    "summary": t.get("summary", ""),
-                                    "assignee": t.get("assignee", "") or "",
-                                    "status": t.get("status", ""),
-                                    "priority": t.get("priority", ""),
-                                }
-                            )
-            except Exception as e:
-                return self._json({"error": f"Failed to fetch highlights: {e}"}, 500)
-            return self._json({"highlights": highlights})
-        
-        # TODO APIs
+            payload, status = route_handlers.handle_highlights(_project_api, _task_api)
+            return self._json(payload, status)
+
+        # TODO API endpoints
         if req_path == "/api/todo":
-            resp, status = _todo_api.list_todos()
-            return self._json(resp, status)
+            payload, status = route_handlers.handle_todo_list(_todo_api)
+            return self._json(payload, status)
+
         if req_path == "/api/todo/archive":
-            resp, status = _todo_api.list_archived_todos()
-            return self._json(resp, status)
-
-        # Project tasks for a given project name
-        m_tasks = re.match(r"^/api/projects/([^/]+)/tasks$", req_path)
-        if m_tasks:
-            name = unquote(m_tasks.group(1))
-            log_fn = lambda msg: self.log_message(msg, level="warning")
-            payload, status = _task_api.list_tasks(name, log_warning=log_fn)
+            payload, status = route_handlers.handle_todo_archive(_todo_api)
             return self._json(payload, status)
 
-        # Project tags
-        m_tags = re.match(r"^/api/projects/([^/]+)/tags$", req_path)
-        if m_tags:
-            name = unquote(m_tags.group(1))
-            payload, status = _project_api.get_project_tags(name)
-            return self._json(payload, status)
+        # Pattern-matched GET routes (with path parameters)
+        for pattern, handler_key in route_handlers.GET_ROUTE_PATTERNS:
+            match = pattern.match(req_path)
+            if match:
+                project_name = match.group(1)
+                if handler_key == "project_tasks":
+                    payload, status = route_handlers.handle_project_tasks(
+                        _project_api, _task_api, project_name, self._log_warning
+                    )
+                    return self._json(payload, status)
+                elif handler_key == "project_tags":
+                    payload, status = route_handlers.handle_get_project_tags(_project_api, project_name)
+                    return self._json(payload, status)
 
+        # Static file serving
         # Default document
         if req_path in ("", "/"):
             target = UI_DIR / "index.html"
@@ -307,18 +239,20 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
 
         # Any other page
         clean = req_path.lstrip("/")
-        # Prevent directory traversal
+
+        # Prevent directory traversal - return 404 for consistency with unmatched routes
         if ".." in clean or clean.startswith(".") or clean.endswith("/"):
-            self._set_headers(400)
-            self.wfile.write(b"<h1>400 Bad Request</h1>")
+            self._set_headers(404)
+            self.wfile.write(b"<h1>404 Not Found</h1>")
             return
 
+        # Serve hashed assets with long-term caching headers
         if clean in _HASHED_ASSET_MAP:
-            # Serve hashed assets with long-term caching headers.
             target = (UI_DIR / _HASHED_ASSET_MAP[clean]).resolve()
-            return self._serve_file(target, cache_control=_ASSET_CACHE_CONTROL)
+            return self._serve_file(target, cache_control=asset_manifest.ASSET_CACHE_CONTROL)
 
         target = (UI_DIR / clean).resolve()
+
         # Ensure the resolved path is within UI_DIR
         ui_root = UI_DIR
         try:
@@ -331,152 +265,99 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
         self._serve_file(target)
 
     def do_POST(self) -> None:  # noqa: N802
-        # API endpoints (mutations)
+        """Handle POST requests."""
         parsed = urlparse(self.path)
         path = parsed.path
+
+        # Simple POST endpoints (no path parameters)
         if path == "/api/projects/open":
             body = self._read_json()
-            resp, status = _project_api.open_project(body.get("name") if body is not None else None)
-            return self._json(resp, status)
+            payload, status = route_handlers.handle_open_project(_project_api, body)
+            return self._json(payload, status)
 
         if path == "/api/projects/edit-name":
             body = self._read_json()
-            if body is None:
-                return self._json({"error": "Invalid JSON"}, 400)
-            resp, status = _project_api.edit_project_name(body.get("old_name"), body.get("new_name"))
-            return self._json(resp, status)
+            payload, status = route_handlers.handle_edit_project_name(_project_api, body)
+            return self._json(payload, status)
 
         if path == "/api/projects/delete":
             body = self._read_json()
-            if body is None:
-                return self._json({"error": "Invalid JSON"}, 400)
-            resp, status = _project_api.delete_project(body.get("name"))
-            return self._json(resp, status)
+            payload, status = route_handlers.handle_delete_project(_project_api, body)
+            return self._json(payload, status)
 
-        # Update a single task in a project: POST /api/projects/<name>/tasks/update
-        m_update = re.match(r"^/api/projects/(.+)/tasks/update$", path)
-        if m_update:
-            name = unquote(m_update.group(1))
-            if not name or ".." in name or name.startswith(".") or "/" in name:
-                # Drain any body to keep connection healthy
-                _ = self._read_json()
-                return self._json({"error": "Invalid project name"}, 400)
-            body = self._read_json()
-            if body is None:
-                return self._json({"error": "Invalid JSON"}, 400)
-            if not isinstance(body, dict):
-                return self._json({"error": "Invalid payload"}, 400)
-            resp, status = _task_api.update_task(name, body)
-            return self._json(resp, status)
-
-        # Add tags to a project: POST /api/projects/<name>/tags/add
-        m_tags_add = re.match(r"^/api/projects/(.+)/tags/add$", path)
-        if m_tags_add:
-            name = unquote(m_tags_add.group(1))
-            body = self._read_json()
-            if body is None or not isinstance(body, dict):
-                return self._json({"error": "Invalid payload"}, 400)
-            resp, status = _project_api.add_project_tags(name, body.get("tags"))
-            return self._json(resp, status)
-
-        # Remove a single tag: POST /api/projects/<name>/tags/remove
-        m_tags_remove = re.match(r"^/api/projects/(.+)/tags/remove$", path)
-        if m_tags_remove:
-            name = unquote(m_tags_remove.group(1))
-            body = self._read_json()
-            if body is None or not isinstance(body, dict):
-                return self._json({"error": "Invalid payload"}, 400)
-            resp, status = _project_api.remove_project_tag(name, body.get("tag"))
-            return self._json(resp, status)
-
-        # Highlight or un-highlight a task: POST /api/projects/<name>/tasks/highlight
-        m_highlight = re.match(r"^/api/projects/(.+)/tasks/highlight$", path)
-        if m_highlight:
-            name = unquote(m_highlight.group(1))
-            if not name or ".." in name or name.startswith(".") or "/" in name:
-                _ = self._read_json()
-                return self._json({"error": "Invalid project name"}, 400)
-            body = self._read_json()
-            if body is None or not isinstance(body, dict):
-                return self._json({"error": "Invalid payload"}, 400)
-            highlight_val = body.get("highlight")
-            if not isinstance(highlight_val, bool):
-                return self._json({"error": "Invalid highlight"}, 400)
-            try:
-                resp, status = _task_api.update_task(
-                    name, {"id": body.get("id"), "fields": {"highlight": highlight_val}}
-                )
-                return self._json(resp, status)
-            except Exception as e:
-                return self._json({"error": f"Failed to update highlight: {e}"}, 500)
-
-        # Create a new task in a project: POST /api/projects/<name>/tasks/create
-        m_create = re.match(r"^/api/projects/(.+)/tasks/create$", path)
-        if m_create:
-            name = unquote(m_create.group(1))
-            if not name or ".." in name or name.startswith(".") or "/" in name:
-                _ = self._read_json()  # drain
-                return self._json({"error": "Invalid project name"}, 400)
-            body = self._read_json()
-            if body is None:
-                # treat invalid JSON as empty object
-                body = {}
-            try:
-                resp, status = _task_api.create_task(name, body)
-                return self._json(resp, status)
-            except Exception as e:
-                return self._json({"error": f"Failed to create task: {e}"}, 500)
-
-        # Delete a task in a project: POST /api/projects/<name>/tasks/delete
-        m_delete = re.match(r"^/api/projects/(.+)/tasks/delete$", path)
-        if m_delete:
-            name = unquote(m_delete.group(1))
-            if not name or ".." in name or name.startswith(".") or "/" in name:
-                _ = self._read_json()  # drain
-                return self._json({"error": "Invalid project name"}, 400)
-            body = self._read_json()
-            try:
-                resp, status = _task_api.delete_task(name, body)
-                return self._json(resp, status)
-            except Exception as e:
-                return self._json({"error": f"Failed to delete task: {e}"}, 500)
-
-        # Todo APIs
+        # TODO API endpoints
         if path == "/api/todo/add":
             body = self._read_json()
-            resp, status = _todo_api.add_todo(body if body is not None else {})
-            return self._json(resp, status)
+            payload, status = route_handlers.handle_todo_add(_todo_api, body)
+            return self._json(payload, status)
+
         if path == "/api/todo/mark":
             body = self._read_json()
-            resp, status = _todo_api.mark_done(body if body is not None else {})
-            return self._json(resp, status)
+            payload, status = route_handlers.handle_todo_mark(_todo_api, body)
+            return self._json(payload, status)
+
         if path == "/api/todo/edit":
             body = self._read_json()
-            resp, status = _todo_api.edit_todo(body if body is not None else {})
-            return self._json(resp, status)
+            payload, status = route_handlers.handle_todo_edit(_todo_api, body)
+            return self._json(payload, status)
 
+        # Graceful shutdown endpoint
         if path == "/api/exit":
-            # Respond then shutdown the server gracefully
             self._json({"ok": True, "message": "Shutting down"})
             try:
                 self.wfile.flush()
             except Exception:
                 pass
+
             def _shutdown():
-                # small delay to ensure response is flushed
+                # Small delay to ensure response is flushed
                 try:
                     time.sleep(0.15)
                     self.server.shutdown()
                 except Exception:
                     pass
+
             threading.Thread(target=_shutdown, daemon=True).start()
             return
 
-        # Unknown mutation
+        # Pattern-matched POST routes (with path parameters)
+        for pattern, handler_key in route_handlers.POST_ROUTE_PATTERNS:
+            match = pattern.match(path)
+            if match:
+                project_name = match.group(1)
+                body = self._read_json()
+
+                if handler_key == "task_update":
+                    payload, status = route_handlers.handle_update_task(_task_api, project_name, body)
+                    return self._json(payload, status)
+                elif handler_key == "tags_add":
+                    payload, status = route_handlers.handle_add_project_tags(
+                        _project_api, project_name, body
+                    )
+                    return self._json(payload, status)
+                elif handler_key == "tags_remove":
+                    payload, status = route_handlers.handle_remove_project_tag(
+                        _project_api, project_name, body
+                    )
+                    return self._json(payload, status)
+                elif handler_key == "task_highlight":
+                    payload, status = route_handlers.handle_highlight_task(
+                        _task_api, project_name, body
+                    )
+                    return self._json(payload, status)
+                elif handler_key == "task_create":
+                    payload, status = route_handlers.handle_create_task(_task_api, project_name, body)
+                    return self._json(payload, status)
+                elif handler_key == "task_delete":
+                    payload, status = route_handlers.handle_delete_task(_task_api, project_name, body)
+                    return self._json(payload, status)
+
+        # Unknown endpoint - consume the request body before responding
+        self._read_json()
         self._json({"error": "Unknown endpoint"}, 404)
 
-    # Suppress default noisy logging to stderr; keep it minimal
     def log_message(self, format: str, *args, level: str = "info") -> None:  # noqa: A003 (shadow builtins)
+        """Log a message via the module logger."""
         # Consistent one-liner format via logger; keeps signature compatible with BaseHTTPRequestHandler
         try:
             message = (format % args) if args else str(format)
