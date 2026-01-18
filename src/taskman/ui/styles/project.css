@@ -1,4 +1,44 @@
 /* Projects and tags */
+.project-nav {
+  margin-bottom: 0.6rem;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  text-decoration: none;
+  color: var(--text);
+  border: 1px solid var(--border);
+  background: linear-gradient(#ffffff, #f7f9fb);
+  border-radius: 999px;
+  padding: 0.35rem 0.8rem;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease, transform 0.05s ease;
+}
+
+.back-link:hover {
+  border-color: var(--border-hover);
+  background: #eef2f7;
+}
+
+.back-link:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(107, 161, 239, 0.25);
+}
+
+.back-link:active {
+  transform: translateY(1px);
+}
+
+.back-link .icon {
+  width: 0.95rem;
+  height: 0.95rem;
+  display: block;
+}
+
 .project-list {
   display: grid;
   gap: 0.55rem;
