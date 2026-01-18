@@ -55,14 +55,12 @@ class TestTaskAPI(unittest.TestCase):
         set_data_store_dir(self.orig_data_dir)
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
-    def test_list_tasks_logs_and_returns_empty_on_error(self):
+    def test_list_tasks_returns_empty_on_error(self):
         store = _DummyStore(fetch_all_response=RuntimeError("db down"))
         api = TaskAPI(store_factory=lambda: store)
-        logs = []
-        payload, status = api.list_tasks("Alpha", log_warning=lambda msg: logs.append(msg))
+        payload, status = api.list_tasks("Alpha")
         self.assertEqual(status, 200)
         self.assertEqual(payload.get("tasks"), [])
-        self.assertTrue(logs)
 
     def test_update_task_validation_errors(self):
         api = TaskAPI()

@@ -12,7 +12,7 @@ def _parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     parser.add_argument(
         "--config",
         required=True,
-        help="Path to JSON config containing DATA_STORE_PATH",
+        help="Path to JSON config containing DATA_STORE_PATH (and optional LOG_LEVEL)",
     )
     return parser.parse_args(argv)
 

@@ -1,3 +1,4 @@
 {
-  "DATA_STORE_PATH": "~/taskman/data"
+  "DATA_STORE_PATH": "~/taskman/data",
+  "LOG_LEVEL": "INFO"
 }

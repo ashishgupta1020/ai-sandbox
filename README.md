@@ -36,9 +36,11 @@ Hosting model: the UI server is intended to be centrally hosted in a shared envi
 - Create a JSON config file and pass it to both commands:
   ```json
   {
-    "DATA_STORE_PATH": "/absolute/path/to/taskman/data"
+    "DATA_STORE_PATH": "/absolute/path/to/taskman/data",
+    "LOG_LEVEL": "INFO"
   }
   ```
+- Optional: set `LOG_LEVEL` to `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`, or a numeric level.
 - Run the UI: `taskman-ui --config /path/to/config.json`
 - Run the CLI: `taskman-cli --config /path/to/config.json`
 

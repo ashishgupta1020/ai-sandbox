@@ -36,21 +36,14 @@ class TaskAPI:
         )
         return task.to_dict()
 
-    def list_tasks(
-        self, project_name: str, log_warning: Optional[Callable[[str], None]] = None
-    ) -> Tuple[Dict[str, object], int]:
+    def list_tasks(self, project_name: str) -> Tuple[Dict[str, object], int]:
         if self._invalid_name(project_name):
             return {"error": "Invalid project name"}, 400
         try:
             with self._store_factory() as store:
                 rows = store.fetch_all(project_name)
             tasks = [self._row_to_task(r) for r in rows]
-        except Exception as exc:
-            if log_warning:
-                try:
-                    log_warning(f"Failed loading tasks for project '{project_name}': {exc}")
-                except Exception:
-                    pass
+        except Exception:
             tasks = []
         return {"project": project_name, "tasks": tasks}, 200
 

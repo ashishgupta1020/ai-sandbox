@@ -1,17 +1,26 @@
 import json
+import logging
 import tempfile
 import unittest
 from pathlib import Path
 
-from taskman.config import load_config, get_data_store_dir, set_data_store_dir
+from taskman.config import (
+    get_data_store_dir,
+    get_log_level,
+    load_config,
+    set_data_store_dir,
+    set_log_level,
+)
 
 
 class TestConfig(unittest.TestCase):
     def setUp(self):
         self.orig_dir = get_data_store_dir()
+        self.orig_level = get_log_level()
 
     def tearDown(self):
         set_data_store_dir(self.orig_dir)
+        set_log_level(self.orig_level)
 
     def test_load_config_missing_path_uses_default(self):
         # Should resolve and create the default directory
@@ -42,6 +51,39 @@ class TestConfig(unittest.TestCase):
                 load_config(tmp_path)
         finally:
             Path(tmp_path).unlink(missing_ok=True)
+
+    def test_load_config_sets_log_level_string(self):
+        with tempfile.TemporaryDirectory() as data_dir:
+            with tempfile.NamedTemporaryFile("w", delete=False) as tmp:
+                json.dump({"DATA_STORE_PATH": data_dir, "LOG_LEVEL": "DEBUG"}, tmp)
+                tmp_path = tmp.name
+            try:
+                load_config(tmp_path)
+                self.assertEqual(logging.DEBUG, get_log_level())
+            finally:
+                Path(tmp_path).unlink(missing_ok=True)
+
+    def test_load_config_sets_log_level_numeric_string(self):
+        with tempfile.TemporaryDirectory() as data_dir:
+            with tempfile.NamedTemporaryFile("w", delete=False) as tmp:
+                json.dump({"DATA_STORE_PATH": data_dir, "LOG_LEVEL": "15"}, tmp)
+                tmp_path = tmp.name
+            try:
+                load_config(tmp_path)
+                self.assertEqual(15, get_log_level())
+            finally:
+                Path(tmp_path).unlink(missing_ok=True)
+
+    def test_load_config_invalid_log_level_defaults(self):
+        with tempfile.TemporaryDirectory() as data_dir:
+            with tempfile.NamedTemporaryFile("w", delete=False) as tmp:
+                json.dump({"DATA_STORE_PATH": data_dir, "LOG_LEVEL": "VERBOSE"}, tmp)
+                tmp_path = tmp.name
+            try:
+                load_config(tmp_path)
+                self.assertEqual(logging.INFO, get_log_level())
+            finally:
+                Path(tmp_path).unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

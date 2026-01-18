@@ -18,8 +18,6 @@ from .todo import TodoAPI
 
 # Type aliases for clarity
 JsonResponse = Tuple[Dict[str, Any], int]
-LogWarningFn = Callable[[str], None]
-
 
 def is_valid_project_name(name: Optional[str]) -> bool:
     """
@@ -201,13 +199,12 @@ def handle_project_tasks(
     project_api: ProjectAPI,
     task_api: TaskAPI,
     project_name: str,
-    log_warning: Optional[LogWarningFn] = None,
 ) -> JsonResponse:
     """Handle GET /api/projects/<name>/tasks - list tasks for a project."""
     name = unquote(project_name)
     if not is_valid_project_name(name):
         return {"error": "Invalid project name"}, 400
-    return task_api.list_tasks(name, log_warning=log_warning)
+    return task_api.list_tasks(name)
 
 
 def handle_get_project_tags(project_api: ProjectAPI, project_name: str) -> JsonResponse:

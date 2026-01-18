@@ -19,9 +19,11 @@ Hosting model
 - Create a JSON config file:
   ```json
   {
-    "DATA_STORE_PATH": "/absolute/path/to/taskman/data"
+    "DATA_STORE_PATH": "/absolute/path/to/taskman/data",
+    "LOG_LEVEL": "INFO"
   }
   ```
+- Optional: set `LOG_LEVEL` to `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`, or a numeric level.
 - Pass it to both commands: `taskman-ui --config /path/to/config.json` and `taskman-cli --config /path/to/config.json`.
 
 ## UI

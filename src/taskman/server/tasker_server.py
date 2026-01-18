@@ -55,7 +55,7 @@ from pathlib import Path
 from typing import Optional, Tuple
 from urllib.parse import urlparse
 
-from taskman.config import load_config
+from taskman.config import get_log_level, load_config
 
 from . import asset_manifest
 from . import route_handlers
@@ -108,10 +108,6 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
         self.log_message(
             '"%s" %s %s', self.requestline, str(code), str(size), level="debug"
         )
-
-    def _log_warning(self, msg: str) -> None:
-        """Log a warning message (bound method for passing to handlers)."""
-        self.log_message(msg, level="warning")
 
     def _set_headers(
         self,
@@ -224,7 +220,7 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
                 project_name = match.group(1)
                 if handler_key == "project_tasks":
                     payload, status = route_handlers.handle_project_tasks(
-                        _project_api, _task_api, project_name, self._log_warning
+                        _project_api, _task_api, project_name
                     )
                     return self._json(payload, status)
                 elif handler_key == "project_tags":
@@ -358,18 +354,32 @@ class _UIRequestHandler(BaseHTTPRequestHandler):
 
     def log_message(self, format: str, *args, level: str = "info") -> None:  # noqa: A003 (shadow builtins)
         """Log a message via the module logger."""
-        # Consistent one-liner format via logger; keeps signature compatible with BaseHTTPRequestHandler
-        try:
-            message = (format % args) if args else str(format)
-        except Exception:
-            message = str(format)
-        line = f"[UI] {self.address_string()} - {self.requestline}"
-        if message:
-            line += f" - {message}"
-        lvl = (level or "info").lower()
-        if lvl == "warn":
-            lvl = "warning"
-        getattr(logger, lvl, logger.info)(line)
+        message = format % args if args else str(format)
+        prefix = f"[UI] {self.address_string()} - {self.requestline}"
+        line = f"{prefix} - {message}" if message else prefix
+        level_name = (level or "info").lower()
+        if level_name == "warn":
+            level_name = "warning"
+        log_fn = getattr(logger, level_name, logger.info)
+        log_fn(line)
+
+
+def _configure_logging(level: Optional[int] = None) -> None:
+    """Attach a basic console handler unless one is already configured."""
+    if level is None:
+        level = logging.INFO
+
+    handler = next(
+        (h for h in logger.handlers if getattr(h, "name", "") == "taskman-console"), None
+    )
+    if handler is None:
+        handler = logging.StreamHandler()
+        handler.name = "taskman-console"
+        handler.setFormatter(logging.Formatter("%(message)s"))
+        logger.addHandler(handler)
+
+    handler.setLevel(level)
+    logger.setLevel(level)
 
 
 def start_server(host: str = "0.0.0.0", port: int = 8765) -> None:
@@ -399,18 +409,12 @@ def main() -> None:
     parser.add_argument(
         "--config",
         required=True,
-        help="Path to JSON config containing DATA_STORE_PATH",
+        help="Path to JSON config containing DATA_STORE_PATH (and optional LOG_LEVEL)",
     )
     args = parser.parse_args()
 
-    # Configure a simple console handler if none are present so info logs show up
-    if not logger.handlers:
-        handler = logging.StreamHandler()
-        # Let the logger's level control emission; don't filter here
-        handler.setLevel(logging.NOTSET)
-        handler.setFormatter(logging.Formatter("%(message)s"))
-        logger.addHandler(handler)
-    logger.setLevel(logging.INFO)
+    # default logging during startup
+    _configure_logging()
 
     try:
         load_config(args.config)
@@ -418,6 +422,7 @@ def main() -> None:
         logger.error("Failed to load config: %s", exc)
         return
 
+    _configure_logging(get_log_level())
     start_server()
 
 
