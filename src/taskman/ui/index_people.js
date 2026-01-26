@@ -2,8 +2,8 @@
 /** Initialize the People view for the index page. */
 (function () {
   const Taskman = window.Taskman = window.Taskman || {};
-  const { el, renderTable, gridAvailable } = Taskman.utils;
-  const { makeTaskLinkFormatter } = Taskman.links;
+  const { el, renderTable } = Taskman.utils;
+  const grid = Taskman.grid || {};
   const api = Taskman.api;
 
   let availableAssignees = [];
@@ -119,13 +119,15 @@
       const gridRows = filtered.map((t) => [t.assignee || '', t.project || '', t.summary || '', t.status || '', t.priority || '', t.id]);
       const tableRows = filtered.map((t) => [t.assignee || '', t.project || '', t.summary || '', t.status || '', t.priority || '']);
       const emptyMessage = selectedAssignees.length ? 'No tasks for selected assignees yet.' : 'Select at least one assignee to see tasks.';
-      if (!gridAvailable()) {
+      if (!grid.available || !grid.available()) {
+        if (peopleGrid && typeof peopleGrid.destroy === 'function') peopleGrid.destroy();
+        peopleGrid = null;
         const table = renderTable(peopleColumns, tableRows, emptyMessage);
         box.replaceChildren(table);
         return;
       }
       const gridConfig = {
-        columns: [...peopleColumns, { name: '', sort: false, formatter: makeTaskLinkFormatter(1, 2, 5) }],
+        columns: [...peopleColumns, { id: 'task_link', name: '', sort: false, formatter: grid.makeTaskLinkFormatter(1, 2, 5) }],
         data: gridRows,
         sort: true,
         search: true,
@@ -133,22 +135,9 @@
         style: { table: { tableLayout: 'auto' } },
         language: { noRecordsFound: emptyMessage }
       };
-      // Keep container height stable to avoid layout jump on refresh.
-      const prevHeight = peopleGrid ? box.offsetHeight : 0;
-      if (prevHeight > 0) box.style.minHeight = `${prevHeight}px`;
-      if (peopleGrid && gridRows.length === 0) {
-        // Grid.js does not show noRecordsFound after updateConfig when data goes empty.
-        if (typeof peopleGrid.destroy === 'function') peopleGrid.destroy();
-        peopleGrid = null;
-      }
-      if (peopleGrid) {
-        peopleGrid.updateConfig(gridConfig).forceRender(box);
-      } else {
-        peopleGrid = new gridjs.Grid(gridConfig);
-        box.replaceChildren();
-        peopleGrid.render(box);
-      }
-      if (prevHeight > 0) setTimeout(() => { box.style.minHeight = ''; }, 0);
+      peopleGrid = grid.renderGrid
+        ? grid.renderGrid(box, peopleGrid, gridConfig, { resetOnEmpty: true, preserveHeight: true })
+        : peopleGrid;
 
     } catch (e) {
       document.getElementById('people').textContent = `Error: ${e.message}`;

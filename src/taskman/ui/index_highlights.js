@@ -2,9 +2,10 @@
 /** Initialize highlights rendering for the index page. */
 (function () {
   const Taskman = window.Taskman = window.Taskman || {};
-  const { el, renderTable, gridAvailable } = Taskman.utils;
-  const { makeTaskLinkFormatter } = Taskman.links;
+  const { renderTable } = Taskman.utils;
+  const grid = Taskman.grid || {};
   const api = Taskman.api;
+  let highlightsGrid = null;
 
   /** Fetch highlights and render the highlights table. */
   async function refreshHighlights() {
@@ -14,9 +15,13 @@
       const items = Array.isArray(data.highlights) ? data.highlights : [];
       if (items.length === 0) {
         box.textContent = 'No highlights yet.';
+        if (highlightsGrid && typeof highlightsGrid.destroy === 'function') highlightsGrid.destroy();
+        highlightsGrid = null;
         return;
       }
-      if (!gridAvailable()) {
+      if (!grid.available || !grid.available()) {
+        if (highlightsGrid && typeof highlightsGrid.destroy === 'function') highlightsGrid.destroy();
+        highlightsGrid = null;
         const rows = items.map((h) => [
           h.project || '',
           h.summary || '',
@@ -36,16 +41,15 @@
         h.priority || '',
         h.id
       ]));
-      const grid = new gridjs.Grid({
-        columns: ['Project', 'Summary', 'Assignee', 'Status', 'Priority', { name: '', sort: false, formatter: makeTaskLinkFormatter(0, 1, 5) }],
+      const gridConfig = {
+        columns: ['Project', 'Summary', 'Assignee', 'Status', 'Priority', { id: 'task_link', name: '', sort: false, formatter: grid.makeTaskLinkFormatter(0, 1, 5) }],
         data: rows,
         sort: true,
         search: true,
         pagination: { limit: 10 },
         style: { table: { tableLayout: 'auto' } }
-      });
-      box.replaceChildren();
-      grid.render(box);
+      };
+      highlightsGrid = grid.renderGrid ? grid.renderGrid(box, highlightsGrid, gridConfig, { preserveHeight: true }) : highlightsGrid;
     } catch (e) {
       document.getElementById('highlights').textContent = `Error: ${e.message}`;
     }
